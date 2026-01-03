@@ -1,0 +1,66 @@
+@{
+    ViewData["Title"] = "WebAmp";
+}
+
+<section class="wa-page">
+    <div class="glass-surface glass-surface--fallback wa-shell" role="region" aria-label="WebAmp player">
+        <div class="glass-surface__content wa-shell-content">
+            <header class="wa-header">
+                <div class="wa-title">
+                    <span class="wa-title-main">WebAmp</span>
+                    <span class="wa-title-subtitle">Modern web player with classic Winamp skins</span>
+                </div>
+                <div class="wa-header-meta">
+                    <span class="wa-header-pill">Preview</span>
+                </div>
+            </header>
+
+            <div class="wa-layout">
+                <!-- Desktop: left side is library + mini player; Mobile: fullscreen now playing -->
+                <div class="wa-column wa-column--primary">
+                    <div id="wa-nowplaying" class="wa-nowplaying" aria-label="Now playing view">
+                        <!-- TS will enhance this into a Winamp-inspired fullscreen/mobile experience -->
+                        <div class="wa-nowplaying-placeholder">
+                            <p class="wa-nowplaying-title">Now Playing</p>
+                            <p class="wa-nowplaying-copy">
+                                WebAmp will connect to Spotify or Apple Music and render a Winamp-style
+                                skin here, including classic visual elements, color themes, and layout.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wa-column wa-column--secondary">
+                    <div id="wa-mini-player" class="wa-mini-player" aria-label="Mini player">
+                        <div class="wa-mini-placeholder">
+                            <p class="wa-mini-title">Desktop Mini Player</p>
+                            <p class="wa-mini-copy">
+                                On desktop, this area will host a compact Winamp-inspired mini player
+                                that mirrors the currently playing track.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="wa-theme-panel" aria-label="Theme management">
+                        <h2 class="wa-theme-heading">Winamp themes</h2>
+                        <p class="wa-theme-copy">
+                            Upload classic Winamp skin packs and preview them live. The theme engine
+                            will drive both the fullscreen now playing view and the desktop mini player.
+                        </p>
+                        <button class="wa-theme-upload-btn" type="button" disabled>
+                            Upload Winamp skin (coming soon)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/apps/webamp/css/apps/webamp.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/apps/webamp/dist/js/webamp.js" type="module" asp-append-version="true"></script>
+}

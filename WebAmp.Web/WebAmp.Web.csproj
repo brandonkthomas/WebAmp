@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+
+    <!-- Serve module static assets under /apps/webamp/* when referenced by a host app -->
+    <StaticWebAssetBasePath>apps/webamp</StaticWebAssetBasePath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- Build client JS from TS (do not commit generated JS) -->
+  <Target Name="BuildWebAmpClient" BeforeTargets="Build">
+    <PropertyGroup>
+      <_WebAmpClientTs>$(MSBuildProjectDirectory)/wwwroot/ts/webamp.ts</_WebAmpClientTs>
+      <_WebAmpOutDir>$(MSBuildProjectDirectory)/wwwroot/dist/js</_WebAmpOutDir>
+      <_WebAmpOutFile>$(_WebAmpOutDir)/webamp.js</_WebAmpOutFile>
+      <_EsbuildCli>$(MSBuildProjectDirectory)/../../../node_modules/esbuild/bin/esbuild</_EsbuildCli>
+    </PropertyGroup>
+
+    <MakeDir Directories="$(_WebAmpOutDir)" />
+
+    <Exec
+      Condition="Exists('$(_WebAmpClientTs)')"
+      Command="&quot;$(_EsbuildCli)&quot; &quot;$(_WebAmpClientTs)&quot; --bundle --format=esm --outfile=&quot;$(_WebAmpOutFile)&quot; --log-level=warning" />
+  </Target>
+
+</Project>
