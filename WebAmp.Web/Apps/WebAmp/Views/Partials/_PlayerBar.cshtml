@@ -1,0 +1,39 @@
+<section class="wa-playerbar" data-wa-playerbar role="region" aria-label="Player controls">
+    <div class="wa-playerbar__inner">
+        <div class="wa-playerbar__media">
+            <div class="wa-playerbar__art" aria-hidden="true">
+                <img class="wa-playerbar__art-img" data-wa-player-art alt="" />
+            </div>
+            <div class="wa-playerbar__meta">
+                <div class="wa-playerbar__title" data-wa-player-title>Nothing playing</div>
+                <div class="wa-playerbar__artist" data-wa-player-artist>—</div>
+            </div>
+        </div>
+
+        <div class="wa-playerbar__controls" aria-label="Playback controls">
+            <button type="button" class="wa-playerbar__btn wa-playerbar__btn--prev" data-wa-player-prev aria-label="Previous track">
+                <span aria-hidden="true">⏮</span>
+            </button>
+            <button type="button" class="wa-playerbar__btn wa-playerbar__btn--play" data-wa-player-toggle aria-label="Play/Pause">
+                <span data-wa-player-toggle-icon aria-hidden="true">▶</span>
+            </button>
+            <button type="button" class="wa-playerbar__btn wa-playerbar__btn--next" data-wa-player-next aria-label="Next track">
+                <span aria-hidden="true">⏭</span>
+            </button>
+        </div>
+
+        <div class="wa-playerbar__scrub" aria-label="Seek">
+            <span class="wa-playerbar__time" data-wa-player-time-current>0:00</span>
+            <input
+                class="wa-playerbar__range"
+                data-wa-player-scrubber
+                type="range"
+                min="0"
+                max="100"
+                step="0.1"
+                value="0"
+                aria-label="Scrubber" />
+            <span class="wa-playerbar__time" data-wa-player-time-duration>0:00</span>
+        </div>
+    </div>
+</section>
