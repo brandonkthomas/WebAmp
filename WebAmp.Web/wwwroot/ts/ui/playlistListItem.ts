@@ -1,4 +1,4 @@
-import { escapeHtml } from './common';
+import { escapeHtml } from '../utils';
 
 /**
  * Playlist list item view model

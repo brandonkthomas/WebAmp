@@ -1,5 +1,5 @@
 import type { Track } from '../state/playerStore';
-import { shuffleCopy } from './shuffle';
+import { shuffleCopy } from '../utils';
 
 const LS_KEY = 'wa_shuffle_enabled';
 

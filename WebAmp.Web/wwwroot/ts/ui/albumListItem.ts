@@ -1,4 +1,4 @@
-import { escapeHtml } from './common';
+import { escapeHtml } from '../utils';
 
 export interface AlbumListItemModel {
     id: string;

@@ -1,5 +1,5 @@
 import type { Track } from '../state/playerStore';
-import { escapeHtml } from './common';
+import { escapeHtml } from '../utils';
 
 /**
  * Creates a clickable track row button
