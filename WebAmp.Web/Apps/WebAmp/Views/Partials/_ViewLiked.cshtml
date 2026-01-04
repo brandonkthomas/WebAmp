@@ -1,0 +1,21 @@
+<section class="wa-view wa-view--liked" data-wa-view="liked" aria-label="Liked Songs">
+    <div class="wa-view__header">
+        <h1 class="wa-h1">Liked Songs</h1>
+        <p class="wa-lede">Your saved tracks.</p>
+        <div class="wa-view__actions" data-wa-queue-actions style="display:none">
+            <label class="wa-switch" aria-label="Shuffle">
+                <input type="checkbox" data-wa-action="shuffle-toggle" />
+                <span class="wa-switch__track" aria-hidden="true"></span>
+                <span class="wa-switch__label">Shuffle</span>
+            </label>
+            <button type="button" class="wa-btn wa-btn--primary" data-wa-action="queue-play" aria-label="Play">
+                ▶ Play
+            </button>
+        </div>
+    </div>
+
+    <div class="wa-card wa-card--glass">
+        <div class="wa-copy" data-wa-liked-status></div>
+        <div class="wa-list" data-wa-liked aria-label="Liked songs"></div>
+    </div>
+</section>

@@ -1,7 +1,7 @@
 <section class="wa-view wa-view--home" data-wa-view="home" aria-label="Home">
     <div class="wa-view__header">
         <h1 class="wa-h1">Home</h1>
-        <p class="wa-lede">Your library shortcuts and recents (scaffold).</p>
+        <p class="wa-lede">Quick access to your library.</p>
     </div>
 
     <div class="wa-grid wa-grid--3">
@@ -17,6 +17,19 @@
             <h3 class="wa-h3">Artists</h3>
             <p class="wa-copy">Browse artists.</p>
         </a>
+    </div>
+
+    <div class="wa-grid wa-grid--2">
+        <div class="wa-card wa-card--glass">
+            <h2 class="wa-h2">Your Playlists</h2>
+            <div class="wa-copy" data-wa-playlists-status></div>
+            <div class="wa-list" data-wa-playlists aria-label="Your playlists"></div>
+        </div>
+        <div class="wa-card wa-card--glass">
+            <h2 class="wa-h2">Liked Songs</h2>
+            <div class="wa-copy" data-wa-liked-status></div>
+            <div class="wa-list" data-wa-liked aria-label="Liked songs"></div>
+        </div>
     </div>
 
     <div class="wa-card wa-card--glass">

@@ -12,16 +12,39 @@
         </div>
 
         <nav class="wa-sidenav" aria-label="Library">
-            <a class="wa-sidenav__link" href="/webamp/home" data-wa-nav="home">Home</a>
-            <a class="wa-sidenav__link" href="/webamp/playlists" data-wa-nav="playlist">Playlists</a>
-            <a class="wa-sidenav__link" href="/webamp/albums" data-wa-nav="album">Albums</a>
-            <a class="wa-sidenav__link" href="/webamp/artists" data-wa-nav="artist">Artists</a>
+            <a class="wa-sidenav__link" href="/webamp/home" data-wa-nav="home">
+                <img class="wa-sidenav__icon" src="~/apps/webamp/assets/svg/home-filled.svg" asp-append-version="true" alt="" aria-hidden="true" />
+                <span class="wa-sidenav__label">Home</span>
+            </a>
+            <a class="wa-sidenav__link" href="/webamp/search" data-wa-nav="search">
+                <img class="wa-sidenav__icon" src="~/apps/webamp/assets/svg/search-filled.svg" asp-append-version="true" alt="" aria-hidden="true" />
+                <span class="wa-sidenav__label">Search</span>
+            </a>
+            <a class="wa-sidenav__link" href="/webamp/liked" data-wa-nav="liked">
+                <img class="wa-sidenav__icon" src="~/apps/webamp/assets/svg/heart-filled.svg" asp-append-version="true" alt="" aria-hidden="true" />
+                <span class="wa-sidenav__label">Liked Songs</span>
+            </a>
+            <a class="wa-sidenav__link" href="/webamp/playlists" data-wa-nav="playlist">
+                <img class="wa-sidenav__icon" src="~/apps/webamp/assets/svg/playlist-filled.svg" asp-append-version="true" alt="" aria-hidden="true" />
+                <span class="wa-sidenav__label">Playlists</span>
+            </a>
+            <a class="wa-sidenav__link" href="/webamp/albums" data-wa-nav="album">
+                <img class="wa-sidenav__icon" src="~/apps/webamp/assets/svg/album-filled.svg" asp-append-version="true" alt="" aria-hidden="true" />
+                <span class="wa-sidenav__label">Albums</span>
+            </a>
+            <a class="wa-sidenav__link" href="/webamp/artists" data-wa-nav="artist">
+                <img class="wa-sidenav__icon" src="~/apps/webamp/assets/svg/person-filled.svg" asp-append-version="true" alt="" aria-hidden="true" />
+                <span class="wa-sidenav__label">Artists</span>
+            </a>
         </nav>
 
         <div class="wa-sidebar__footer">
             <div class="wa-sidebar__status" data-wa-auth-status>
                 Not connected
             </div>
+            <button type="button" class="wa-btn wa-btn--subtle" data-wa-action="spotify-disconnect">
+                Disconnect
+            </button>
         </div>
     </div>
 </aside>

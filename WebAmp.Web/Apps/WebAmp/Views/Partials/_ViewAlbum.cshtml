@@ -1,28 +1,39 @@
-<section class="wa-view wa-view--album" data-wa-view="album" aria-label="Album">
+<section class="wa-view wa-view--album" data-wa-view="album" aria-label="Albums">
     <div class="wa-view__header">
-        <h1 class="wa-h1">Album</h1>
-        <p class="wa-lede">
-            Viewing: <span data-wa-entity-id>(none)</span>
-        </p>
+        <h1 class="wa-h1">Albums</h1>
+        <div class="wa-view__actions" data-wa-queue-actions style="display:none">
+            <label class="wa-switch" aria-label="Shuffle">
+                <input type="checkbox" data-wa-action="shuffle-toggle" />
+                <span class="wa-switch__track" aria-hidden="true"></span>
+                <span class="wa-switch__label">Shuffle</span>
+            </label>
+            <button type="button" class="wa-btn wa-btn--primary" data-wa-action="queue-play" aria-label="Play">
+                ▶ Play
+            </button>
+        </div>
     </div>
 
-    <div class="wa-grid wa-grid--2">
-        <div class="wa-card wa-card--glass">
-            <h2 class="wa-h2">Details</h2>
-            <p class="wa-copy">Album metadata scaffold.</p>
+        <div class="wa-card wa-card--glass" data-wa-albums-card>
+        <h2 class="wa-h2">Saved Albums</h2>
+        <div class="wa-copy" data-wa-albums-status></div>
+        <div class="wa-list" data-wa-albums-list aria-label="Your saved albums"></div>
         </div>
-        <div class="wa-card wa-card--glass">
-            <h2 class="wa-h2">Tracks</h2>
-            <div class="wa-list" aria-label="Album tracks">
-                <button type="button" class="wa-listitem" data-wa-track="1">
-                    <span class="wa-listitem__title">Track 1</span>
-                    <span class="wa-listitem__meta">3:12</span>
-                </button>
-                <button type="button" class="wa-listitem" data-wa-track="2">
-                    <span class="wa-listitem__title">Track 2</span>
-                    <span class="wa-listitem__meta">2:58</span>
-                </button>
+
+    <div class="wa-card wa-card--glass" data-wa-album-detail style="display:none">
+        <div class="wa-entityheader">
+            <div class="wa-entityheader__art">
+                <img data-wa-album-img class="wa-entityheader__img" alt="" />
+            </div>
+            <div class="wa-entityheader__text">
+                <h2 class="wa-entityheader__title" data-wa-album-title>Album</h2>
+                <div class="wa-entityheader__meta" data-wa-album-meta></div>
             </div>
         </div>
+    </div>
+
+    <div class="wa-card wa-card--glass" data-wa-album-tracks-card style="display:none">
+            <h2 class="wa-h2">Tracks</h2>
+        <div class="wa-copy" data-wa-album-tracks-status></div>
+        <div class="wa-list" data-wa-album-tracks aria-label="Album tracks"></div>
     </div>
 </section>
