@@ -1,6 +1,9 @@
 import type { PlayerState } from '../../state/playerStore';
 import type { PlayerStore } from '../../state/playerStore';
 
+/**
+ * Formats seconds as `m:ss`
+ */
 function formatTime(seconds: number): string {
     const s = Math.max(0, Math.floor(seconds));
     const m = Math.floor(s / 60);
@@ -8,6 +11,9 @@ function formatTime(seconds: number): string {
     return `${m}:${String(r).padStart(2, '0')}`;
 }
 
+/**
+ * Player UI controller bound to a `PlayerStore`
+ */
 export class PlayerBar {
     private readonly root: HTMLElement;
     private readonly store: PlayerStore;
@@ -23,6 +29,7 @@ export class PlayerBar {
     private timeCurrentEl: HTMLElement | null;
     private timeDurationEl: HTMLElement | null;
     private scrubber: HTMLInputElement | null;
+    private lastArtUrl: string | null = null;
 
     constructor(opts: { root: HTMLElement; store: PlayerStore }) {
         this.root = opts.root;
@@ -43,6 +50,9 @@ export class PlayerBar {
         this.bind();
     }
 
+    /**
+     * Binds DOM event handlers and subscribes to store updates
+     */
     private bind() {
         this.btnPrev?.addEventListener('click', () => this.store.prev());
         this.btnNext?.addEventListener('click', () => this.store.next());
@@ -59,6 +69,9 @@ export class PlayerBar {
         this.unsubscribe = this.store.subscribe((state) => this.render(state));
     }
 
+    /**
+     * Unsubscribes from store updates
+     */
     destroy() {
         this.unsubscribe?.();
         this.unsubscribe = null;
@@ -69,7 +82,7 @@ export class PlayerBar {
         const duration = track?.durationSec ?? 0;
         const position = state.positionSec;
 
-        if (this.titleEl) this.titleEl.textContent = track?.title ?? 'Nothing playing';
+        if (this.titleEl) this.titleEl.textContent = track?.title ?? 'Not Playing';
         if (this.artistEl) this.artistEl.textContent = track?.artist ?? '—';
 
         if (this.toggleIconEl) {
@@ -85,10 +98,13 @@ export class PlayerBar {
         }
 
         if (this.artImg) {
-            if (track?.artUrl) {
-                this.artImg.src = track.artUrl;
+            const nextUrl = track?.artUrl ?? null;
+            if (nextUrl && nextUrl !== this.lastArtUrl) {
+                this.lastArtUrl = nextUrl;
+                this.artImg.src = nextUrl;
                 this.artImg.style.display = 'block';
-            } else {
+            } else if (!nextUrl) {
+                this.lastArtUrl = null;
                 this.artImg.removeAttribute('src');
                 this.artImg.style.display = 'none';
             }

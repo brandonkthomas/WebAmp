@@ -20,7 +20,7 @@ export const landingView: WebAmpViewController = {
         const syncUi = () => {
             const connected = musicSource?.getState().isConnected ?? false;
             if (continueBtn) continueBtn.disabled = !connected;
-            setStatus(connected ? `${musicSource?.displayName ?? 'Spotify'} connected (stub)` : 'Not connected');
+            setStatus(connected ? `${musicSource?.displayName ?? 'Spotify'} connected` : 'Not connected');
         };
 
         // Initial status
@@ -29,7 +29,7 @@ export const landingView: WebAmpViewController = {
         unsubscribeFromSource?.();
         unsubscribeFromSource = musicSource?.onChange(() => syncUi()) ?? null;
 
-        connectBtn.addEventListener('click', async () => {
+        connectBtn.addEventListener('click', () => {
             if (!musicSource) {
                 setStatus('Spotify source not configured');
                 return;
@@ -38,8 +38,8 @@ export const landingView: WebAmpViewController = {
             connectBtn.disabled = true;
             setStatus('Connecting…');
             try {
-                await musicSource.connect();
-                syncUi();
+                // OAuth flow will redirect the page; do not await.
+                void musicSource.connect();
             } finally {
                 connectBtn.disabled = false;
             }

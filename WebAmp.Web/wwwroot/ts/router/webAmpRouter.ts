@@ -2,10 +2,16 @@ import { matchWebAmpRoute, WEBAMP_ROOT } from './routes';
 import type { RouteMatch, ViewId } from './routes';
 import type { MusicSource } from '../sources/musicSource';
 
+/**
+ * Optional services injected into views
+ */
 export interface WebAmpServices {
     musicSource?: MusicSource;
 }
 
+/**
+ * Per-view mount context created by the router
+ */
 export interface WebAmpViewContext {
     viewId: ViewId;
     entityId?: string;
@@ -14,18 +20,27 @@ export interface WebAmpViewContext {
     services: WebAmpServices;
 }
 
+/**
+ * View controller contract used by `WebAmpRouter`
+ */
 export interface WebAmpViewController {
     id: ViewId;
     mount(ctx: WebAmpViewContext): void;
     unmount?(): void;
 }
 
+/**
+ * Router-owned DOM handles + template map
+ */
 export interface WebAmpRouterDom {
     appRoot: HTMLElement;
     viewHost: HTMLElement;
     templates: Record<ViewId, HTMLTemplateElement>;
 }
 
+/**
+ * Router configuration
+ */
 export interface WebAmpRouterOptions {
     root?: string;
     dom: WebAmpRouterDom;
@@ -33,12 +48,18 @@ export interface WebAmpRouterOptions {
     services?: WebAmpServices;
 }
 
+/**
+ * Finds closest HTMLElement that has the given attribute
+ */
 function closestAttrEl(start: Element | null, attr: string): HTMLElement | null {
     if (!start) return null;
     const el = start.closest(`[${attr}]`);
     return el instanceof HTMLElement ? el : null;
 }
 
+/**
+ * SPA-style router for WebAmp templates + controllers
+ */
 export class WebAmpRouter {
     private readonly root: string;
     private readonly dom: WebAmpRouterDom;
@@ -55,6 +76,9 @@ export class WebAmpRouter {
         this.services = opts.services ?? {};
     }
 
+    /**
+     * Starts initial render, click interception, and popstate handling
+     */
     start() {
         // Initial render (no push)
         this.syncToLocation(/* pushHistory */ false);
@@ -89,12 +113,18 @@ export class WebAmpRouter {
         });
     }
 
+    /**
+     * Navigates within the WebAmp app and renders the matched view
+     */
     navigate(path: string) {
         const match = this.resolveGuard(matchWebAmpRoute(path));
         history.pushState({ wa: true, path: match.canonicalPath }, '', match.canonicalPath);
         this.render(match);
     }
 
+    /**
+     * Renders current location, optionally pushing history
+     */
     private syncToLocation(pushHistory: boolean) {
         const match = this.resolveGuard(matchWebAmpRoute(window.location.pathname));
         if (pushHistory) {
@@ -105,6 +135,9 @@ export class WebAmpRouter {
         this.render(match);
     }
 
+    /**
+     * Mounts a view from its template and calls controller lifecycle hooks
+     */
     private render(match: RouteMatch) {
         const controller = this.views[match.view];
         const template = this.dom.templates[match.view];
@@ -151,6 +184,9 @@ export class WebAmpRouter {
         this.dom.appRoot.scrollIntoView({ block: 'start' });
     }
 
+    /**
+     * Auth guard enforcing landing-only when not connected
+     */
     private resolveGuard(match: RouteMatch): RouteMatch {
         const musicSource = this.services.musicSource;
         const authed = musicSource?.getState().isConnected ?? false;
@@ -168,6 +204,9 @@ export class WebAmpRouter {
         return match;
     }
 
+    /**
+     * Updates app-level dataset and global header bits
+     */
     private updateAppChrome(match: RouteMatch) {
         const musicSource = this.services.musicSource;
         const authed = musicSource?.getState().isConnected ?? false;
@@ -178,6 +217,8 @@ export class WebAmpRouter {
         if (topbarTitle) {
             topbarTitle.textContent =
                 match.view === 'home' ? 'Home' :
+                match.view === 'search' ? 'Search' :
+                match.view === 'liked' ? 'Liked Songs' :
                 match.view === 'playlist' ? 'Playlists' :
                 match.view === 'album' ? 'Albums' :
                 match.view === 'artist' ? 'Artists' :
@@ -190,6 +231,9 @@ export class WebAmpRouter {
         }
     }
 
+    /**
+     * Sets `data-wa-active` on nav items matching the current view id
+     */
     private updateActiveNav(viewId: ViewId) {
         const links = Array.from(document.querySelectorAll<HTMLElement>('[data-wa-nav]'));
         for (const el of links) {
@@ -202,11 +246,16 @@ export class WebAmpRouter {
         }
     }
 
+    /**
+     * Updates `document.title` based on view + optional entity id
+     */
     private updateTitle(match: RouteMatch) {
         const base = 'WebAmp';
         const suffix =
             match.view === 'landing' ? 'Landing' :
             match.view === 'home' ? 'Home' :
+            match.view === 'search' ? 'Search' :
+            match.view === 'liked' ? 'Liked Songs' :
             match.view === 'playlist' ? 'Playlist' :
             match.view === 'album' ? 'Album' :
             match.view === 'artist' ? 'Artist' :

@@ -1,5 +1,8 @@
-export type ViewId = 'landing' | 'home' | 'playlist' | 'album' | 'artist';
+export type ViewId = 'landing' | 'home' | 'search' | 'liked' | 'playlist' | 'album' | 'artist';
 
+/**
+ * Result of matching a browser pathname into a view + optional entity id
+ */
 export interface RouteMatch {
     view: ViewId;
     entityId?: string;
@@ -8,6 +11,9 @@ export interface RouteMatch {
 
 export const WEBAMP_ROOT = '/webamp';
 
+/**
+ * Normalizes a path to always start with `/` and never end with `/` (unless root)
+ */
 function normalizePath(path: string): string {
     if (!path) return '/';
     const withLeading = path.startsWith('/') ? path : `/${path}`;
@@ -17,6 +23,9 @@ function normalizePath(path: string): string {
     return withLeading;
 }
 
+/**
+ * Removes the `/webamp` prefix and returns an inner path starting with `/`
+ */
 function stripWebAmpRoot(pathname: string): string {
     const p = normalizePath(pathname);
     if (p === WEBAMP_ROOT) return '/';
@@ -26,6 +35,9 @@ function stripWebAmpRoot(pathname: string): string {
     return '/';
 }
 
+/**
+ * Converts a full pathname into the corresponding view and canonical path
+ */
 export function matchWebAmpRoute(pathname: string): RouteMatch {
     const inner = stripWebAmpRoot(pathname);
     const cleaned = normalizePath(inner);
@@ -40,6 +52,14 @@ export function matchWebAmpRoute(pathname: string): RouteMatch {
 
     if (head === 'home') {
         return { view: 'home', canonicalPath: `${WEBAMP_ROOT}/home` };
+    }
+
+    if (head === 'search') {
+        return { view: 'search', canonicalPath: `${WEBAMP_ROOT}/search` };
+    }
+
+    if (head === 'liked') {
+        return { view: 'liked', canonicalPath: `${WEBAMP_ROOT}/liked` };
     }
 
     if (head === 'playlists') {

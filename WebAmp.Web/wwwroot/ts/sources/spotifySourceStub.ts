@@ -1,5 +1,8 @@
 import type { MusicSource, MusicSourceListener, MusicSourceState } from './musicSource';
 
+/**
+ * In-memory MusicSource stub for UI/dev flows without OAuth
+ */
 export class SpotifySourceStub implements MusicSource {
     id = 'spotify' as const;
     displayName = 'Spotify';
@@ -19,6 +22,9 @@ export class SpotifySourceStub implements MusicSource {
         };
     }
 
+    /**
+     * Simulates connect latency then flips `isConnected` true
+     */
     async connect(): Promise<void> {
         // UI-only stub: real OAuth/PKCE will be implemented later.
         await new Promise((r) => setTimeout(r, 250));
@@ -26,6 +32,9 @@ export class SpotifySourceStub implements MusicSource {
         this.emit();
     }
 
+    /**
+     * Flips `isConnected` false and emits
+     */
     async disconnect(): Promise<void> {
         this.state = { isConnected: false };
         this.emit();
