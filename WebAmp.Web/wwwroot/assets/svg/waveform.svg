@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    @keyframes wa-wave {
+      0% { transform: scaleY(1.00); }
+      50% { transform: scaleY(0.65); }
+      100% { transform: scaleY(1.00); }
+    }
+    .bar {
+      transform-origin: 50% 50%;
+      transform-box: fill-box;
+      animation: wa-wave 900ms ease-in-out infinite;
+    }
+    .b1 { animation-delay: 0ms; }
+    .b2 { animation-delay: 90ms; }
+    .b3 { animation-delay: 180ms; }
+    .b4 { animation-delay: 270ms; }
+    .b5 { animation-delay: 360ms; }
+  </style>
+
+  <rect class="bar b1" x="11" y="18" width="6" height="28" rx="3" fill="#000000" />
+  <rect class="bar b2" x="20" y="14" width="6" height="36" rx="3" fill="#000000" />
+  <rect class="bar b3" x="29" y="10" width="6" height="44" rx="3" fill="#000000" />
+  <rect class="bar b4" x="38" y="14" width="6" height="36" rx="3" fill="#000000" />
+  <rect class="bar b5" x="47" y="18" width="6" height="28" rx="3" fill="#000000" />
+</svg>
