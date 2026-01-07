@@ -27,9 +27,12 @@
 
     <MakeDir Directories="$(_WebAmpOutDir)" />
 
+    <PropertyGroup>
+      <_PortfolioTsPath Condition="'$(_PortfolioTsPath)' == ''">$(MSBuildProjectDirectory)/../../../Portfolio/wwwroot/ts</_PortfolioTsPath>
+    </PropertyGroup>
     <Exec
       Condition="Exists('$(_WebAmpClientTs)')"
-      Command="&quot;$(_EsbuildCli)&quot; &quot;$(_WebAmpClientTs)&quot; --bundle --format=esm --outfile=&quot;$(_WebAmpOutFile)&quot; --log-level=warning" />
+      Command="&quot;$(_EsbuildCli)&quot; &quot;$(_WebAmpClientTs)&quot; --bundle --format=esm --outfile=&quot;$(_WebAmpOutFile)&quot; --log-level=warning --resolve-extensions=.ts,.js" />
   </Target>
 
 </Project>

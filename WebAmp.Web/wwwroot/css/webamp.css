@@ -176,7 +176,7 @@ body[data-initial-state="ready"] .loading-overlay {
 }
 
 /* ============================================================================== */
-/* Glass surface (WebAmp version): keep it CLEAR with no tinted/gradient overlay.
+/* Glass surface (WebAmp version): keep it CLEAR with no tinted/gradient overlay
 /* ============================================================================== */
 .glass-surface {
     border-radius: var(--wa-radius-lg);
@@ -598,6 +598,11 @@ body[data-initial-state="ready"] .loading-overlay {
     padding: 0.95rem 1rem;
     margin: 0.65rem 0;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* Cards with lists need extra bottom padding to accommodate infinite scroll throbber */
+.wa-card:has(.wa-list) {
+    padding-bottom: 2rem;
 }
 
 .wa-grid .wa-card {
@@ -1294,3 +1299,8 @@ body[data-initial-state="ready"] .loading-overlay {
     grid-template-columns: minmax(0, 1fr);
     min-height: calc(100vh - 2.5rem);
 }
+
+/* ============================================================================== */
+/* Error dialog
+/* Uses Portfolio's UI kit dialog system (dialogs.css is included in _Layout.cshtml)
+/* ============================================================================== */

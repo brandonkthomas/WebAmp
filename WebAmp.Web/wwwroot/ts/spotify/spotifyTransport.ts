@@ -50,25 +50,35 @@ export class SpotifyTransport implements PlayerTransport {
      * Plays a specific track URI on this device at an optional position
      */
     async play(track: Track, positionSec: number = 0): Promise<void> {
-        await this.ensureReady();
-        await this.ensureActivated();
-        const deviceId = this.requireDevice();
-        const uri = track.uri;
-        if (!uri) throw new Error('Missing Spotify track URI');
-        await spotifyApi.playTrack(deviceId, uri, Math.max(0, Math.floor(positionSec * 1000)));
+        try {
+            await this.ensureReady();
+            await this.ensureActivated();
+            const deviceId = this.requireDevice();
+            const uri = track.uri;
+            if (!uri) throw new Error('Missing Spotify track URI');
+            await spotifyApi.playTrack(deviceId, uri, Math.max(0, Math.floor(positionSec * 1000)));
+        } catch (error) {
+            // Error dialog is already shown by jsonFetch, just rethrow
+            throw error;
+        }
     }
 
     /**
      * Toggles pause/resume based on current playing state
      */
     async togglePlay(isPlaying: boolean): Promise<void> {
-        await this.ensureReady();
-        await this.ensureActivated();
-        const deviceId = this.requireDevice();
-        if (isPlaying) {
-            await spotifyApi.pause(deviceId);
-        } else {
-            await spotifyApi.resume(deviceId);
+        try {
+            await this.ensureReady();
+            await this.ensureActivated();
+            const deviceId = this.requireDevice();
+            if (isPlaying) {
+                await spotifyApi.pause(deviceId);
+            } else {
+                await spotifyApi.resume(deviceId);
+            }
+        } catch (error) {
+            // Error dialog is already shown by jsonFetch, just rethrow
+            throw error;
         }
     }
 
@@ -76,9 +86,14 @@ export class SpotifyTransport implements PlayerTransport {
      * Seeks playback position (seconds) on this device
      */
     async seek(positionSec: number): Promise<void> {
-        await this.ensureReady();
-        await this.ensureActivated();
-        const deviceId = this.requireDevice();
-        await spotifyApi.seek(deviceId, Math.max(0, Math.floor(positionSec * 1000)));
+        try {
+            await this.ensureReady();
+            await this.ensureActivated();
+            const deviceId = this.requireDevice();
+            await spotifyApi.seek(deviceId, Math.max(0, Math.floor(positionSec * 1000)));
+        } catch (error) {
+            // Error dialog is already shown by jsonFetch, just rethrow
+            throw error;
+        }
     }
 }

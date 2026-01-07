@@ -36,14 +36,20 @@ export function attachInfiniteScroll(opts: {
             opts.renderSentinel(sentinel, state);
             return;
         }
-        // Default: show throbber while loading, otherwise hide.
+        // Default: show throbber while loading, otherwise keep sentinel visible but minimal for IntersectionObserver.
+        // Keep sentinel always visible (not display:none) so IntersectionObserver can detect it.
         if (state.isLoading) {
             sentinel.style.display = 'flex';
             sentinel.style.justifyContent = 'center';
             sentinel.style.padding = '0.75rem 0 0.25rem';
+            sentinel.style.minHeight = 'auto';
+            // Use Portfolio's throbber SVG (served from root /assets path)
             sentinel.innerHTML = `<img class="wa-throbber" src="/assets/svg/throbber-ring-indef.svg" alt="" />`;
         } else {
-            sentinel.style.display = 'none';
+            // Keep sentinel visible but minimal so IntersectionObserver can still detect it
+            sentinel.style.display = 'block';
+            sentinel.style.minHeight = '1px';
+            sentinel.style.padding = '0';
             sentinel.innerHTML = '';
         }
     };
@@ -55,8 +61,20 @@ export function attachInfiniteScroll(opts: {
             if (!entry?.isIntersecting) return;
             if (!opts.hasMore()) return;
             if (opts.isLoading()) return;
+            
+            // Start the load operation
+            const loadPromise = Promise.resolve(opts.loadMore());
+            
+            // Call render() immediately and again after a microtask to catch loading state changes
             render();
-            Promise.resolve(opts.loadMore()).finally(() => render());
+            queueMicrotask(() => {
+                render(); // Update after loadMore has had a chance to set loading = true
+            });
+            
+            // Update render after load completes
+            loadPromise.finally(() => {
+                requestAnimationFrame(() => render());
+            });
         },
         {
             root: opts.root ?? null,
