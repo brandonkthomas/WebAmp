@@ -176,25 +176,43 @@ body[data-initial-state="ready"] .loading-overlay {
 }
 
 /* ============================================================================== */
-/* Glass surface (WebAmp version): keep it CLEAR with no tinted/gradient overlay
+/* Glass surface overrides for WebAmp shell
+/* NOTE:
+/*   The generic glass surface component (layout, flex centering, fallbacks)
+/*   lives in the shared css/components/glassSurface.css. Here we only tweak
+/*   the full-page WebAmp shell container so that:
+/*     - It stays a simple block container (not flex-centered)
+/*     - It uses WebAmp-specific radius, background, and shadow tokens
 /* ============================================================================== */
-.glass-surface {
+.wa-shell.glass-surface {
     border-radius: var(--wa-radius-lg);
     /* border: 1px solid var(--wa-border); */
     background: transparent;
     box-shadow: var(--wa-shadow);
     position: relative;
     overflow: hidden;
+    display: block;
+}
+
+.wa-shell.glass-surface > .glass-surface__content {
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 1.1rem 1.1rem;
+    border-radius: inherit;
+    position: relative;
+    z-index: 1;
 }
 
 @supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
     /*
         IMPORTANT:
-        Do NOT apply backdrop-filter to .glass-surface directly; it can cause position:fixed children
-        (like the player bar) to become fixed-to-this-element instead of the viewport in some browsers.
-        Apply blur on a non-ancestor layer instead.
+        Do NOT apply backdrop-filter to the shell container itself; it can cause
+        position:fixed children (like the player bar) to become fixed-to-this-
+        element instead of the viewport in some browsers. Apply blur on a
+        non-ancestor layer instead.
     */
-    .glass-surface::before {
+    .wa-shell.glass-surface::before {
         content: '';
         position: absolute;
         inset: 0;
@@ -204,15 +222,6 @@ body[data-initial-state="ready"] .loading-overlay {
         -webkit-backdrop-filter: blur(10px) saturate(1.25);
         z-index: 0;
     }
-}
-
-.glass-surface__content {
-    width: 100%;
-    height: 100%;
-    padding: 1.1rem 1.1rem;
-    border-radius: inherit;
-    position: relative;
-    z-index: 1;
 }
 
 /* ============================================================================== */

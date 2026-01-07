@@ -13,19 +13,19 @@ export interface SpotifyStatus {
  */
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
     try {
-        const res = await fetch(url, {
-            credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
-            ...init
-        });
-        if (!res.ok) {
-            const text = await res.text().catch(() => '');
+    const res = await fetch(url, {
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+        ...init
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => '');
             const error = new Error(`Spotify API proxy error ${res.status}: ${text}`);
             // Show error dialog to user
             void showErrorDialog(formatErrorMessage(error), 'Music Service Error');
             throw error;
-        }
-        return (await res.json()) as T;
+    }
+    return (await res.json()) as T;
     } catch (error) {
         // If it's not already our formatted error, show a dialog
         if (!(error instanceof Error && error.message.includes('Spotify API proxy error'))) {

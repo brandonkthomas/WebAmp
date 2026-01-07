@@ -1,6 +1,7 @@
 import type { PlayerTransport, Track } from '../state/playerStore';
 import { spotifyApi } from './spotifyApi';
 import { ensureSpotifyPlayback } from './spotifyPlayback';
+import { showErrorDialog, formatErrorMessage } from '../ui/errorDialog';
 
 /**
  * PlayerTransport backed by Spotify Web Playback SDK + server proxy endpoints
@@ -58,7 +59,10 @@ export class SpotifyTransport implements PlayerTransport {
             if (!uri) throw new Error('Missing Spotify track URI');
             await spotifyApi.playTrack(deviceId, uri, Math.max(0, Math.floor(positionSec * 1000)));
         } catch (error) {
-            // Error dialog is already shown by jsonFetch, just rethrow
+            // For proxy errors, jsonFetch already showed a dialog; for anything else, surface a generic music error.
+            if (!(error instanceof Error && error.message.includes('Spotify API proxy error'))) {
+                void showErrorDialog(formatErrorMessage(error), 'Music Service Error');
+            }
             throw error;
         }
     }
@@ -77,7 +81,9 @@ export class SpotifyTransport implements PlayerTransport {
                 await spotifyApi.resume(deviceId);
             }
         } catch (error) {
-            // Error dialog is already shown by jsonFetch, just rethrow
+            if (!(error instanceof Error && error.message.includes('Spotify API proxy error'))) {
+                void showErrorDialog(formatErrorMessage(error), 'Music Service Error');
+            }
             throw error;
         }
     }
@@ -92,7 +98,9 @@ export class SpotifyTransport implements PlayerTransport {
             const deviceId = this.requireDevice();
             await spotifyApi.seek(deviceId, Math.max(0, Math.floor(positionSec * 1000)));
         } catch (error) {
-            // Error dialog is already shown by jsonFetch, just rethrow
+            if (!(error instanceof Error && error.message.includes('Spotify API proxy error'))) {
+                void showErrorDialog(formatErrorMessage(error), 'Music Service Error');
+            }
             throw error;
         }
     }
