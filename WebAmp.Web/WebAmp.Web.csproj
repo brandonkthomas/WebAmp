@@ -20,7 +20,9 @@
       <_WebAmpClientTs>$(MSBuildProjectDirectory)/wwwroot/ts/webamp.ts</_WebAmpClientTs>
       <_WebAmpOutDir>$(MSBuildProjectDirectory)/wwwroot/dist/js</_WebAmpOutDir>
       <_WebAmpOutFile>$(_WebAmpOutDir)/webamp.js</_WebAmpOutFile>
-      <_EsbuildCli>$(MSBuildProjectDirectory)/../../../node_modules/esbuild/bin/esbuild</_EsbuildCli>
+      <_EsbuildCli Condition="'$(EsbuildCli)' != ''">$(EsbuildCli)</_EsbuildCli>
+
+      <_EsbuildCli Condition="'$(_EsbuildCli)' == ''">$(MSBuildProjectDirectory)/../../../node_modules/esbuild/bin/esbuild</_EsbuildCli>
     </PropertyGroup>
 
     <MakeDir Directories="$(_WebAmpOutDir)" />
