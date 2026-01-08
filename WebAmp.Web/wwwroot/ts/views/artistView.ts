@@ -12,7 +12,7 @@ import { bindQueueActions } from '../ui/queueActions';
 export const artistView: WebAmpViewController = {
     id: 'artist',
     mount(ctx: WebAmpViewContext) {
-        const headerTitle = ctx.rootEl.querySelector<HTMLElement>('[data-wa-view-title]');
+        const headerTitle = document.querySelector<HTMLElement>('[data-wa-topbar-title]');
         const artistsCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artists-card]');
         const artistsList = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artists-list]');
         const artistsStatus = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artists-status]');

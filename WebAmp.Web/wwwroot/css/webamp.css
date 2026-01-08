@@ -216,10 +216,9 @@ body[data-initial-state="ready"] .loading-overlay {
     display: block;
     width: 100%;
     height: 100%;
-    padding: 1.1rem 1.1rem;
+    padding: 0 1.1rem 1.1rem;
     border-radius: inherit;
     position: relative;
-    z-index: 1;
 }
 
 @supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
@@ -238,7 +237,7 @@ body[data-initial-state="ready"] .loading-overlay {
         pointer-events: none;
         backdrop-filter: blur(10px) saturate(1.25);
         -webkit-backdrop-filter: blur(10px) saturate(1.25);
-        z-index: 0;
+        z-index: -1;
     }
 }
 
@@ -429,32 +428,86 @@ body[data-initial-state="ready"] .loading-overlay {
     color: rgba(255, 255, 255, 0.68);
 }
 
-/* Top bar (mobile burger lives here; desktop hides it) */
+/* Top bar: global header used on all breakpoints */
 .wa-topbar {
-    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9000; /* below sidebar/overlay (10000/10001), above content */
+    padding: 0.65rem 1.1rem;
+}
+
+.wa-topbar__inner {
+    display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.65rem;
-    padding: 0.2rem 0.15rem 0.4rem 0.15rem;
+    border-radius: var(--wa-radius-lg);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(10, 10, 14, 0.88);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+}
+
+@supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+    .wa-topbar__inner {
+        backdrop-filter: blur(16px) saturate(1.25);
+        -webkit-backdrop-filter: blur(16px) saturate(1.25);
+        /* background: rgba(10, 10, 14, 0.78); */
+        background: rgba(28, 28, 28, 0.75);
+    }
 }
 
 .wa-topbar__left {
     display: flex;
     align-items: center;
     gap: 0.4rem;
+    min-width: 0;
 }
 
-.wa-topbar__burger {
-    display: none;
+.wa-topbar__titleblock {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
 }
 
 .wa-topbar__title {
     font-weight: 600;
     letter-spacing: 0.02em;
     color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
+.wa-topbar__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.wa-topbar__history {
+    display: none;
+}
+
+.wa-topbar__burger,
 .wa-topbar__back {
     display: none;
+}
+
+.wa-topbar__play {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.wa-topbar__play-icon {
+    display: inline-block;
+}
+
+.wa-topbar__play-label {
+    display: inline-block;
 }
 
 /* Main view host */
@@ -486,6 +539,7 @@ body[data-initial-state="ready"] .loading-overlay {
     .wa-content {
         height: 100%;
         min-height: 0;
+        padding-top: 4rem; /* 3.5rem for the topbar + 0.5rem for the gap */
         overflow-y: auto;
         overscroll-behavior: contain;
     }
@@ -495,9 +549,43 @@ body[data-initial-state="ready"] .loading-overlay {
         padding-bottom: 1rem;
     }
 
+    /* Desktop: position the fixed top bar over the content column only */
+    .wa-topbar {
+        left: calc(1.1rem + 260px + 0.9rem); /* page padding + sidebar width + gap */
+        padding: 0.65rem 0rem;
+        right: 1.1rem;
+    }
+
+    .wa-topbar__inner {
+        margin-left: 0;
+        padding: 0.65rem 1rem;
+        box-shadow: 0px -20px 20px rgba(0, 0, 0, 0.9);
+    }
+
+    .wa-topbar__burger,
+    .wa-topbar__back {
+        display: none;
+    }
+
+    .wa-topbar__history {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .wa-breadcrumbs {
+        display: block;
+    }
+
+    /* On desktop, hide redundant title when breadcrumbs are present */
+    .wa-topbar__titleblock:has(.wa-breadcrumbs > *) .wa-topbar__title {
+        display: none;
+    }
+
     .wa-sidebar {
         height: 100%;
         max-height: 100%;
+        margin-top: 0.7rem;
         overflow: hidden;
     }
 
@@ -629,7 +717,21 @@ body[data-initial-state="ready"] .loading-overlay {
     padding: 0.2rem 0.55rem;
     line-height: 1;
     font-size: 0.85rem;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
 }
+
+    .wa-btn--icon img {
+        width: 1em;
+        height: 1em;
+        object-fit: contain;
+        display: inline-block;
+        vertical-align: middle;
+        max-width: 1.2rem;
+        max-height: 1.2rem;
+    }
 
 .wa-view__actions {
     position: absolute;
@@ -1261,28 +1363,26 @@ body[data-initial-state="ready"] .loading-overlay {
         min-height: auto;
     }
 
-    .wa-topbar {
-        display: flex;
-        position: sticky;
-        top: 0;
-        z-index: 5;
-        justify-content: space-between;
-    }
-
     .wa-content {
         overflow-x: hidden;
     }
 
-    .wa-topbar__burger {
-        display: inline-flex;
+    /* Reserve space under fixed top bar on mobile as well */
+    .wa-app {
+        padding-top: 3.5rem; /* match desktop top bar height + gap */
     }
 
+    .wa-topbar__burger,
     .wa-topbar__back {
         display: inline-flex;
     }
 
-    /* On small screens we rely on the top bar back button instead of the per-view header buttons. */
-    .wa-view__navbuttons {
+    .wa-topbar__inner {
+        margin-left: 0;
+        padding: 0.65rem 1.1rem;
+    }
+
+    .wa-topbar__history {
         display: none;
     }
 
@@ -1348,8 +1448,29 @@ body[data-initial-state="ready"] .loading-overlay {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .wa-view__actions {
-        top: -10px;
+    .wa-topbar {
+        padding-bottom: 0;
+    }
+
+    .wa-topbar__play {
+        /* Icon-style play button on mobile */
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .wa-topbar__play-label {
+        display: none;
+    }
+
+    /* On small screens we rely on the top bar back button instead of the per-view header buttons. */
+    .wa-view__navbuttons {
+        display: none;
     }
 
     .wa-entityheader {
@@ -1378,16 +1499,13 @@ body[data-initial-state="ready"] .loading-overlay {
         right: 0.75rem;
         bottom: 0.75rem;
         border-radius: 12px;
-        border-top: 1px solid rgba(255, 255, 255, 0.14);
-        border-left: 1px solid rgba(255, 255, 255, 0.14);
-        border-right: 1px solid rgba(255, 255, 255, 0.14);
-        /* Keep a glassy feel but hide underlying card borders at the very edge
-           by using a slightly more opaque rim. */
-        background:
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        /* background:
             radial-gradient(circle at center,
                 rgba(0, 0, 0, 0.35) 0%,
                 rgba(0, 0, 0, 0.55) 55%,
-                rgba(0, 0, 0, 0.85) 100%);
+                rgba(0, 0, 0, 0.85) 100%); */
+        background: rgba(28, 28, 28, 0.75);
         box-shadow: 0 15px 20px rgba(0, 0, 0, 0.4)
     }
 

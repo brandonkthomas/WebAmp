@@ -11,7 +11,7 @@ import { bindQueueActions } from '../ui/queueActions';
 export const albumView: WebAmpViewController = {
     id: 'album',
     mount(ctx: WebAmpViewContext) {
-        const headerTitle = ctx.rootEl.querySelector<HTMLElement>('[data-wa-view-title]');
+        const headerTitle = document.querySelector<HTMLElement>('[data-wa-topbar-title]');
         const albumsCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-albums-card]');
         const albumsList = ctx.rootEl.querySelector<HTMLElement>('[data-wa-albums-list]');
         const albumsStatus = ctx.rootEl.querySelector<HTMLElement>('[data-wa-albums-status]');

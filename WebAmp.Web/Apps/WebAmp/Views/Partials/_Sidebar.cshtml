@@ -39,11 +39,13 @@
         </nav>
 
         <div class="wa-sidebar__footer">
-            <div class="wa-sidebar__status" data-wa-auth-status>
-                Not connected
-            </div>
-            <button type="button" class="wa-btn wa-btn--subtle" data-wa-action="spotify-disconnect">
-                Disconnect
+            <button type="button" class="wa-btn wa-btn--icon" data-wa-action="spotify-disconnect" aria-label="Sign Out">
+                <span class="wa-sidebar__disconnect-icon" aria-hidden="true">
+                    <img src="~/apps/webamp/assets/svg/spotify.svg" asp-append-version="true" alt="" />
+                </span>
+                <span class="wa-sidebar__disconnect-label">
+                    Sign Out
+                </span>
             </button>
         </div>
     </div>

@@ -27,9 +27,12 @@ export function bindQueueActions(opts: {
     /** Optional: called when the queue order changes (e.g. shuffle play) */
     onQueueApplied?: (tracks: Track[]) => void;
 }): (() => void) & { refresh?: () => void } {
-    const actions = opts.root.querySelector<HTMLElement>('[data-wa-queue-actions]');
-    const shuffleInput = opts.root.querySelector<HTMLInputElement>('[data-wa-action="shuffle-toggle"]');
-    const playBtn = opts.root.querySelector<HTMLButtonElement>('[data-wa-action="queue-play"]');
+    // Queue actions live in the global top bar so that shuffle/play
+    // controls stay consistent across views. Views still pass `getTracks`
+    // for their own context.
+    const actions = document.querySelector<HTMLElement>('[data-wa-queue-actions]');
+    const shuffleInput = actions?.querySelector<HTMLInputElement>('[data-wa-action="shuffle-toggle"]');
+    const playBtn = actions?.querySelector<HTMLButtonElement>('[data-wa-action="queue-play"]');
 
     if (!actions || !shuffleInput || !playBtn) return () => {};
 

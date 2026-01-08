@@ -3,26 +3,57 @@
 }
 
 <section class="wa-app" data-wa-app>
+    <header class="wa-topbar" aria-label="WebAmp navigation">
+        <div class="wa-topbar__inner">
+            <div class="wa-topbar__left">
+                <button type="button" class="wa-iconbtn wa-topbar__burger" data-wa-sidebar-toggle aria-label="Open menu">
+                    <span aria-hidden="true">☰</span>
+                </button>
+
+                <div class="wa-topbar__history" aria-label="History navigation">
+                    <button type="button" class="wa-btn wa-btn--icon" data-wa-nav-back aria-label="Back">
+                        <span aria-hidden="true">←</span>
+                    </button>
+                    <button type="button" class="wa-btn wa-btn--icon" data-wa-nav-forward aria-label="Forward">
+                        <span aria-hidden="true">→</span>
+                    </button>
+                </div>
+
+                <button type="button" class="wa-iconbtn wa-topbar__back" data-wa-nav-back aria-label="Back">
+                    <span aria-hidden="true">←</span>
+                </button>
+
+                <div class="wa-topbar__titleblock">
+                    <div class="wa-topbar__title" aria-label="Current section">
+                        <span data-wa-topbar-title>WebAmp</span>
+                    </div>
+                    <p class="wa-lede wa-breadcrumbs" data-wa-breadcrumbs></p>
+                </div>
+            </div>
+
+            <div class="wa-topbar__actions" data-wa-queue-actions>
+                <label class="comp-toggle comp-toggle--topbar" aria-label="Shuffle">
+                    <input type="checkbox" class="comp-toggle-input" data-wa-action="shuffle-toggle" />
+                    <span class="comp-toggle-track comp-toggle-large" aria-hidden="true">
+                        <span class="comp-toggle-thumb">
+                            <img src="~/apps/webamp/assets/svg/shuffle-filled.svg" asp-append-version="true" alt="" aria-hidden="true" />
+                        </span>
+                    </span>
+                </label>
+                <button type="button" class="wa-btn wa-btn--icon wa-topbar__play" data-wa-action="queue-play" aria-label="Play">
+                    <span class="wa-topbar__play-icon" aria-hidden="true">▶</span>
+                    <span class="wa-topbar__play-label">Play</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
     <div class="glass-surface wa-shell" role="application" aria-label="WebAmp">
         <div class="glass-surface__content wa-shell__content">
             <div class="wa-layout" data-wa-layout>
                 @await Html.PartialAsync("~/Apps/WebAmp/Views/Partials/_Sidebar.cshtml")
 
                 <div class="wa-content">
-                    <header class="wa-topbar" aria-label="WebAmp top bar">
-                        <div class="wa-topbar__left">
-                            <button type="button" class="wa-iconbtn wa-topbar__burger" data-wa-sidebar-toggle aria-label="Open menu">
-                                <span aria-hidden="true">☰</span>
-                            </button>
-                            <div class="wa-topbar__title" aria-label="Current section">
-                                <span data-wa-topbar-title>WebAmp</span>
-                            </div>
-                        </div>
-                        <button type="button" class="wa-iconbtn wa-topbar__back" data-wa-nav-back aria-label="Back">
-                            <span aria-hidden="true">←</span>
-                        </button>
-                    </header>
-
                     <main class="wa-main" aria-label="WebAmp content">
                         <div class="wa-view-host" data-wa-view-host></div>
 

@@ -318,10 +318,10 @@ export class WebAmpRouter {
                 match.view === 'landing' ? 'WebAmp' : this.getViewLabel(match.view);
         }
 
-        const statusEl = document.querySelector<HTMLElement>('[data-wa-auth-status]');
-        if (statusEl) {
-            statusEl.textContent = authed ? `${musicSource?.displayName ?? 'Spotify'} connected` : 'Not connected';
-        }
+        // const statusEl = document.querySelector<HTMLElement>('[data-wa-auth-status]');
+        // if (statusEl) {
+        //     statusEl.textContent = authed ? `${musicSource?.displayName ?? 'Music Source'} Connected` : 'Not connected';
+        // }
     }
 
     /**
@@ -365,7 +365,7 @@ export class WebAmpRouter {
      * Renders breadcrumb trail above the view title when a breadcrumbs host is present
      */
     private updateBreadcrumbs(match: RouteMatch) {
-        const container = this.dom.viewHost.querySelector<HTMLElement>('[data-wa-breadcrumbs]');
+        const container = document.querySelector<HTMLElement>('[data-wa-breadcrumbs]');
         if (!container) return;
 
         const crumbs = this.customBreadcrumbs ?? this.buildBreadcrumbs(match);
