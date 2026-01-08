@@ -2,10 +2,12 @@
     <div class="wa-view__header">
         <h1 class="wa-h1">Playlists</h1>
         <div class="wa-view__actions" data-wa-queue-actions style="display:none">
-            <label class="wa-switch" aria-label="Shuffle">
-                <input type="checkbox" data-wa-action="shuffle-toggle" />
-                <span class="wa-switch__track" aria-hidden="true"></span>
-                <span class="wa-switch__label">Shuffle</span>
+            <label class="comp-toggle" aria-label="Shuffle">
+                <input type="checkbox" class="comp-toggle-input" data-wa-action="shuffle-toggle" />
+                <span class="comp-toggle-track" aria-hidden="true">
+                    <span class="comp-toggle-thumb"></span>
+                </span>
+                <span>Shuffle</span>
             </label>
             <button type="button" class="wa-btn wa-btn--primary" data-wa-action="queue-play" aria-label="Play">
                 ▶ Play

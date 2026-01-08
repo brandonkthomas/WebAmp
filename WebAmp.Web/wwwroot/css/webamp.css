@@ -539,54 +539,6 @@ body[data-initial-state="ready"] .loading-overlay {
     gap: 0.7rem;
 }
 
-/* Toggle switch */
-.wa-switch {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    user-select: none;
-    cursor: pointer;
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.78);
-}
-
-.wa-switch input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-}
-
-.wa-switch__track {
-    width: 42px;
-    height: 24px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(255, 255, 255, 0.08);
-    position: relative;
-    flex: 0 0 auto;
-}
-
-.wa-switch__track::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 4px;
-    width: 18px;
-    height: 18px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.86);
-    transform: translateY(-50%);
-    transition: transform 160ms ease;
-}
-
-.wa-switch input:checked + .wa-switch__track::after {
-    transform: translate(16px, -50%);
-}
-
-.wa-switch__label {
-    opacity: 0.92;
-}
-
 .wa-grid {
     display: grid;
     gap: 0.9rem;
@@ -638,6 +590,18 @@ body[data-initial-state="ready"] .loading-overlay {
 .wa-card--link:hover {
     transform: translateY(-1px);
     border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* List items share the same subtle hover lift as cards on pointer devices */
+@media (hover: hover) and (pointer: fine) {
+    .wa-listitem {
+        transition: transform 0.12s ease, border-color 0.12s ease;
+    }
+
+    .wa-listitem:hover {
+        transform: translateY(-1px);
+        border-color: rgba(255, 255, 255, 0.22);
+    }
 }
 
 /* Entity header (album/artist/playlist detail) */
@@ -1108,7 +1072,7 @@ body[data-initial-state="ready"] .loading-overlay {
     text-overflow: ellipsis;
 }
 
-/* Interactivity hints for metadata on larger screens (navigation targets) */
+/* Make the metadata feel interactive on larger screens (navigation targets) */
 @media (min-width: 821px) {
     .wa-playerbar__title.wa-playerbar__link,
     .wa-playerbar__artist.wa-playerbar__link {
