@@ -435,7 +435,7 @@ body[data-initial-state="ready"] .loading-overlay {
     left: 0;
     right: 0;
     z-index: 9000; /* below sidebar/overlay (10000/10001), above content */
-    padding: 0.65rem 1.1rem;
+    padding: 0.6rem 0.7rem;
 }
 
 .wa-topbar__inner {
@@ -446,7 +446,7 @@ body[data-initial-state="ready"] .loading-overlay {
     border-radius: var(--wa-radius-lg);
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(10, 10, 14, 0.88);
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+    box-shadow: 0px 0px 35px rgb(0 0 0 / 50%);
 }
 
 @supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
@@ -559,7 +559,7 @@ body[data-initial-state="ready"] .loading-overlay {
     .wa-topbar__inner {
         margin-left: 0;
         padding: 0.65rem 1rem;
-        box-shadow: 0px -20px 20px rgba(0, 0, 0, 0.9);
+        /* box-shadow: 0px -20px 20px rgba(0, 0, 0, 0.9); */
     }
 
     .wa-topbar__burger,
@@ -720,18 +720,24 @@ body[data-initial-state="ready"] .loading-overlay {
     overflow: hidden;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.35rem;
 }
 
-    .wa-btn--icon img {
-        width: 1em;
-        height: 1em;
-        object-fit: contain;
-        display: inline-block;
-        vertical-align: middle;
-        max-width: 1.2rem;
-        max-height: 1.2rem;
-    }
+.wa-btn--icon > * {
+    display: inline-flex;
+    align-items: center;
+}
+
+.wa-btn--icon img {
+    width: 1em;
+    height: 1em;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+    filter: invert(1);
+}
 
 .wa-view__actions {
     position: absolute;
@@ -766,7 +772,7 @@ body[data-initial-state="ready"] .loading-overlay {
 
 /* Cards with lists need extra bottom padding to accommodate infinite scroll throbber */
 .wa-card:has(.wa-list) {
-    padding-bottom: 2rem;
+    padding: 0.5rem 1rem 2rem 1rem;
 }
 
 .wa-grid .wa-card {
@@ -1364,6 +1370,7 @@ body[data-initial-state="ready"] .loading-overlay {
     }
 
     .wa-content {
+        padding-top: 1.25rem;
         overflow-x: hidden;
     }
 
