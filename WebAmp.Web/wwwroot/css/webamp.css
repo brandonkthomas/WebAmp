@@ -485,6 +485,30 @@ body[data-initial-state="ready"] .loading-overlay {
     min-height: 320px;
 }
 
+/* View mount wrapper: fade/scale/blur transitions (ripped from Portfolio homepage views) */
+.wa-view-mount {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0px);
+    transition:
+        opacity 0.33s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.33s cubic-bezier(0.4, 0, 0.2, 1),
+        filter 0.33s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wa-view-mount.wa-view-mount--initial {
+    opacity: 0;
+    transform: scale(0.96);
+    filter: blur(18px);
+}
+
+.wa-view-mount.wa-view-mount--enter {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0px);
+    transition-duration: 0.18s;
+}
+
 .wa-sidebar-overlay {
     display: none;
 }

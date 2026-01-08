@@ -161,6 +161,7 @@ export class WebAmpRouter {
         mountWrap.className = 'wa-view-mount';
         mountWrap.appendChild(template.content.cloneNode(true));
         this.dom.viewHost.appendChild(mountWrap);
+        this.animateViewMount(mountWrap);
 
         const viewRoot =
             mountWrap.querySelector<HTMLElement>(`[data-wa-view="${match.view}"]`) ?? mountWrap;
@@ -182,6 +183,23 @@ export class WebAmpRouter {
 
         // Keep navigation snappy: jump to top of content on route change.
         this.dom.appRoot.scrollIntoView({ block: 'start' });
+    }
+
+    /**
+     * Applies a scale/blur/opacity "enter" animation to the active view mount
+     * BT 2026-01-07: mirrored styling from Portfolio homepage views
+     */
+    private animateViewMount(el: HTMLElement) {
+        el.classList.add('wa-view-mount--initial');
+
+        requestAnimationFrame(() => {
+            el.classList.remove('wa-view-mount--initial');
+            el.classList.add('wa-view-mount--enter');
+
+            window.setTimeout(() => {
+                el.classList.remove('wa-view-mount--enter');
+            }, 220);
+        });
     }
 
     /**
