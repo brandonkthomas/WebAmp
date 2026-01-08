@@ -1,4 +1,5 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
+import { WEBAMP_ROOT } from '../router/routes';
 import { spotifyApi } from '../spotify/spotifyApi';
 import type { Track } from '../state/playerStore';
 import { renderListSkeleton } from '../ui/skeleton';
@@ -11,6 +12,7 @@ import { bindQueueActions } from '../ui/queueActions';
 export const artistView: WebAmpViewController = {
     id: 'artist',
     mount(ctx: WebAmpViewContext) {
+        const headerTitle = ctx.rootEl.querySelector<HTMLElement>('[data-wa-view-title]');
         const artistsCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artists-card]');
         const artistsList = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artists-list]');
         const artistsStatus = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artists-status]');
@@ -111,7 +113,8 @@ export const artistView: WebAmpViewController = {
                     if (detailImg) detailImg.removeAttribute('src');
                     try {
                         const a = await spotifyApi.artist(ctx.entityId!);
-                        if (detailName) detailName.textContent = a?.name ?? 'Artist';
+                        const artistName = a?.name ?? ctx.getViewLabel('artist');
+                        if (detailName) detailName.textContent = artistName;
                         const followers = a?.followers?.total;
                         const genres = Array.isArray(a?.genres) ? a.genres.slice(0, 3).join(' • ') : '';
                         const followersText = typeof followers === 'number' ? `${followers.toLocaleString()} followers` : '';
@@ -120,6 +123,16 @@ export const artistView: WebAmpViewController = {
                         const images = a?.images ?? [];
                         const artUrl = images?.[0]?.url ?? images?.[1]?.url ?? images?.[images.length - 1]?.url;
                         if (detailImg && artUrl) detailImg.src = artUrl;
+
+                        // Update main view title + breadcrumbs to use the artist name.
+                        if (headerTitle) headerTitle.textContent = artistName;
+                        const rootLabel = ctx.getViewLabel('artist');
+                        const rootPath = `${WEBAMP_ROOT}/artists`;
+                        const detailPath = `${WEBAMP_ROOT}/artists/${ctx.entityId}`;
+                        ctx.router.setBreadcrumbs([
+                            { label: rootLabel, path: rootPath },
+                            { label: artistName, path: detailPath }
+                        ]);
                     } catch {
                         // ignore artist detail errors; lists can still load
                     }

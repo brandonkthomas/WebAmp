@@ -1,6 +1,17 @@
 <section class="wa-view wa-view--album" data-wa-view="album" aria-label="Albums">
     <div class="wa-view__header">
-        <h1 class="wa-h1">Albums</h1>
+        <div class="wa-view__titlebar">
+            <div class="wa-view__navbuttons">
+                <button type="button" class="wa-btn wa-btn--icon" data-wa-nav-back aria-label="Back">
+                    <span aria-hidden="true">←</span>
+                </button>
+                <button type="button" class="wa-btn wa-btn--icon" data-wa-nav-forward aria-label="Forward">
+                    <span aria-hidden="true">→</span>
+                </button>
+            </div>
+            <p class="wa-lede wa-breadcrumbs" data-wa-breadcrumbs></p>
+        </div>
+        <h1 class="wa-h1 wa-sr-only" data-wa-view-title>Albums</h1>
         <div class="wa-view__actions" data-wa-queue-actions style="display:none">
             <label class="comp-toggle" aria-label="Shuffle">
                 <input type="checkbox" class="comp-toggle-input" data-wa-action="shuffle-toggle" />
@@ -10,7 +21,7 @@
                     </span>
                 </span>
             </label>
-            <button type="button" class="wa-btn wa-btn--primary" data-wa-action="queue-play" aria-label="Play">
+            <button type="button" class="wa-btn wa-btn--icon" data-wa-action="queue-play" aria-label="Play">
                 ▶ Play
             </button>
         </div>

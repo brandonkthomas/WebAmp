@@ -89,6 +89,10 @@ a {
     --wa-playerbar-height: 48px; /* was 74px */
 }
 
+.hidden {
+    display: none;
+}
+
 /* ============================================================================== */
 /* Loading splash (uses shared host markup: .loading-overlay)
 /* ============================================================================== */
@@ -198,7 +202,8 @@ body[data-initial-state="ready"] .loading-overlay {
 /*     - It uses WebAmp-specific radius, background, and shadow tokens
 /* ============================================================================== */
 .wa-shell.glass-surface {
-    border-radius: var(--wa-radius-lg);
+    /* border-radius: var(--wa-radius-lg); */
+    border-radius: 0;
     /* border: 1px solid var(--wa-border); */
     background: transparent;
     box-shadow: var(--wa-shadow);
@@ -432,6 +437,12 @@ body[data-initial-state="ready"] .loading-overlay {
     padding: 0.2rem 0.15rem 0.4rem 0.15rem;
 }
 
+.wa-topbar__left {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
 .wa-topbar__burger {
     display: none;
 }
@@ -440,6 +451,10 @@ body[data-initial-state="ready"] .loading-overlay {
     font-weight: 600;
     letter-spacing: 0.02em;
     color: rgba(255, 255, 255, 0.9);
+}
+
+.wa-topbar__back {
+    display: none;
 }
 
 /* Main view host */
@@ -556,6 +571,36 @@ body[data-initial-state="ready"] .loading-overlay {
     max-width: 70ch;
 }
 
+.wa-breadcrumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+    margin-bottom: 0.15rem;
+}
+
+.wa-breadcrumbs__item {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.wa-breadcrumbs__item--current {
+    cursor: default;
+    opacity: 0.9;
+}
+
+.wa-breadcrumbs__item--link:hover {
+    text-decoration: underline;
+}
+
+.wa-breadcrumbs__sep {
+    opacity: 0.6;
+}
+
 .wa-copy {
     margin: 0;
     color: rgba(255, 255, 255, 0.80);
@@ -567,9 +612,28 @@ body[data-initial-state="ready"] .loading-overlay {
     position: relative;
 }
 
+.wa-view__titlebar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.1rem;
+}
+
+.wa-view__navbuttons {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.wa-btn--icon {
+    padding: 0.2rem 0.55rem;
+    line-height: 1;
+    font-size: 0.85rem;
+}
+
 .wa-view__actions {
     position: absolute;
-    top: 0;
+    top: -2px;
     right: 0;
     display: flex;
     align-items: center;
@@ -1111,8 +1175,8 @@ body[data-initial-state="ready"] .loading-overlay {
 
 /* Make the metadata feel interactive on larger screens (navigation targets) */
 @media (min-width: 821px) {
-    .wa-playerbar__title.wa-playerbar__link,
-    .wa-playerbar__artist.wa-playerbar__link {
+    .wa-playerbar__title.wa-playerbar__link:hover,
+    .wa-playerbar__artist.wa-playerbar__link:hover {
         cursor: pointer;
         text-decoration: underline;
         text-decoration-thickness: 0.06em;
@@ -1202,6 +1266,7 @@ body[data-initial-state="ready"] .loading-overlay {
         position: sticky;
         top: 0;
         z-index: 5;
+        justify-content: space-between;
     }
 
     .wa-content {
@@ -1210,6 +1275,20 @@ body[data-initial-state="ready"] .loading-overlay {
 
     .wa-topbar__burger {
         display: inline-flex;
+    }
+
+    .wa-topbar__back {
+        display: inline-flex;
+    }
+
+    /* On small screens we rely on the top bar back button instead of the per-view header buttons. */
+    .wa-view__navbuttons {
+        display: none;
+    }
+
+    /* Breadcrumbs add noise on very small screens; hide them entirely. */
+    .wa-breadcrumbs {
+        display: none !important;
     }
 
     .wa-sidebar {
@@ -1269,6 +1348,10 @@ body[data-initial-state="ready"] .loading-overlay {
         grid-template-columns: minmax(0, 1fr);
     }
 
+    .wa-view__actions {
+        top: -10px;
+    }
+
     .wa-entityheader {
         flex-direction: column;
         align-items: stretch;
@@ -1305,6 +1388,7 @@ body[data-initial-state="ready"] .loading-overlay {
                 rgba(0, 0, 0, 0.35) 0%,
                 rgba(0, 0, 0, 0.55) 55%,
                 rgba(0, 0, 0, 0.85) 100%);
+        box-shadow: 0 15px 20px rgba(0, 0, 0, 0.4)
     }
 
     .wa-playerbar__inner {

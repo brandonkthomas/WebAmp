@@ -1,4 +1,5 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
+import { WEBAMP_ROOT } from '../router/routes';
 import { spotifyApi } from '../spotify/spotifyApi';
 import type { Track } from '../state/playerStore';
 import { renderListSkeleton } from '../ui/skeleton';
@@ -10,6 +11,7 @@ import { bindQueueActions } from '../ui/queueActions';
 export const playlistView: WebAmpViewController = {
     id: 'playlist',
     mount(ctx: WebAmpViewContext) {
+        const headerTitle = ctx.rootEl.querySelector<HTMLElement>('[data-wa-view-title]');
         const detailCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-playlist-detail]');
         const detailImg = ctx.rootEl.querySelector<HTMLImageElement>('[data-wa-playlist-img]');
         const detailTitle = ctx.rootEl.querySelector<HTMLElement>('[data-wa-playlist-title]');
@@ -117,16 +119,27 @@ export const playlistView: WebAmpViewController = {
                     if (detailMeta) detailMeta.textContent = '';
                     if (detailImg) detailImg.removeAttribute('src');
 
-                    // Playlist details (for art/title)
+                    // Playlist details (for art/title + header + breadcrumbs)
                     try {
                         const p = await spotifyApi.playlist(ctx.entityId!);
-                        if (detailTitle) detailTitle.textContent = p?.name ?? 'Playlist';
+                        const playlistName = p?.name ?? ctx.getViewLabel('playlist');
+                        if (detailTitle) detailTitle.textContent = playlistName;
                         const owner = p?.owner?.display_name ?? p?.owner?.id ?? '';
                         const total = p?.tracks?.total;
                         if (detailMeta) detailMeta.textContent = `${owner}${typeof total === 'number' ? ` • ${total} tracks` : ''}`;
                         const images = p?.images ?? [];
                         const artFull = images?.[0]?.url ?? images?.[1]?.url ?? images?.[images.length - 1]?.url;
                         if (detailImg && artFull) detailImg.src = artFull;
+
+                        // Update main view title + breadcrumbs now that we know the playlist name.
+                        if (headerTitle) headerTitle.textContent = playlistName;
+                        const rootLabel = ctx.getViewLabel('playlist');
+                        const rootPath = `${WEBAMP_ROOT}/playlists`;
+                        const detailPath = `${WEBAMP_ROOT}/playlists/${ctx.entityId}`;
+                        ctx.router.setBreadcrumbs([
+                            { label: rootLabel, path: rootPath },
+                            { label: playlistName, path: detailPath }
+                        ]);
                     } catch {
                         // ignore detail errors; tracks will still show
                     }

@@ -1,4 +1,5 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
+import { WEBAMP_ROOT } from '../router/routes';
 import { spotifyApi } from '../spotify/spotifyApi';
 import type { Track } from '../state/playerStore';
 import { renderListSkeleton } from '../ui/skeleton';
@@ -10,6 +11,7 @@ import { bindQueueActions } from '../ui/queueActions';
 export const albumView: WebAmpViewController = {
     id: 'album',
     mount(ctx: WebAmpViewContext) {
+        const headerTitle = ctx.rootEl.querySelector<HTMLElement>('[data-wa-view-title]');
         const albumsCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-albums-card]');
         const albumsList = ctx.rootEl.querySelector<HTMLElement>('[data-wa-albums-list]');
         const albumsStatus = ctx.rootEl.querySelector<HTMLElement>('[data-wa-albums-status]');
@@ -109,11 +111,39 @@ export const albumView: WebAmpViewController = {
                     const artUrlFull = images?.[0]?.url ?? images?.[1]?.url;
                     const artUrl = images?.[1]?.url ?? images?.[0]?.url;
                     const artUrlSmall = images?.[images.length - 1]?.url;
-                    const albumName = album?.name ?? 'Album';
+                    const albumName = album?.name ?? ctx.getViewLabel('album');
                     const artistName = Array.isArray(album?.artists) ? album.artists.map((a: any) => a.name).join(', ') : '';
                     if (detailTitle) detailTitle.textContent = albumName;
                     if (detailMeta) detailMeta.textContent = artistName;
                     if (detailImg && (artUrlFull || artUrl)) detailImg.src = artUrlFull ?? artUrl;
+
+                    // Update main view title to album name.
+                    if (headerTitle) headerTitle.textContent = albumName;
+
+                    // Prefer an artist-focused breadcrumb chain: Artists > ArtistName > AlbumName.
+                    const primaryArtist = Array.isArray(album?.artists) && album.artists.length ? album.artists[0] : undefined;
+                    const primaryArtistName: string | undefined = primaryArtist?.name;
+                    const primaryArtistId: string | undefined = primaryArtist?.id;
+                    const albumPath = `${WEBAMP_ROOT}/albums/${ctx.entityId}`;
+
+                    if (primaryArtistId && primaryArtistName) {
+                        const artistsRootLabel = ctx.getViewLabel('artist');
+                        const artistsRootPath = `${WEBAMP_ROOT}/artists`;
+                        const artistDetailPath = `${WEBAMP_ROOT}/artists/${primaryArtistId}`;
+                        ctx.router.setBreadcrumbs([
+                            { label: artistsRootLabel, path: artistsRootPath },
+                            { label: primaryArtistName, path: artistDetailPath },
+                            { label: albumName, path: albumPath }
+                        ]);
+                    } else {
+                        // Fallback: Albums > AlbumName
+                        const albumsRootLabel = ctx.getViewLabel('album');
+                        const albumsRootPath = `${WEBAMP_ROOT}/albums`;
+                        ctx.router.setBreadcrumbs([
+                            { label: albumsRootLabel, path: albumsRootPath },
+                            { label: albumName, path: albumPath }
+                        ]);
+                    }
 
                     let destroyed = false;
                     let offset = 0;

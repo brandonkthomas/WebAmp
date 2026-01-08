@@ -1,7 +1,17 @@
 <section class="wa-view wa-view--home" data-wa-view="home" aria-label="Home">
     <div class="wa-view__header">
-        <h1 class="wa-h1">Home</h1>
-        <p class="wa-lede">Quick access to your library.</p>
+        <div class="wa-view__titlebar">
+            <div class="wa-view__navbuttons">
+                <button type="button" class="wa-btn wa-btn--icon" data-wa-nav-back aria-label="Back">
+                    <span aria-hidden="true">←</span>
+                </button>
+                <button type="button" class="wa-btn wa-btn--icon" data-wa-nav-forward aria-label="Forward">
+                    <span aria-hidden="true">→</span>
+                </button>
+            </div>
+            <p class="wa-lede wa-breadcrumbs" data-wa-breadcrumbs></p>
+        </div>
+        <h1 class="wa-h1 wa-sr-only">Home</h1>
     </div>
 
     <div class="wa-grid wa-grid--3">
