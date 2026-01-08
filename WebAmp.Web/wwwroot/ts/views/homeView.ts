@@ -60,11 +60,18 @@ export const homeView: WebAmpViewController = {
                             const artUrl = images?.[1]?.url ?? images?.[0]?.url;
                             const artist = Array.isArray(t?.artists) ? t.artists.map((a: any) => a.name).join(', ') : '';
                             const album = t?.album?.name ?? '';
+                            const albumId = t?.album?.id;
+                            const primaryArtistId: string | undefined =
+                                Array.isArray(t?.artists) && t.artists.length
+                                    ? t.artists[0]?.id
+                                    : undefined;
                             return {
                                 id: t.id,
                                 title: t.name,
                                 artist,
+                                albumId,
                                 album,
+                                primaryArtistId,
                                 durationSec: Math.round((t.duration_ms ?? 0) / 1000),
                                 artUrl,
                                 artUrlSmall,

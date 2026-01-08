@@ -5,7 +5,15 @@ export interface Track {
     id: string;
     title: string;
     artist: string;
+    /**
+     * Spotify album id for navigation (if known)
+     */
+    albumId?: string;
     album?: string;
+    /**
+     * Primary Spotify artist id for navigation (if known)
+     */
+    primaryArtistId?: string;
     trackNumber?: number;
     durationSec: number;
     artUrl?: string;
@@ -234,12 +242,37 @@ export class PlayerStore {
         // Some transports temporarily emit a null track during transitions.
         // Treat that as "track unknown" (do not clear the current selection), while still applying
         // play/pause + position updates.
+        const hasTrackProp = Object.prototype.hasOwnProperty.call(update, 'track');
+        const incomingTrack = hasTrackProp ? (update as any).track as Track | null | undefined : undefined;
+
         const safeUpdate: Partial<PlayerState> =
-            ('track' in update && update.track === null)
+            hasTrackProp && incomingTrack === null
                 ? (({ track: _t, ...rest }) => rest)(update as any)
                 : update;
 
-        const next = { ...this.state, ...safeUpdate };
+        // If a non-null track is present, merge it into the existing track so that
+        // navigation metadata (albumId / primaryArtistId) established by the UI
+        // remains available even if the transport omits or clears those fields
+        let mergedTrack: Track | null = this.state.track;
+        if (hasTrackProp && incomingTrack && this.state.track) {
+            const prev = this.state.track;
+            const next = incomingTrack;
+            mergedTrack = {
+                ...prev,
+                ...next,
+                // Keep sticky navigation metadata when the remote snapshot does not provide it
+                albumId: next.albumId ?? prev.albumId,
+                primaryArtistId: next.primaryArtistId ?? prev.primaryArtistId
+            };
+        } else if (hasTrackProp && incomingTrack) {
+            mergedTrack = incomingTrack;
+        }
+
+        const next: PlayerState = {
+            ...this.state,
+            ...safeUpdate,
+            track: mergedTrack
+        };
         this.state = next;
 
         // Update the remote clock base whenever we get a position update.

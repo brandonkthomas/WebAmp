@@ -1108,6 +1108,17 @@ body[data-initial-state="ready"] .loading-overlay {
     text-overflow: ellipsis;
 }
 
+/* Interactivity hints for metadata on larger screens (navigation targets) */
+@media (min-width: 821px) {
+    .wa-playerbar__title.wa-playerbar__link,
+    .wa-playerbar__artist.wa-playerbar__link {
+        cursor: pointer;
+        text-decoration: underline;
+        text-decoration-thickness: 0.06em;
+        text-underline-offset: 0.12em;
+    }
+}
+
 .wa-playerbar__controls {
     display: inline-flex;
     align-items: center;
@@ -1275,6 +1286,28 @@ body[data-initial-state="ready"] .loading-overlay {
     .wa-entityheader__title,
     .wa-entityheader__meta {
         white-space: normal;
+    }
+
+    /* Mobile: detach player bar from screen edge and round it */
+    .wa-playerbar {
+        left: 0.75rem;
+        right: 0.75rem;
+        bottom: 0.75rem;
+        border-radius: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.14);
+        border-left: 1px solid rgba(255, 255, 255, 0.14);
+        border-right: 1px solid rgba(255, 255, 255, 0.14);
+        /* Keep a glassy feel but hide underlying card borders at the very edge
+           by using a slightly more opaque rim. */
+        background:
+            radial-gradient(circle at center,
+                rgba(0, 0, 0, 0.35) 0%,
+                rgba(0, 0, 0, 0.55) 55%,
+                rgba(0, 0, 0, 0.85) 100%);
+    }
+
+    .wa-playerbar__inner {
+        max-width: none;
     }
 }
 

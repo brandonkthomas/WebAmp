@@ -196,6 +196,21 @@ function boot() {
         playerStore.setQueue(tracks as any, { wrap: ev.detail?.wrap ?? false });
     });
 
+    // Deep-link helpers from the global player bar
+    window.addEventListener('wa:navigate:album', (e: Event) => {
+        const ev = e as CustomEvent<{ albumId?: string }>;
+        const albumId = ev.detail?.albumId;
+        if (!albumId) return;
+        router.navigate(`/webamp/albums/${albumId}`);
+    });
+
+    window.addEventListener('wa:navigate:artist', (e: Event) => {
+        const ev = e as CustomEvent<{ artistId?: string }>;
+        const artistId = ev.detail?.artistId;
+        if (!artistId) return;
+        router.navigate(`/webamp/artists/${artistId}`);
+    });
+
     router.start();
 
     // Background: check auth status quickly and then (if authed) install Spotify transport lazily.

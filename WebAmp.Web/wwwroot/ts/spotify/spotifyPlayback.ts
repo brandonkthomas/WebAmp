@@ -61,11 +61,20 @@ function mapPlayerStateToTrack(state: any): Track | null {
     const t = state?.track_window?.current_track;
     if (!t) return null;
     const art = t.album?.images?.[0]?.url;
-    const artist = Array.isArray(t.artists) ? t.artists.map((a: any) => a.name).join(', ') : (t.artists?.[0]?.name ?? '');
+    const artist = Array.isArray(t.artists)
+        ? t.artists.map((a: any) => a.name).join(', ')
+        : (t.artists?.[0]?.name ?? '');
+    const primaryArtistId: string | undefined =
+        Array.isArray(t.artists) && t.artists.length
+            ? t.artists[0]?.id
+            : (t.artists?.[0]?.id ?? undefined);
     return {
         id: t.id,
         title: t.name,
         artist,
+        albumId: t.album?.id,
+        album: t.album?.name,
+        primaryArtistId,
         durationSec: Math.round((t.duration_ms ?? 0) / 1000),
         artUrl: art,
         uri: t.uri

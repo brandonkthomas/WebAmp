@@ -66,6 +66,26 @@ export class PlayerBar {
             this.store.seekByRatio(value / 100);
         });
 
+        // Desktop: clicking the title/artist in the bottom bar should navigate
+        // to the corresponding album / artist detail view when we have IDs.
+        this.titleEl?.addEventListener('click', () => {
+            const track = this.store.getState().track as any;
+            const albumId: string | undefined = track?.albumId;
+            if (!albumId) return;
+            window.dispatchEvent(
+                new CustomEvent('wa:navigate:album', { detail: { albumId } })
+            );
+        });
+
+        this.artistEl?.addEventListener('click', () => {
+            const track = this.store.getState().track as any;
+            const artistId: string | undefined = track?.primaryArtistId;
+            if (!artistId) return;
+            window.dispatchEvent(
+                new CustomEvent('wa:navigate:artist', { detail: { artistId } })
+            );
+        });
+
         this.unsubscribe = this.store.subscribe((state) => this.render(state));
     }
 
@@ -82,8 +102,19 @@ export class PlayerBar {
         const duration = track?.durationSec ?? 0;
         const position = state.positionSec;
 
-        if (this.titleEl) this.titleEl.textContent = track?.title ?? 'Not Playing';
-        if (this.artistEl) this.artistEl.textContent = track?.artist ?? '—';
+        const canNavigateAlbum = !!track?.albumId;
+        const canNavigateArtist = !!track?.primaryArtistId;
+
+        if (this.titleEl) {
+            this.titleEl.textContent = track?.title ?? 'Not Playing';
+            if (canNavigateAlbum) this.titleEl.classList.add('wa-playerbar__link');
+            else this.titleEl.classList.remove('wa-playerbar__link');
+        }
+        if (this.artistEl) {
+            this.artistEl.textContent = track?.artist ?? '—';
+            if (canNavigateArtist) this.artistEl.classList.add('wa-playerbar__link');
+            else this.artistEl.classList.remove('wa-playerbar__link');
+        }
 
         if (this.toggleIconEl) {
             this.toggleIconEl.textContent = state.isPlaying ? '⏸' : '▶';
