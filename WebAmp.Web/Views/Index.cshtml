@@ -61,7 +61,7 @@
     <div class="glass-surface wa-shell" role="application" aria-label="WebAmp">
         <div class="glass-surface__content wa-shell__content">
             <div class="wa-layout" data-wa-layout>
-                @await Html.PartialAsync("~/Apps/WebAmp/Views/Partials/_Sidebar.cshtml")
+                @await Html.PartialAsync("~/Views/Partials/_Sidebar.cshtml")
 
                 <div class="wa-content">
                     <main class="wa-main" aria-label="WebAmp content">
@@ -69,25 +69,25 @@
 
                         <!-- Server-rendered templates (cloned/mounted by TS). Keep markup in CSHTML partials. -->
                         <template id="wa-tpl-landing">
-                            @await Html.PartialAsync("~/Apps/WebAmp/Views/Partials/_ViewLanding.cshtml")
+                            @await Html.PartialAsync("~/Views/Partials/_ViewLanding.cshtml")
                         </template>
                         <template id="wa-tpl-home">
-                            @await Html.PartialAsync("~/Apps/WebAmp/Views/Partials/_ViewHome.cshtml")
+                            @await Html.PartialAsync("~/Views/Partials/_ViewHome.cshtml")
                         </template>
                         <template id="wa-tpl-search">
-                            @await Html.PartialAsync("~/Apps/WebAmp/Views/Partials/_ViewSearch.cshtml")
+                            @await Html.PartialAsync("~/Views/Partials/_ViewSearch.cshtml")
                         </template>
                         <template id="wa-tpl-liked">
-                            @await Html.PartialAsync("~/Apps/WebAmp/Views/Partials/_ViewLiked.cshtml")
+                            @await Html.PartialAsync("~/Views/Partials/_ViewLiked.cshtml")
                         </template>
                         <template id="wa-tpl-playlist">
-                            @await Html.PartialAsync("~/Apps/WebAmp/Views/Partials/_ViewPlaylist.cshtml")
+                            @await Html.PartialAsync("~/Views/Partials/_ViewPlaylist.cshtml")
                         </template>
                         <template id="wa-tpl-album">
-                            @await Html.PartialAsync("~/Apps/WebAmp/Views/Partials/_ViewAlbum.cshtml")
+                            @await Html.PartialAsync("~/Views/Partials/_ViewAlbum.cshtml")
                         </template>
                         <template id="wa-tpl-artist">
-                            @await Html.PartialAsync("~/Apps/WebAmp/Views/Partials/_ViewArtist.cshtml")
+                            @await Html.PartialAsync("~/Views/Partials/_ViewArtist.cshtml")
                         </template>
                     </main>
                 </div>
@@ -95,7 +95,7 @@
 
             <div class="wa-sidebar-overlay" data-wa-sidebar-overlay aria-hidden="true"></div>
 
-            @await Html.PartialAsync("~/Apps/WebAmp/Views/Partials/_PlayerBar.cshtml")
+            @await Html.PartialAsync("~/Views/Partials/_PlayerBar.cshtml")
         </div>
     </div>
 </section>

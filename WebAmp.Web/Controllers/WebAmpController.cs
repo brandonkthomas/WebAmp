@@ -33,7 +33,7 @@ public class WebAmpController(IConfiguration configuration) : Controller
             ViewData["LoadingOverlayThrobberAlt"] = overlay.GetValue<string?>("ThrobberAlt");
         }
 
-        // Explicit feature-folder view path so this module stays portable.
-        return View("~/Apps/WebAmp/Views/Index.cshtml");
+        // Explicit view path so this module stays portable.
+        return View("~/Views/Index.cshtml");
     }
 }

@@ -1,5 +1,5 @@
 import { spotifyApi } from './spotifyApi';
-import type { Track } from '../state/playerStore';
+import type { Track } from '../../state/playerStore';
 
 declare global {
     /**

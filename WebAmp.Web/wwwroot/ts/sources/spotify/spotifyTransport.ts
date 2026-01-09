@@ -1,7 +1,7 @@
-import type { PlayerTransport, Track } from '../state/playerStore';
+import type { PlayerTransport, Track } from '../../state/playerStore';
 import { spotifyApi } from './spotifyApi';
 import { ensureSpotifyPlayback } from './spotifyPlayback';
-import { showErrorDialog, formatErrorMessage } from '../ui/errorDialog';
+import { showErrorDialog, formatErrorMessage } from '../../ui/errorDialog';
 
 /**
  * PlayerTransport backed by Spotify Web Playback SDK + server proxy endpoints

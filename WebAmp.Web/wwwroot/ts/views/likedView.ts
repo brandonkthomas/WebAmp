@@ -1,5 +1,5 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
-import { spotifyApi } from '../spotify/spotifyApi';
+import { spotifyApi } from '../sources/spotify/spotifyApi';
 import type { Track } from '../state/playerStore';
 import { createTrackListItem } from '../ui/trackListItem';
 import { attachInfiniteScroll } from '../ui/infiniteScroll';

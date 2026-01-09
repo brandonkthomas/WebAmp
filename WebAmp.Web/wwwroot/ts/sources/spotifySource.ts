@@ -1,5 +1,5 @@
 import type { MusicSource, MusicSourceListener, MusicSourceState } from './musicSource';
-import { spotifyApi } from '../spotify/spotifyApi';
+import { spotifyApi } from '../sources/spotify/spotifyApi';
 
 /**
  * Real Spotify-backed MusicSource using server-side auth endpoints

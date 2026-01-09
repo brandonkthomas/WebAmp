@@ -1,4 +1,4 @@
-import { showErrorDialog, formatErrorMessage } from '../ui/errorDialog';
+import { showErrorDialog, formatErrorMessage } from '../../ui/errorDialog';
 
 /**
  * Minimal auth/status info returned by the server proxy

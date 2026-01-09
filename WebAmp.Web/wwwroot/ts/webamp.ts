@@ -16,7 +16,7 @@ import { PlayerStore } from './state/playerStore';
 import { PlayerBar } from './components/playerBar/playerBar';
 import { SpotifySource } from './sources/spotifySource';
 import { SidebarController } from './components/sidebar/sidebar';
-import { SpotifyTransport } from './spotify/spotifyTransport';
+import { SpotifyTransport } from './sources/spotify/spotifyTransport';
 import { getDominantColor } from './ui/dominantColor';
 
 function getTemplate(id: string): HTMLTemplateElement {
