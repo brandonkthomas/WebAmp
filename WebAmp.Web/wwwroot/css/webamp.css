@@ -537,7 +537,7 @@ body[data-initial-state="ready"] .loading-overlay {
     }
 
     .wa-content {
-        height: 100%;
+        height: calc(100% + 1.15rem); /* spill behind bottom player a tiny bit */
         min-height: 0;
         padding-top: 4rem; /* 3.5rem for the topbar + 0.5rem for the gap */
         overflow-y: auto;

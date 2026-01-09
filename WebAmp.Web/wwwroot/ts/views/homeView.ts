@@ -4,6 +4,7 @@ import type { Track } from '../state/playerStore';
 import { renderListSkeleton } from '../ui/skeleton';
 import { createTrackListItem } from '../ui/trackListItem';
 import { createPlaylistListItem } from '../ui/playlistListItem';
+import { bindQueueActions } from '../ui/queueActions';
 
 export const homeView: WebAmpViewController = {
     id: 'home',
@@ -16,6 +17,16 @@ export const homeView: WebAmpViewController = {
 
         const setPlaylistsStatus = (t: string) => { if (playlistsStatusEl) playlistsStatusEl.textContent = t; };
         const setLikedStatus = (t: string) => { if (likedStatusEl) likedStatusEl.textContent = t; };
+
+        // Allow empty cleanup so that Shuffle/Play buttons trigger bindQueueActions > syncVisible (to hide the actions)
+        const cleanupActions = bindQueueActions({
+            root,
+            getTracks: () => []   // always empty > syncVisible hides the actions
+        });
+
+        (homeView as any)._cleanup = () => {
+            cleanupActions();
+        };
 
         // Load a little library UI (saved playlists + liked songs)
         (async () => {
@@ -93,8 +104,12 @@ export const homeView: WebAmpViewController = {
                 } catch (err: any) {
                     setLikedStatus(err?.message ?? 'Failed to load liked songs');
                     likedEl?.replaceChildren();
-    }
+                }
             }
         })();
+    },
+    unmount() {
+        (homeView as any)._cleanup?.();
+        (homeView as any)._cleanup = null;
     }
 };

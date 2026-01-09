@@ -38,6 +38,7 @@ export function bindQueueActions(opts: {
 
     const syncVisible = () => {
         const hasTracks = opts.getTracks().length > 0;
+        console.log('syncVisible', hasTracks);
         actions.style.display = hasTracks ? 'flex' : 'none';
     };
 
