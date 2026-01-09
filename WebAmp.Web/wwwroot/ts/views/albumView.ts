@@ -17,6 +17,7 @@ export const albumView: WebAmpViewController = {
         const albumsStatus = ctx.rootEl.querySelector<HTMLElement>('[data-wa-albums-status]');
         const detailCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-album-detail]');
         const detailImg = ctx.rootEl.querySelector<HTMLImageElement>('[data-wa-album-img]');
+        const detailArt = detailImg?.parentElement as HTMLElement | null;
         const detailTitle = ctx.rootEl.querySelector<HTMLElement>('[data-wa-album-title]');
         const detailMeta = ctx.rootEl.querySelector<HTMLElement>('[data-wa-album-meta]');
         const tracksCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-album-tracks-card]');
@@ -25,6 +26,16 @@ export const albumView: WebAmpViewController = {
 
         const setAlbumsStatus = (t: string) => { if (albumsStatus) albumsStatus.textContent = t; };
         const setTracksStatus = (t: string) => { if (tracksStatus) tracksStatus.textContent = t; };
+
+        const formatAlbumDuration = (totalSec: number): string => {
+            if (!Number.isFinite(totalSec) || totalSec <= 0) return '';
+            const totalMinutes = Math.round(totalSec / 60);
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            if (hours <= 0) return `${minutes}m`;
+            if (minutes === 0) return `${hours}h`;
+            return `${hours}h ${minutes}m`;
+        };
 
         let cleanup: (() => void) | null = null;
         let cleanupActions = bindQueueActions({ root: ctx.rootEl, getTracks: () => [] });
@@ -104,6 +115,7 @@ export const albumView: WebAmpViewController = {
                     if (detailTitle) detailTitle.textContent = 'Loading…';
                     if (detailMeta) detailMeta.textContent = '';
                     if (detailImg) detailImg.removeAttribute('src');
+                    if (detailArt) detailArt.classList.add('wa-entityheader__art--loading');
 
                     const album = await spotifyApi.album(ctx.entityId!);
 
@@ -113,9 +125,69 @@ export const albumView: WebAmpViewController = {
                     const artUrlSmall = images?.[images.length - 1]?.url;
                     const albumName = album?.name ?? ctx.getViewLabel('album');
                     const artistName = Array.isArray(album?.artists) ? album.artists.map((a: any) => a.name).join(', ') : '';
+
+                    const albumTypeRaw = (album?.album_type ?? album?.album_group ?? '').toLowerCase();
+                    let albumTypeLabel: string;
+                    switch (albumTypeRaw) {
+                        case 'single':
+                            albumTypeLabel = 'Single';
+                            break;
+                        case 'compilation':
+                            albumTypeLabel = 'Compilation';
+                            break;
+                        default:
+                            albumTypeLabel = 'Album';
+                            break;
+                    }
+                    const totalTracksCount: number | undefined =
+                        typeof album?.total_tracks === 'number' ? album.total_tracks : undefined;
+                    const releaseDate: string | undefined = album?.release_date;
+                    const releaseYear: string | undefined =
+                        releaseDate && releaseDate.length >= 4 ? releaseDate.slice(0, 4) : undefined;
+
+                    let totalDurationSec: number | undefined;
+                    const updateDetailMeta = () => {
+                        if (!detailMeta) return;
+                        detailMeta.replaceChildren();
+
+                        const artistLineEl = document.createElement('div');
+                        artistLineEl.textContent = artistName;
+                        detailMeta.appendChild(artistLineEl);
+
+                        const parts: string[] = [];
+                        if (albumTypeLabel) parts.push(albumTypeLabel);
+                        if (releaseYear) parts.push(releaseYear);
+                        if (typeof totalTracksCount === 'number' && totalTracksCount > 0) {
+                            parts.push(`${totalTracksCount} track${totalTracksCount === 1 ? '' : 's'}`);
+                        }
+
+                        if (typeof totalDurationSec === 'number' && totalDurationSec > 0) {
+                            const lenLabel = formatAlbumDuration(totalDurationSec);
+                            if (lenLabel) {
+                                const lastIndex = parts.length - 1;
+                                if (lastIndex >= 0) {
+                                    parts[lastIndex] = `${parts[lastIndex]}, ${lenLabel}`;
+                                } else {
+                                    parts.push(lenLabel);
+                                }
+                            }
+                        }
+
+                        if (parts.length) {
+                            const metaLineEl = document.createElement('div');
+                            metaLineEl.textContent = parts.join(' • ');
+                            detailMeta.appendChild(metaLineEl);
+                        }
+                    };
+
                     if (detailTitle) detailTitle.textContent = albumName;
-                    if (detailMeta) detailMeta.textContent = artistName;
-                    if (detailImg && (artUrlFull || artUrl)) detailImg.src = artUrlFull ?? artUrl;
+                    updateDetailMeta();
+                    if (detailImg && (artUrlFull || artUrl)) {
+                        detailImg.src = artUrlFull ?? artUrl;
+                        if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
+                    } else if (detailArt) {
+                        detailArt.classList.remove('wa-entityheader__art--loading');
+                    }
 
                     // Update main view title to album name.
                     if (headerTitle) headerTitle.textContent = albumName;
@@ -186,6 +258,9 @@ export const albumView: WebAmpViewController = {
                                 } as Track;
                             });
 
+                            const pageDurationSec = next.reduce((sum, tr) => sum + (tr.durationSec ?? 0), 0);
+                            totalDurationSec = (totalDurationSec ?? 0) + pageDurationSec;
+
                             if (offset === 0) tracksList.replaceChildren();
                             allTracks.push(...next);
                             cleanupActions.refresh?.();
@@ -209,6 +284,9 @@ export const albumView: WebAmpViewController = {
 
                             offset += items.length;
                             hasMore = items.length >= 50;
+                            if (!hasMore && typeof totalDurationSec === 'number') {
+                                updateDetailMeta();
+                            }
                             setTracksStatus(allTracks.length ? '' : 'No tracks found.');
                         } catch (err: any) {
                             setTracksStatus(err?.message ?? 'Failed to load album tracks');
@@ -235,6 +313,7 @@ export const albumView: WebAmpViewController = {
                     await loadMoreTracks();
 
                 } catch (err: any) {
+                    if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
                     setTracksStatus(err?.message ?? 'Failed to load album tracks');
                     tracksList.replaceChildren();
                 }

@@ -18,6 +18,7 @@ export const artistView: WebAmpViewController = {
         const artistsStatus = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artists-status]');
         const detailCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-detail]');
         const detailImg = ctx.rootEl.querySelector<HTMLImageElement>('[data-wa-artist-img]');
+        const detailArt = detailImg?.parentElement as HTMLElement | null;
         const detailName = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-name]');
         const detailMeta = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-meta]');
         const topCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-toptracks-card]');
@@ -111,6 +112,12 @@ export const artistView: WebAmpViewController = {
                     if (detailName) detailName.textContent = 'Loading…';
                     if (detailMeta) detailMeta.textContent = '';
                     if (detailImg) detailImg.removeAttribute('src');
+                    if (detailArt) detailArt.classList.add('wa-entityheader__art--loading');
+
+                    topCard.style.display = 'block';
+                    setTopStatus('Loading top tracks…');
+                    renderListSkeleton(topList, 10);
+
                     try {
                         const a = await spotifyApi.artist(ctx.entityId!);
                         const artistName = a?.name ?? ctx.getViewLabel('artist');
@@ -122,7 +129,12 @@ export const artistView: WebAmpViewController = {
                         if (detailMeta) detailMeta.textContent = meta;
                         const images = a?.images ?? [];
                         const artUrl = images?.[0]?.url ?? images?.[1]?.url ?? images?.[images.length - 1]?.url;
-                        if (detailImg && artUrl) detailImg.src = artUrl;
+                        if (detailImg && artUrl) {
+                            detailImg.src = artUrl;
+                            if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
+                        } else if (detailArt) {
+                            detailArt.classList.remove('wa-entityheader__art--loading');
+                        }
 
                         // Update main view title + breadcrumbs to use the artist name.
                         if (headerTitle) headerTitle.textContent = artistName;
@@ -135,11 +147,8 @@ export const artistView: WebAmpViewController = {
                         ]);
                     } catch {
                         // ignore artist detail errors; lists can still load
+                        if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
                     }
-
-                    topCard.style.display = 'block';
-                    setTopStatus('Loading top tracks…');
-                    renderListSkeleton(topList, 10);
                     const data = await spotifyApi.artistTopTracks(ctx.entityId!, 'US');
                     const items = data?.tracks ?? [];
                     const tracks: Track[] = items.map((t: any) => {
@@ -173,14 +182,14 @@ export const artistView: WebAmpViewController = {
                         const t = tracks[i];
                         topList.appendChild(createTrackListItem({
                             track: t,
-                            leading: 'index',
                             index: i + 1,
-                            showMeta: false,
+                            variant: 'artistTop',
                             onClick: () => window.dispatchEvent(new CustomEvent('wa:track:select', { detail: { trackId: t.id, tracks: tracks.slice(), wrap: false, from: 'artist' } }))
                         }));
                     }
                     setTopStatus(tracks.length ? '' : 'No top tracks found.');
                 } catch (err: any) {
+                    if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
                     setTopStatus(err?.message ?? 'Failed to load top tracks');
                     topList.replaceChildren();
                 }

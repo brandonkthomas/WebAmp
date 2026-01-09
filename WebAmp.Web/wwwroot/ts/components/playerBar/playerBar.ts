@@ -22,7 +22,7 @@ export class PlayerBar {
     private titleEl: HTMLElement | null;
     private artistEl: HTMLElement | null;
     private artImg: HTMLImageElement | null;
-    private toggleIconEl: HTMLElement | null;
+    private toggleIconEl: HTMLImageElement | null;
     private btnPrev: HTMLButtonElement | null;
     private btnNext: HTMLButtonElement | null;
     private btnToggle: HTMLButtonElement | null;
@@ -38,7 +38,7 @@ export class PlayerBar {
         this.titleEl = this.root.querySelector<HTMLElement>('[data-wa-player-title]');
         this.artistEl = this.root.querySelector<HTMLElement>('[data-wa-player-artist]');
         this.artImg = this.root.querySelector<HTMLImageElement>('[data-wa-player-art]');
-        this.toggleIconEl = this.root.querySelector<HTMLElement>('[data-wa-player-toggle-icon]');
+        this.toggleIconEl = this.root.querySelector<HTMLImageElement>('[data-wa-player-toggle-icon]');
 
         this.btnPrev = this.root.querySelector<HTMLButtonElement>('[data-wa-player-prev]');
         this.btnNext = this.root.querySelector<HTMLButtonElement>('[data-wa-player-next]');
@@ -117,7 +117,12 @@ export class PlayerBar {
         }
 
         if (this.toggleIconEl) {
-            this.toggleIconEl.textContent = state.isPlaying ? '⏸' : '▶';
+            const src = state.isPlaying
+                ? '/apps/webamp/assets/svg/pause-filled.svg'
+                : '/apps/webamp/assets/svg/play-filled.svg';
+            if (this.toggleIconEl.src !== src) {
+                this.toggleIconEl.src = src;
+            }
         }
 
         if (this.timeCurrentEl) this.timeCurrentEl.textContent = formatTime(position);

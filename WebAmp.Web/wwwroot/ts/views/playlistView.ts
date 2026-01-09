@@ -16,6 +16,7 @@ export const playlistView: WebAmpViewController = {
         const detailImg = ctx.rootEl.querySelector<HTMLImageElement>('[data-wa-playlist-img]');
         const detailTitle = ctx.rootEl.querySelector<HTMLElement>('[data-wa-playlist-title]');
         const detailMeta = ctx.rootEl.querySelector<HTMLElement>('[data-wa-playlist-meta]');
+        const detailArt = detailImg?.parentElement as HTMLElement | null;
 
         const playlistsCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-playlists-card]');
         const playlistsList = ctx.rootEl.querySelector<HTMLElement>('[data-wa-playlists-list]');
@@ -118,6 +119,11 @@ export const playlistView: WebAmpViewController = {
                     if (detailTitle) detailTitle.textContent = 'Loading…';
                     if (detailMeta) detailMeta.textContent = '';
                     if (detailImg) detailImg.removeAttribute('src');
+                    if (detailArt) detailArt.classList.add('wa-entityheader__art--loading');
+
+                    tracksCard.style.display = 'block';
+                    setTracksStatus('Loading tracks…');
+                    renderListSkeleton(tracksList, 10);
 
                     // Playlist details (for art/title + header + breadcrumbs)
                     try {
@@ -129,7 +135,12 @@ export const playlistView: WebAmpViewController = {
                         if (detailMeta) detailMeta.textContent = `${owner}${typeof total === 'number' ? ` • ${total} tracks` : ''}`;
                         const images = p?.images ?? [];
                         const artFull = images?.[0]?.url ?? images?.[1]?.url ?? images?.[images.length - 1]?.url;
-                        if (detailImg && artFull) detailImg.src = artFull;
+                        if (detailImg && artFull) {
+                            detailImg.src = artFull;
+                            if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
+                        } else if (detailArt) {
+                            detailArt.classList.remove('wa-entityheader__art--loading');
+                        }
 
                         // Update main view title + breadcrumbs now that we know the playlist name.
                         if (headerTitle) headerTitle.textContent = playlistName;
@@ -142,11 +153,8 @@ export const playlistView: WebAmpViewController = {
                         ]);
                     } catch {
                         // ignore detail errors; tracks will still show
+                        if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
                     }
-
-                    tracksCard.style.display = 'block';
-                    setTracksStatus('Loading tracks…');
-                    renderListSkeleton(tracksList, 10);
                     let destroyed = false;
                     let offset = 0;
                     let loading = false;

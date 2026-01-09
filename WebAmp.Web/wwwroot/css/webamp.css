@@ -176,6 +176,25 @@ body[data-initial-state="ready"] .loading-overlay {
     opacity: 0.85;
 }
 
+/* Entity header artwork skeleton */
+.wa-entityheader__art--loading {
+    position: relative;
+    background: rgba(255, 255, 255, 0.10);
+}
+
+.wa-entityheader__art--loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-120%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+    animation: wa-shimmer 1.1s ease-in-out infinite;
+}
+
+.wa-entityheader__art--loading .wa-entityheader__img {
+    opacity: 0;
+}
+
 /* ============================================================================== */
 /* Infinite scroll sentinel
 /* ============================================================================== */
@@ -330,6 +349,16 @@ body[data-initial-state="ready"] .loading-overlay {
     cursor: pointer;
 }
 
+.wa-iconbtn img {
+    width: 18px;
+    height: 18px;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+    filter: invert(1);
+}
+
 .wa-iconbtn:focus-visible {
     outline: 2px solid rgba(255, 255, 255, 0.9);
     outline-offset: 2px;
@@ -413,6 +442,7 @@ body[data-initial-state="ready"] .loading-overlay {
 .wa-sidenav__link[data-wa-active="true"] {
     border-color: rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.96);
+    background-color: rgba(255, 255, 255, 0.075);
 }
 
 .wa-sidenav__link[data-wa-active="true"] .wa-sidenav__icon {
@@ -1330,6 +1360,24 @@ body[data-initial-state="ready"] .loading-overlay {
 .wa-playerbar__btn:focus-visible {
     outline: 2px solid rgba(255, 255, 255, 0.9);
     outline-offset: 2px;
+}
+
+/* Icon-only variant for play/pause/prev/next controls */
+.wa-playerbar__btn--icononly {
+    border: 0;
+    background: none;
+}
+
+.wa-playerbar__btn--icononly:hover {
+    border: 0;
+}
+
+.wa-playerbar__icon {
+    width: 20px;
+    height: 20px;
+    display: block;
+    filter: invert(1);
+    opacity: 0.95;
 }
 
 /* Mobile defaults: hide prev + scrubber */
