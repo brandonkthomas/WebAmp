@@ -120,6 +120,13 @@ function boot() {
             });
         }
 
+        // Keep a lightweight "is playing" flag at the document level so that
+        // CSS can toggle heavy visual effects (blur, noise) independently of
+        // the frequently-updated player controls.
+        if (typeof document !== 'undefined' && document.body) {
+            document.body.dataset.waPlaying = state.isPlaying ? 'true' : 'false';
+        }
+
         const art = state.track?.artUrlSmall ?? state.track?.artUrl ?? null;
         if (!art) {
             lastArtKey = null;
