@@ -42,9 +42,9 @@ body {
         );
     background-attachment: fixed;
     transition:
-        --wa-accent-r 1200ms ease,
-        --wa-accent-g 1200ms ease,
-        --wa-accent-b 1200ms ease;
+        --wa-accent-r 900ms ease,
+        --wa-accent-g 900ms ease,
+        --wa-accent-b 900ms ease;
 }
 
 /* Subtle SVG noise overlay to reduce gradient banding */
