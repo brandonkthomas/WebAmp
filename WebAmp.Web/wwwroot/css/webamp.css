@@ -235,8 +235,10 @@ body[data-initial-state="ready"] .loading-overlay {
         inset: 0;
         border-radius: inherit;
         pointer-events: none;
-        backdrop-filter: blur(10px) saturate(1.25);
-        -webkit-backdrop-filter: blur(10px) saturate(1.25);
+        /* Blur disabled for perf; use a subtle static background instead */
+        background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.04), transparent 55%);
+        /* backdrop-filter: blur(10px) saturate(1.25);
+        -webkit-backdrop-filter: blur(10px) saturate(1.25); */
         z-index: -1;
     }
 }
@@ -347,12 +349,13 @@ body[data-initial-state="ready"] .loading-overlay {
     height: auto;
 }
 
-@supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+/* Desktop blur disabled for perf; keep plain translucent background */
+/* @supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
     .wa-sidebar {
         backdrop-filter: blur(14px) saturate(1.2) brightness(0.92);
         -webkit-backdrop-filter: blur(14px) saturate(1.2) brightness(0.92);
     }
-}
+} */
 
 .wa-sidebar__inner {
     padding: 0.9rem;
@@ -410,7 +413,6 @@ body[data-initial-state="ready"] .loading-overlay {
 .wa-sidenav__link[data-wa-active="true"] {
     border-color: rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.96);
-    backdrop-filter: invert(0.45);
 }
 
 .wa-sidenav__link[data-wa-active="true"] .wa-sidenav__icon {
@@ -420,7 +422,6 @@ body[data-initial-state="ready"] .loading-overlay {
 .wa-sidebar__footer {
     margin-top: auto;
     padding-top: 0.4rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.10);
 }
 
 .wa-sidebar__status {
@@ -449,12 +450,12 @@ body[data-initial-state="ready"] .loading-overlay {
     box-shadow: 0px 0px 35px rgb(0 0 0 / 50%);
 }
 
+/* Topbar blur */
 @supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
     .wa-topbar__inner {
         backdrop-filter: blur(16px) saturate(1.25);
         -webkit-backdrop-filter: blur(16px) saturate(1.25);
-        /* background: rgba(10, 10, 14, 0.78); */
-        background: rgba(28, 28, 28, 0.75);
+        background: rgba(33, 33, 33, 0.75);
     }
 }
 
@@ -767,7 +768,7 @@ body[data-initial-state="ready"] .loading-overlay {
     border: 1px solid rgba(255, 255, 255, 0.14);
     padding: 0.95rem 1rem;
     margin: 0.65rem 0;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 10px 10px rgba(0, 0, 0, 0.15);
 }
 
 /* Cards with lists need extra bottom padding to accommodate infinite scroll throbber */
@@ -784,12 +785,13 @@ body[data-initial-state="ready"] .loading-overlay {
     background: transparent;
 }
 
-@supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+/* Content-card blur disabled for perf; background handled by shell/body. */
+/* @supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
     .wa-card--glass {
         backdrop-filter: blur(12px) saturate(1.2);
         -webkit-backdrop-filter: blur(12px) saturate(1.2);
     }
-}
+} */
 
 .wa-card--link {
     display: block;
@@ -1002,6 +1004,7 @@ body[data-initial-state="ready"] .loading-overlay {
 
 .wa-listitem:hover {
     border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.025);
 }
 
 .wa-listitem__title {
@@ -1212,12 +1215,22 @@ body[data-initial-state="ready"] .loading-overlay {
     z-index: 9999;
     padding: 0.65rem 1.1rem;
     padding-bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
-    background: transparent;
+    /* Visual chrome (blur, border, background) is rendered by .wa-playerbar__bg so
+       that frequently updated controls live in a non-filtered layer above it. */
 }
 
+.wa-playerbar__bg {
+    position: absolute;
+    inset: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    background: transparent;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* player bar blur */
 @supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
-    .wa-playerbar {
+    .wa-playerbar__bg {
         backdrop-filter: blur(14px) saturate(1.2);
         -webkit-backdrop-filter: blur(14px) saturate(1.2);
     }
@@ -1505,6 +1518,9 @@ body[data-initial-state="ready"] .loading-overlay {
         left: 0.75rem;
         right: 0.75rem;
         bottom: 0.75rem;
+    }
+
+    .wa-playerbar__bg {
         border-radius: 12px;
         border: 1px solid rgba(255, 255, 255, 0.14);
         /* background:
@@ -1513,7 +1529,7 @@ body[data-initial-state="ready"] .loading-overlay {
                 rgba(0, 0, 0, 0.55) 55%,
                 rgba(0, 0, 0, 0.85) 100%); */
         background: rgba(28, 28, 28, 0.75);
-        box-shadow: 0 15px 20px rgba(0, 0, 0, 0.4)
+        box-shadow: 0 15px 20px rgba(0, 0, 0, 0.4);
     }
 
     .wa-playerbar__inner {
