@@ -923,10 +923,10 @@ body[data-initial-state="ready"] .loading-overlay {
 
 .wa-searchbar__input {
     width: 100%;
-    border-radius: 999px;
+    border-radius: var(--wa-radius-lg);
     border: 1px solid rgba(255, 255, 255, 0.18);
     background: rgba(0, 0, 0, 0.22);
-    padding: 0.85rem 4.1rem 0.85rem 1.05rem;
+    padding: 0.85rem 1.05rem;
     outline: none;
 }
 
@@ -1144,6 +1144,11 @@ body[data-initial-state="ready"] .loading-overlay {
     flex-direction: column;
     min-width: 0;
     gap: 0.18rem;
+}
+
+.wa-trackitem__textindex {
+    width: 1.2rem;
+    text-align: center;
 }
 
 .wa-trackitem__title {

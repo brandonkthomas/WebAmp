@@ -64,7 +64,7 @@ export function createTrackListItem(opts: {
 
         btn.innerHTML = `
         ${artHtml}
-        <span class="wa-trackitem__text">
+        <span class="wa-trackitem__text wa-trackitem__textindex">
             <span class="wa-trackitem__title">${escapeHtml(indexLabel)}</span>
         </span>
         <span class="wa-trackitem__text">

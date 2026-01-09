@@ -57,12 +57,33 @@ export const searchView: WebAmpViewController = {
             resultsEl.replaceChildren();
         };
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const q = input.value.trim();
-            if (!q) return;
+        const updateUrlQuery = (q: string) => {
+            try {
+                const url = new URL(window.location.href);
+                if (q) {
+                    url.searchParams.set('q', q);
+                } else {
+                    url.searchParams.delete('q');
+                }
+                history.replaceState(history.state, '', url.toString());
+            } catch {
+                // ignore URL errors
+            }
+        };
+
+        const runSearch = async (rawQuery: string) => {
+            const q = rawQuery.trim();
+            if (!q) {
+                currentQuery = '';
+                updateUrlQuery('');
+                if (resultsCard) resultsCard.style.display = 'none';
+                setStatus('');
+                reset();
+                return;
+            }
 
             currentQuery = q;
+            updateUrlQuery(q);
             reset();
             if (resultsCard) resultsCard.style.display = 'block';
             setStatus('Searching…');
@@ -100,6 +121,114 @@ export const searchView: WebAmpViewController = {
                 const albumsSec = makeSection('Albums');
                 const artistsSec = makeSection('Artists');
                 const playlistsSec = makeSection('Playlists');
+
+                const qLower = currentQuery.toLowerCase();
+                const startsWithQuery = (name?: string | null) =>
+                    !!name && name.toLowerCase().startsWith(qLower);
+
+                type TopHitKind = 'track' | 'album' | 'artist' | 'playlist';
+                let topHit: { kind: TopHitKind; payload: any } | null = null;
+
+                // Prefer track name match, then artist, album, playlist.
+                if (!topHit) {
+                    for (const t of tracks) {
+                        if (startsWithQuery(t.title)) {
+                            topHit = { kind: 'track', payload: t };
+                            break;
+                        }
+                    }
+                }
+
+                if (!topHit) {
+                    for (const a of artistItems) {
+                        const name = typeof a?.name === 'string' ? a.name : '';
+                        if (!startsWithQuery(name)) continue;
+                        const id = a?.id;
+                        if (!id) continue;
+                        const images = a?.images ?? [];
+                        const artUrlSmall = images?.[images.length - 1]?.url ?? images?.[0]?.url;
+                        topHit = {
+                            kind: 'artist',
+                            payload: { id, name: name || '(untitled)', artUrlSmall }
+                        };
+                        break;
+                    }
+                }
+
+                if (!topHit) {
+                    for (const a of albumItems) {
+                        const name = typeof a?.name === 'string' ? a.name : '';
+                        if (!startsWithQuery(name)) continue;
+                        const id = a?.id;
+                        if (!id) continue;
+                        const artist = Array.isArray(a?.artists) ? a.artists.map((x: any) => x.name).join(', ') : '';
+                        const images = a?.images ?? [];
+                        const artUrlSmall = images?.[images.length - 1]?.url ?? images?.[0]?.url;
+                        topHit = {
+                            kind: 'album',
+                            payload: { id, title: name || '(untitled)', artist, artUrlSmall }
+                        };
+                        break;
+                    }
+                }
+
+                if (!topHit) {
+                    for (const p of playlistItems) {
+                        const name = typeof p?.name === 'string' ? p.name : '';
+                        if (!startsWithQuery(name)) continue;
+                        const id = p?.id;
+                        if (!id) continue;
+                        const owner = p?.owner?.display_name ?? p?.owner?.id ?? '—';
+                        const images = p?.images ?? [];
+                        const artUrlSmall = images?.[images.length - 1]?.url ?? images?.[0]?.url;
+                        topHit = {
+                            kind: 'playlist',
+                            payload: { id, title: name || '(untitled)', owner, artUrlSmall }
+                        };
+                        break;
+                    }
+                }
+
+                let topHitSec: { wrap: HTMLElement; list: HTMLElement } | null = null;
+                if (topHit) {
+                    topHitSec = makeSection('Top Hit');
+                    switch (topHit.kind) {
+                        case 'track': {
+                            const t = topHit.payload as Track;
+                            topHitSec.list.appendChild(createTrackListItem({
+                                track: t,
+                                onClick: () => window.dispatchEvent(new CustomEvent('wa:track:select', {
+                                    detail: { trackId: t.id, tracks: baseTracks.slice(), wrap: false, from: 'search' }
+                                }))
+                            }));
+                            break;
+                        }
+                        case 'album': {
+                            const a = topHit.payload as { id: string; title: string; artist: string; artUrlSmall?: string };
+                            topHitSec.list.appendChild(createAlbumListItem({
+                                album: a,
+                                onClick: () => ctx.router.navigate(`/webamp/albums/${a.id}`)
+                            }));
+                            break;
+                        }
+                        case 'artist': {
+                            const a = topHit.payload as { id: string; name: string; artUrlSmall?: string };
+                            topHitSec.list.appendChild(createArtistListItem({
+                                artist: a,
+                                onClick: () => ctx.router.navigate(`/webamp/artists/${a.id}`)
+                            }));
+                            break;
+                        }
+                        case 'playlist': {
+                            const p = topHit.payload as { id: string; title: string; owner: string; artUrlSmall?: string };
+                            topHitSec.list.appendChild(createPlaylistListItem({
+                                playlist: p,
+                                onClick: () => ctx.router.navigate(`/webamp/playlists/${p.id}`)
+                            }));
+                            break;
+                        }
+                    }
+                }
 
                 for (let i = 0; i < tracks.length; i++) {
                     const t = tracks[i];
@@ -153,9 +282,11 @@ export const searchView: WebAmpViewController = {
 
                 if (!any) {
                     setStatus('No results found.');
+                    if (resultsCard) resultsCard.style.display = 'none';
                     return;
                 }
 
+                if (topHitSec) resultsEl.appendChild(topHitSec.wrap);
                 if (tracksSec.list.childElementCount) resultsEl.appendChild(tracksSec.wrap);
                 if (albumsSec.list.childElementCount) resultsEl.appendChild(albumsSec.wrap);
                 if (artistsSec.list.childElementCount) resultsEl.appendChild(artistsSec.wrap);
@@ -166,7 +297,54 @@ export const searchView: WebAmpViewController = {
                 setStatus(err?.message ?? 'Search failed');
                 resultsEl.replaceChildren();
             }
+        };
+
+        let debounceHandle: number | null = null;
+
+        input.addEventListener('input', () => {
+            if (debounceHandle !== null) {
+                window.clearTimeout(debounceHandle);
+                debounceHandle = null;
+            }
+
+            const value = input.value;
+            const trimmed = value.trim();
+
+            if (!trimmed) {
+                // Clearing input (including via native "X") should clear results.
+                updateUrlQuery('');
+                setStatus('');
+                if (resultsCard) resultsCard.style.display = 'none';
+                reset();
+                return;
+            }
+
+            debounceHandle = window.setTimeout(() => {
+                if (destroyed) return;
+                void runSearch(input.value);
+            }, 350);
         });
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (debounceHandle !== null) {
+                window.clearTimeout(debounceHandle);
+                debounceHandle = null;
+            }
+            void runSearch(input.value);
+        });
+
+        // Hydrate from URL when landing on `/webamp/search?q=...`
+        try {
+            const url = new URL(window.location.href);
+            const initialQuery = url.searchParams.get('q');
+            if (initialQuery) {
+                input.value = initialQuery;
+                void runSearch(initialQuery);
+            }
+        } catch {
+            // ignore
+        }
 
         (searchView as any)._cleanup = () => {
             destroyed = true;

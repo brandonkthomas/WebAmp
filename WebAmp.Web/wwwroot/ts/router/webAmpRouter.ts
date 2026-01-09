@@ -188,6 +188,8 @@ export class WebAmpRouter {
      */
     private syncToLocation(pushHistory: boolean) {
         const match = this.resolveGuard(matchWebAmpRoute(window.location.pathname));
+        const search = window.location.search || '';
+        const url = `${match.canonicalPath}${search}`;
         // Seed or update internal stack from the normalized canonical path.
         if (!this.historyStack.length) {
             this.historyStack = [match.canonicalPath];
@@ -201,9 +203,9 @@ export class WebAmpRouter {
         }
 
         if (pushHistory) {
-            history.pushState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', match.canonicalPath);
+            history.pushState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', url);
         } else {
-            history.replaceState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', match.canonicalPath);
+            history.replaceState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', url);
         }
 
         this.render(match);
