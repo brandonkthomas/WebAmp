@@ -87,6 +87,8 @@ a {
     --wa-radius-lg: 16px;
     --wa-radius-md: 14px;
     --wa-playerbar-height: 48px; /* was 74px */
+    /* Keep this in sync with `.wa-content { padding-top: ... }` per breakpoint. */
+    --wa-content-pad-top: 1.25rem;
 }
 
 .hidden {
@@ -462,6 +464,11 @@ body[data-initial-state="ready"] .loading-overlay {
     display: none;
 }
 
+/* Home: hide the browse cards (Playlists/Albums/Artists) when SoundCloud is the sole source */
+.wa-app[data-wa-source="soundcloud"] .wa-view--home [data-wa-home-browse] {
+    display: none;
+}
+
 .wa-sidebar__footer {
     margin-top: auto;
     padding-top: 0.4rem;
@@ -562,6 +569,11 @@ body[data-initial-state="ready"] .loading-overlay {
 
 /* Desktop app-shell behavior: only the content column scrolls. Sidebar stays pinned and stops above player bar. */
 @media (min-width: 821px) {
+    :root {
+        /* Keep in sync with `.wa-content { padding-top: 4rem; }` on desktop. */
+        --wa-content-pad-top: 4rem;
+    }
+
     body {
         overflow: hidden;
     }
@@ -1197,6 +1209,7 @@ body[data-initial-state="ready"] .loading-overlay {
 /* Landing (fullscreen sign-in) */
 .wa-landing {
     min-height: calc(100vh - 2.5rem);
+    min-height: calc(100dvh - var(--wa-content-pad-top) - 2.5rem);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1215,7 +1228,7 @@ body[data-initial-state="ready"] .loading-overlay {
     width: 86px;
     height: 86px;
     border-radius: 22px;
-    border: 2px solid rgba(255, 165, 0, 0.55);
+    border: 2px solid #333;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1497,6 +1510,16 @@ body[data-initial-state="ready"] .loading-overlay {
 /* Mobile layout
 /* ============================================================================== */
 @media (max-width: 820px) {
+    /*
+        Mobile uses a fixed topbar AND reserves space for it via .wa-app padding-top.
+        If .wa-shell also insists on min-height: 100vh, the page becomes (top padding + 100vh)
+        and you get an extra vertical scroll even with minimal content.
+    */
+    .wa-shell {
+        min-height: calc(100vh - 3.5rem);
+        min-height: calc(100dvh - 3.5rem);
+    }
+
     .wa-layout {
         display: block;
         min-height: auto;
@@ -1655,12 +1678,249 @@ body[data-initial-state="ready"] .loading-overlay {
     .wa-playerbar__inner {
         max-width: none;
     }
+
+    /* ====================================================================== */
+    /* Mobile fullscreen "Now Playing" sheet (slides up from bottom) */
+    /* ====================================================================== */
+    .wa-nowplaying {
+        position: fixed;
+        inset: 0;
+        z-index: 10002; /* above sidebar overlay (10000) + sidebar (10001) */
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.18s ease;
+        overscroll-behavior: contain;
+    }
+
+    body[data-wa-now-playing-open="true"] .wa-nowplaying {
+        pointer-events: auto;
+        opacity: 1;
+    }
+
+    .wa-nowplaying__backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        opacity: 0;
+        transition: opacity 0.18s ease;
+    }
+
+    /* body[data-wa-now-playing-open="true"] .wa-nowplaying__backdrop {
+        opacity: 1;
+    } */
+
+    .wa-nowplaying__sheet {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        border-top-left-radius: 18px;
+        border-top-right-radius: 18px;
+        background: rgba(10, 10, 12, 0.88);
+        transform: translateY(102%);
+        transition: transform 0.22s ease;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        --wa-nowplaying-grab-h: 34px;
+        overscroll-behavior: contain;
+    }
+
+    @supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+        .wa-nowplaying__sheet {
+            backdrop-filter: blur(22px) saturate(1.15);
+            -webkit-backdrop-filter: blur(22px) saturate(1.15);
+            background: rgba(10, 10, 12, 0.64);
+        }
+    }
+
+    body[data-wa-now-playing-open="true"] .wa-nowplaying__sheet {
+        transform: translateY(0);
+    }
+
+    .wa-nowplaying__sheet--dragging {
+        transition: none;
+    }
+
+    .wa-nowplaying__grab {
+        position: absolute;
+        top: env(safe-area-inset-top, 0px);
+        left: 0;
+        right: 0;
+        height: var(--wa-nowplaying-grab-h);
+        padding: 0;
+        border: 0;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: none;
+    }
+
+    .wa-nowplaying__grab-handle {
+        width: 46px;
+        height: 5px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.22);
+    }
+
+    .wa-nowplaying__content {
+        height: 100vh;
+        height: 100dvh;
+        padding: calc(env(safe-area-inset-top, 0px) + var(--wa-nowplaying-grab-h) + 0.85rem) 1.4rem 1.4rem;
+        padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+        display: flex;
+        flex-direction: column;
+        gap: 1.15rem;
+        justify-content: center;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+
+    .wa-nowplaying__art {
+        width: 100%;
+        max-width: none;
+        aspect-ratio: 1 / 1;
+        margin: 0;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.04);
+        box-shadow: 0 22px 40px rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .wa-nowplaying__meta,
+    .wa-nowplaying__scrub,
+    .wa-nowplaying__controls,
+    .wa-nowplaying__bottom {
+        margin: 1vh 0;
+    }
+
+    .wa-nowplaying__art-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: none;
+    }
+
+    .wa-nowplaying__meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        text-align: center;
+    }
+
+    .wa-nowplaying__title {
+        font-weight: 700;
+        font-size: 1.32rem;
+        color: rgba(255, 255, 255, 0.95);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .wa-nowplaying__artist {
+        color: rgba(255, 255, 255, 0.72);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .wa-nowplaying__scrub {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .wa-nowplaying__range {
+        width: 100%;
+        accent-color: rgba(255, 255, 255, 0.9);
+    }
+
+    .wa-nowplaying__times {
+        display: flex;
+        justify-content: space-between;
+        color: rgba(255, 255, 255, 0.62);
+        font-size: 0.85rem;
+    }
+
+    .wa-nowplaying__controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1.1rem;
+        margin-top: 0;
+    }
+
+    .wa-nowplaying__btn {
+        width: 54px;
+        height: 54px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.02);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    .wa-nowplaying__btn--play {
+        width: 72px;
+        height: 72px;
+        border: 0;
+        background: rgba(255, 255, 255, 0.92);
+    }
+
+    .wa-nowplaying__btn:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.9);
+        outline-offset: 3px;
+    }
+
+    .wa-nowplaying__icon {
+        width: 22px;
+        height: 22px;
+        display: block;
+        filter: invert(1);
+        opacity: 0.95;
+    }
+
+    .wa-nowplaying__btn--play .wa-nowplaying__icon {
+        filter: none;
+        opacity: 1;
+    }
+
+    .wa-nowplaying__bottom {
+        display: flex;
+        justify-content: center;
+        padding-top: 0;
+    }
+
+    /* Now Playing uses the same shuffle toggle switch as the topbar. */
+    .comp-toggle--nowplaying {
+        transform: scale(1.05);
+        transform-origin: center;
+    }
+}
+
+/* Desktop/tablet: the mobile now-playing sheet should not exist visually. */
+@media (min-width: 821px) {
+    .wa-nowplaying {
+        display: none !important;
+    }
 }
 
 /* ============================================================================== */
 /* fullscreen landing + hide navigation/player chrome
 /* ============================================================================== */
 .wa-app[data-wa-view="landing"] {
+    /* Landing hides the fixed topbar; don't reserve space for it on mobile. */
+    padding-top: 0;
     padding-bottom: 1.25rem;
     max-width: none;
 }
@@ -1686,6 +1946,12 @@ body[data-initial-state="ready"] .loading-overlay {
 .wa-app[data-wa-view="landing"] .wa-layout {
     grid-template-columns: minmax(0, 1fr);
     min-height: calc(100vh - 2.5rem);
+    min-height: calc(100dvh - var(--wa-content-pad-top) - 2.5rem);
+}
+
+.wa-app[data-wa-view="landing"] .wa-main {
+    /* Landing also hides the playerbar, so don't reserve space for it. */
+    padding-bottom: 0;
 }
 
 /* ============================================================================== */

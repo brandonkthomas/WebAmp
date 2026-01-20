@@ -68,6 +68,7 @@ export class SoundCloudTransport implements PlayerTransport {
     private iframe: HTMLIFrameElement | null = null;
     private currentTrack: Track | null = null;
     private lastPositionSec: number = 0;
+    private lastProgressEmitMs: number = 0;
 
     constructor(private readonly onRemoteState?: PlaybackStateListener) {}
 
@@ -137,6 +138,20 @@ export class SoundCloudTransport implements PlayerTransport {
         widget.bind(Events.PLAY_PROGRESS, (e: any) => {
             const posMs = typeof e?.currentPosition === 'number' ? e.currentPosition : 0;
             this.lastPositionSec = Math.max(0, posMs / 1000);
+
+            // Keep PlayerStore's remote clock aligned to real playback so queue auto-advance
+            // happens near the actual end-of-track (and doesn't drift if the tab stalls).
+            if (this.currentTrack) {
+                const now = performance.now();
+                if (now - this.lastProgressEmitMs >= 500) {
+                    this.lastProgressEmitMs = now;
+                    this.emitRemote({
+                        track: this.currentTrack,
+                        isPlaying: true,
+                        positionSec: this.lastPositionSec
+                    });
+                }
+            }
         });
 
         widget.bind(Events.PLAY, () => {
@@ -182,6 +197,27 @@ export class SoundCloudTransport implements PlayerTransport {
         });
     }
 
+    private async getIsPaused(widget: any): Promise<boolean> {
+        return await new Promise<boolean>((resolve) => {
+            try {
+                widget.isPaused((paused: any) => resolve(!!paused));
+            } catch {
+                // If the widget can't report pause state, assume it's paused to avoid lying to UI.
+                resolve(true);
+            }
+        });
+    }
+
+    private async emitActualPlaybackState(widget: any): Promise<void> {
+        if (!this.currentTrack) return;
+        const paused = await this.getIsPaused(widget);
+        this.emitRemote({
+            track: this.currentTrack,
+            isPlaying: !paused,
+            positionSec: this.lastPositionSec
+        });
+    }
+
     /**
      * Starts playback of a SoundCloud-backed track using the widget.
      */
@@ -214,13 +250,10 @@ export class SoundCloudTransport implements PlayerTransport {
                         show_reposts: false,
                         visual: false,
                         callback: () => {
-                            // Initial remote sync; PLAY events will continue to
-                            // update the store as playback progresses.
-                            this.emitRemote({
-                                track,
-                                isPlaying: true,
-                                positionSec: this.lastPositionSec
-                            });
+                            // "load" callback does NOT guarantee audio actually started.
+                            // Emit a conservative state (paused) and let PLAY/PAUSE events
+                            // (and the isPaused probe below) reflect reality.
+                            this.emitRemote({ track, isPlaying: false, positionSec: this.lastPositionSec });
                             resolve();
                         }
                     });
@@ -228,6 +261,27 @@ export class SoundCloudTransport implements PlayerTransport {
                     reject(err);
                 }
             });
+
+            // Seek (best-effort) then force a play attempt. This improves:
+            // - Initial autoplay reliability
+            // - Auto-advance to next queue item
+            if (this.lastPositionSec > 0) {
+                try {
+                    widget.seekTo(this.lastPositionSec * 1000);
+                } catch {
+                    // ignore
+                }
+            }
+            try {
+                widget.play();
+            } catch {
+                // ignore
+            }
+
+            // After a short delay, sync state to what the widget is actually doing.
+            // (PLAY event will also fire when it really starts.)
+            await new Promise<void>((r) => setTimeout(r, 300));
+            await this.emitActualPlaybackState(widget);
         } catch (error) {
             void showErrorDialog(formatErrorMessage(error), 'Music Service Error');
             throw error;
@@ -245,6 +299,10 @@ export class SoundCloudTransport implements PlayerTransport {
             // The widget keeps its own play/pause state; toggle() is simpler
             // than trying to mirror the boolean.
             widget.toggle();
+            // Best-effort: sync state after toggle in case the widget doesn't emit promptly.
+            setTimeout(() => {
+                void this.emitActualPlaybackState(widget);
+            }, 100);
         } catch (error) {
             void showErrorDialog(formatErrorMessage(error), 'Music Service Error');
             throw error;
@@ -259,16 +317,13 @@ export class SoundCloudTransport implements PlayerTransport {
 
         try {
             const widget = await this.ensureWidget();
-        const nextPos = Math.max(0, positionSec || 0);
-        const ms = nextPos * 1000;
+            const nextPos = Math.max(0, positionSec || 0);
+            const ms = nextPos * 1000;
 
             widget.seekTo(ms);
             this.lastPositionSec = nextPos;
-            this.emitRemote({
-                track: this.currentTrack,
-                isPlaying: true,
-                positionSec: nextPos
-            });
+            // Don't assume seeking implies playback.
+            await this.emitActualPlaybackState(widget);
         } catch (error) {
             void showErrorDialog(formatErrorMessage(error), 'Music Service Error');
             throw error;

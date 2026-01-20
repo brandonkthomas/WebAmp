@@ -30,6 +30,10 @@ export interface Track {
     durationSec: number;
     artUrl?: string;
     artUrlSmall?: string;
+    /**
+     * Optional higher-resolution artwork URL (used by mobile Now Playing)
+     */
+    artUrlLarge?: string;
     uri?: string;
 }
 

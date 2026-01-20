@@ -28,3 +28,15 @@ export function shuffleCopy<T>(arr: T[]): T[] {
     return a;
 }
 
+/**
+ * SoundCloud artwork URLs often embed a size token (e.g. "-large", "t300x300").
+ * Attempt to upgrade to a higher-res variant when possible.
+ */
+export function upgradeSoundCloudArtworkUrl(url: string): string {
+    if (!url) return url;
+    // Common SoundCloud sizes: large, t300x300, t500x500
+    // Prefer t500x500 when present/compatible.
+    return url
+        .replace('-large.', '-t500x500.')
+        .replace('-t300x300.', '-t500x500.');
+}

@@ -20,9 +20,9 @@
       <_WebAmpClientTs>$(MSBuildProjectDirectory)/wwwroot/ts/webamp.ts</_WebAmpClientTs>
       <_WebAmpOutDir>$(MSBuildProjectDirectory)/wwwroot/dist/js</_WebAmpOutDir>
       <_WebAmpOutFile>$(_WebAmpOutDir)/webamp.js</_WebAmpOutFile>
-      <_EsbuildCli Condition="'$(EsbuildCli)' != ''">$(EsbuildCli)</_EsbuildCli>
-
-      <_EsbuildCli Condition="'$(_EsbuildCli)' == ''">$(MSBuildProjectDirectory)/../../../node_modules/esbuild/bin/esbuild</_EsbuildCli>
+      <!-- Candidate esbuild locations for local dev repo layout(s). -->
+      <_EsbuildCliPortfolio>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../Portfolio/node_modules/esbuild/bin/esbuild'))</_EsbuildCliPortfolio>
+      <_EsbuildCliDefault>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../../node_modules/esbuild/bin/esbuild'))</_EsbuildCliDefault>
     </PropertyGroup>
 
     <MakeDir Directories="$(_WebAmpOutDir)" />
@@ -32,7 +32,7 @@
     </PropertyGroup>
     <Exec
       Condition="Exists('$(_WebAmpClientTs)')"
-      Command="&quot;$(_EsbuildCli)&quot; &quot;$(_WebAmpClientTs)&quot; --bundle --format=esm --outfile=&quot;$(_WebAmpOutFile)&quot; --log-level=warning --resolve-extensions=.ts,.js" />
+      Command="ESBUILD=&quot;$(EsbuildCli)&quot;; if [ -z &quot;$ESBUILD&quot; ]; then if [ -x &quot;$(_EsbuildCliPortfolio)&quot; ]; then ESBUILD=&quot;$(_EsbuildCliPortfolio)&quot;; else ESBUILD=&quot;$(_EsbuildCliDefault)&quot;; fi; fi; &quot;$ESBUILD&quot; &quot;$(_WebAmpClientTs)&quot; --bundle --format=esm --outfile=&quot;$(_WebAmpOutFile)&quot; --log-level=warning --resolve-extensions=.ts,.js" />
   </Target>
 
 </Project>

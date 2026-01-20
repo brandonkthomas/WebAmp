@@ -14,6 +14,7 @@ import { albumView } from './views/albumView';
 import { artistView } from './views/artistView';
 import { PlayerStore } from './state/playerStore';
 import { PlayerBar } from './components/playerBar/playerBar';
+import { NowPlayingMobile } from './components/nowPlayingMobile/nowPlayingMobile';
 import { SpotifySource } from './sources/spotifySource';
 import { SoundCloudSource } from './sources/soundCloudSource';
 import { SidebarController } from './components/sidebar/sidebar';
@@ -32,6 +33,7 @@ function boot() {
     const appRoot = document.querySelector<HTMLElement>('[data-wa-app]');
     const viewHost = document.querySelector<HTMLElement>('[data-wa-view-host]');
     const playerBarRoot = document.querySelector<HTMLElement>('[data-wa-playerbar]');
+    const nowPlayingRoot = document.querySelector<HTMLElement>('[data-wa-nowplaying]');
     const sidebar = document.querySelector<HTMLElement>('[data-wa-sidebar]');
     const sidebarOverlay = document.querySelector<HTMLElement>('[data-wa-sidebar-overlay]');
     const sidebarOpenBtn = document.querySelector<HTMLElement>('[data-wa-sidebar-toggle]');
@@ -175,6 +177,9 @@ function boot() {
 
     if (playerBarRoot) {
         new PlayerBar({ root: playerBarRoot, store: playerStore });
+    }
+    if (nowPlayingRoot) {
+        new NowPlayingMobile({ root: nowPlayingRoot, playerBarRoot, store: playerStore });
     }
 
     // Background color wash based on the currently playing track's album art.
@@ -332,6 +337,11 @@ function boot() {
             void transport.play(st.track, st.positionSec);
         }
     };
+
+    // Install the transport immediately so first-tap play is routed through the real
+    // engine in the same user gesture (important for autoplay policies), rather than
+    // waiting for async auth probes to finish.
+    ensureHybridTransport();
 
     void Promise.all([spotifySource.init(), soundCloudSource.init()]).then(() => {
         const spotifyConnected = spotifySource.getState().isConnected;

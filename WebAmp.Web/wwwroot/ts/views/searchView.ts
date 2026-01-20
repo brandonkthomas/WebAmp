@@ -13,6 +13,7 @@ function mapSpotifyTrack(it: any): Track {
     const images = it?.album?.images ?? [];
     const artUrlSmall = images?.[images.length - 1]?.url;
     const artUrl = images?.[1]?.url ?? images?.[0]?.url;
+    const artUrlLarge = images?.[0]?.url ?? images?.[1]?.url ?? artUrl;
     const artist = Array.isArray(it?.artists) ? it.artists.map((a: any) => a.name).join(', ') : '';
     const album = it?.album?.name ?? '';
     return {
@@ -26,6 +27,7 @@ function mapSpotifyTrack(it: any): Track {
         durationSec: Math.round((it.duration_ms ?? 0) / 1000),
         artUrl,
         artUrlSmall,
+        artUrlLarge,
         uri: it.uri
     };
 }

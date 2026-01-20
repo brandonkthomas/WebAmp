@@ -98,6 +98,9 @@
             @await Html.PartialAsync("~/Views/Partials/_PlayerBar.cshtml")
         </div>
     </div>
+
+    @* Mobile-only fullscreen overlay. Must be outside .wa-shell (which has overflow:hidden) so it can cover the viewport on iOS/Safari. *@
+    @await Html.PartialAsync("~/Views/Partials/_NowPlayingMobile.cshtml")
 </section>
 
 @section Styles {

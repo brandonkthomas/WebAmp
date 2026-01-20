@@ -140,6 +140,7 @@ export const albumView: WebAmpViewController = {
                     const images = album?.images ?? [];
                     const artUrlFull = images?.[0]?.url ?? images?.[1]?.url;
                     const artUrl = images?.[1]?.url ?? images?.[0]?.url;
+                    const artUrlLarge = images?.[0]?.url ?? images?.[1]?.url ?? artUrl;
                     const artUrlSmall = images?.[images.length - 1]?.url;
                     const albumName = album?.name ?? ctx.getViewLabel('album');
                     const artistName = Array.isArray(album?.artists) ? album.artists.map((a: any) => a.name).join(', ') : '';

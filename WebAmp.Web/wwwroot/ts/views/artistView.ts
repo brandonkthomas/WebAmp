@@ -173,6 +173,7 @@ export const artistView: WebAmpViewController = {
                         const images = t?.album?.images ?? [];
                         const artUrlSmall = images?.[images.length - 1]?.url;
                         const artUrl = images?.[1]?.url ?? images?.[0]?.url;
+                        const artUrlLarge = images?.[0]?.url ?? images?.[1]?.url ?? artUrl;
                         const artist = Array.isArray(t?.artists) ? t.artists.map((a: any) => a.name).join(', ') : '';
                         const album = t?.album?.name ?? '';
                         return {
@@ -186,6 +187,7 @@ export const artistView: WebAmpViewController = {
                             durationSec: Math.round((t.duration_ms ?? 0) / 1000),
                             artUrl,
                             artUrlSmall,
+                            artUrlLarge,
                             uri: t.uri
                         } as Track;
                     });
