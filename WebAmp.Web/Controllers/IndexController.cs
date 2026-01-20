@@ -3,11 +3,13 @@ using Microsoft.Extensions.Configuration;
 
 namespace WebAmp.Web.Controllers;
 
+// ============================================================================================
 /// <summary>
 /// Controller for the WebAmp landing page.
 /// </summary>
-public class WebAmpController(IConfiguration configuration) : Controller
+public class IndexController(IConfiguration configuration) : Controller
 {
+    // ============================================================================================
     /// <summary>
     /// Display the WebAmp landing page.
     /// </summary>

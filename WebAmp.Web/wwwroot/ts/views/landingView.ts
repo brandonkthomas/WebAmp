@@ -9,28 +9,42 @@ export const landingView: WebAmpViewController = {
         const statusEl = root.querySelector<HTMLElement>('[data-wa-landing-status]');
         const connectBtn = root.querySelector<HTMLButtonElement>('[data-wa-action="spotify-connect"]');
         const continueBtn = root.querySelector<HTMLButtonElement>('[data-wa-action="continue"]');
+        const soundcloudBtn = root.querySelector<HTMLButtonElement>('[data-wa-action="soundcloud-enter"]');
 
         const setStatus = (text: string) => {
             if (statusEl) statusEl.textContent = text;
         };
 
-        const musicSource = ctx.services.musicSource;
+        const spotifySource = ctx.services.musicSource;
+        const soundCloudSource = ctx.services.soundCloudSource;
         if (!connectBtn) return;
 
         const syncUi = () => {
-            const connected = musicSource?.getState().isConnected ?? false;
+            const spotifyConnected = spotifySource?.getState().isConnected ?? false;
+            const scConnected = soundCloudSource?.getState().isConnected ?? false;
+            const connected = spotifyConnected || scConnected;
             if (continueBtn) continueBtn.disabled = !connected;
-            setStatus(connected ? `${musicSource?.displayName ?? 'Spotify'} connected` : 'Not connected');
+            if (spotifyConnected && scConnected) {
+                setStatus('Spotify and SoundCloud connected');
+            } else if (spotifyConnected) {
+                setStatus('Spotify connected');
+            } else if (scConnected) {
+                setStatus('SoundCloud connected');
+            } else {
+                setStatus('Not connected');
+            }
         };
 
         // Initial status
         syncUi();
 
         unsubscribeFromSource?.();
-        unsubscribeFromSource = musicSource?.onChange(() => syncUi()) ?? null;
+        // Keep landing status in sync with Spotify connection; SoundCloud state is
+        // rarer to change during landing, so a single sync is fine.
+        unsubscribeFromSource = spotifySource?.onChange(() => syncUi()) ?? null;
 
         connectBtn.addEventListener('click', () => {
-            if (!musicSource) {
+            if (!spotifySource) {
                 setStatus('Spotify source not configured');
                 return;
             }
@@ -39,7 +53,7 @@ export const landingView: WebAmpViewController = {
             setStatus('Connecting…');
             try {
                 // OAuth flow will redirect the page; do not await.
-                void musicSource.connect();
+                void spotifySource.connect();
             } finally {
                 connectBtn.disabled = false;
             }
@@ -47,6 +61,19 @@ export const landingView: WebAmpViewController = {
 
         continueBtn?.addEventListener('click', () => {
             ctx.router.navigate('/webamp/home');
+        });
+
+        // SoundCloud path: start Authorization Code + PKCE flow.
+        soundcloudBtn?.addEventListener('click', () => {
+            if (!soundCloudSource) {
+                setStatus('SoundCloud source not configured');
+                return;
+            }
+            try {
+                void soundCloudSource.connect();
+            } catch {
+                // Best-effort; any navigation errors will surface via dialogs.
+            }
         });
     },
     unmount() {

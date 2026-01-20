@@ -15,8 +15,9 @@ import { artistView } from './views/artistView';
 import { PlayerStore } from './state/playerStore';
 import { PlayerBar } from './components/playerBar/playerBar';
 import { SpotifySource } from './sources/spotifySource';
+import { SoundCloudSource } from './sources/soundCloudSource';
 import { SidebarController } from './components/sidebar/sidebar';
-import { SpotifyTransport } from './sources/spotify/spotifyTransport';
+import { HybridTransport } from './sources/hybridTransport';
 import { getDominantColor } from './ui/dominantColor';
 
 function getTemplate(id: string): HTMLTemplateElement {
@@ -65,10 +66,90 @@ function boot() {
         { id: '3', title: 'Track 3', artist: 'Artist', durationSec: 247 }
     ];
     const playerStore = new PlayerStore(seedTracks);
-    const musicSource = new SpotifySource();
+    const spotifySource = new SpotifySource();
+    const soundCloudSource = new SoundCloudSource();
     const initialPath = window.location.pathname;
 
-    // Start the router immediately (do not block on network/Spotify SDK).
+    // Global disconnect handler (sidebar button) and source-aware footer chrome.
+    const disconnectBtn = document.querySelector<HTMLButtonElement>('[data-wa-action="source-disconnect"]');
+    const disconnectIcon = document.querySelector<HTMLImageElement>('[data-wa-disconnect-icon]');
+    const disconnectLabel = document.querySelector<HTMLElement>('[data-wa-disconnect-label]');
+    const appRootEl = appRoot;
+    const baseDisconnectIconSrc = disconnectIcon?.getAttribute('src') ?? undefined;
+
+    const likedHeading = document.querySelector<HTMLElement>('[data-wa-liked-heading]');
+    const likedList = document.querySelector<HTMLElement>('[data-wa-liked]');
+    const likedRootHeading = document.querySelector<HTMLElement>('[data-wa-liked-heading-root]');
+
+    const updateSourceChrome = () => {
+        const spotifyConnected = spotifySource.getState().isConnected;
+        const scConnected = soundCloudSource.getState().isConnected;
+
+        // Update app-level source dataset for CSS (e.g., hide Albums/Artists
+        // when only SoundCloud is active).
+        if (appRootEl) {
+            let src = 'none';
+            if (spotifyConnected && !scConnected) src = 'spotify';
+            else if (scConnected && !spotifyConnected) src = 'soundcloud';
+            appRootEl.dataset.waSource = src;
+        }
+
+        // Rename "Liked Songs" to "Likes" when SoundCloud is the sole source.
+        if (likedHeading || likedRootHeading) {
+            if (scConnected && !spotifyConnected) {
+                if (likedHeading) likedHeading.textContent = 'Likes';
+                if (likedRootHeading) likedRootHeading.textContent = 'Likes';
+                if (likedList) likedList.setAttribute('aria-label', 'Likes');
+            } else {
+                if (likedHeading) likedHeading.textContent = 'Liked Songs';
+                if (likedRootHeading) likedRootHeading.textContent = 'Liked Songs';
+                if (likedList) likedList.setAttribute('aria-label', 'Liked songs');
+            }
+        }
+
+        if (!disconnectBtn) return;
+
+        if (!spotifyConnected && !scConnected) {
+            disconnectBtn.disabled = true;
+            disconnectBtn.style.opacity = '0.6';
+            if (disconnectLabel) disconnectLabel.textContent = 'Sign Out';
+            return;
+        }
+
+        disconnectBtn.disabled = false;
+        disconnectBtn.style.opacity = '';
+
+        if (spotifyConnected) {
+            if (disconnectIcon && baseDisconnectIconSrc) {
+                disconnectIcon.src = baseDisconnectIconSrc;
+            }
+            if (disconnectLabel) disconnectLabel.textContent = 'Sign Out';
+            disconnectBtn.dataset.waSource = 'spotify';
+        } else if (scConnected) {
+            if (disconnectIcon && baseDisconnectIconSrc) {
+                const scSrc = baseDisconnectIconSrc.replace('spotify.svg', 'soundcloud.svg');
+                disconnectIcon.src = scSrc;
+            }
+            if (disconnectLabel) disconnectLabel.textContent = 'Sign Out';
+            disconnectBtn.dataset.waSource = 'soundcloud';
+        }
+    };
+
+    disconnectBtn?.addEventListener('click', () => {
+        const spotifyConnected = spotifySource.getState().isConnected;
+        const scConnected = soundCloudSource.getState().isConnected;
+        if (spotifyConnected && (spotifySource as any).disconnect) {
+            void spotifySource.disconnect();
+        } else if (scConnected && (soundCloudSource as any).disconnect) {
+            void soundCloudSource.disconnect();
+        }
+    });
+
+    spotifySource.onChange(updateSourceChrome);
+    soundCloudSource.onChange(updateSourceChrome);
+    updateSourceChrome();
+
+    // Start the router immediately (do not block on network/Spotify/SC SDK).
     const router = new WebAmpRouter({
         root: '/webamp',
         dom: { appRoot, viewHost, templates },
@@ -82,14 +163,9 @@ function boot() {
             artist: artistView
         },
         services: {
-            musicSource
+            musicSource: spotifySource,
+            soundCloudSource
         }
-    });
-
-    // Global disconnect handler (sidebar button)
-    const disconnectBtn = document.querySelector<HTMLButtonElement>('[data-wa-action="spotify-disconnect"]');
-    disconnectBtn?.addEventListener('click', () => {
-        if (musicSource.disconnect) void musicSource.disconnect();
     });
 
     if (playerBarRoot) {
@@ -185,6 +261,12 @@ function boot() {
         }
     });
 
+    // Global play/pause toggle (used by header "Play/Pause" button when the
+    // current view already owns the active queue).
+    window.addEventListener('wa:player:toggle', () => {
+        playerStore.togglePlay();
+    });
+
     window.addEventListener('wa:track:select', (e: Event) => {
         const ev = e as CustomEvent<{ trackId?: string; tracks?: any[]; wrap?: boolean }>;
         const trackId = ev.detail?.trackId;
@@ -220,17 +302,22 @@ function boot() {
 
     router.start();
 
-    // Background: check auth status quickly and then (if authed) install Spotify transport lazily.
+    // Background: check auth status and always install a hybrid transport.
+    // The transport will route playback to Spotify or SoundCloud based on track.source,
+    // and will surface a friendly error if a Spotify track is played without being connected.
     let transportInstalled = false;
-    const ensureSpotifyTransport = () => {
+    const ensureHybridTransport = () => {
         if (transportInstalled) return;
         transportInstalled = true;
-        const transport = new SpotifyTransport((s) => {
-            playerStore.syncFromRemote({
-                track: s.track,
-                isPlaying: s.isPlaying,
-                positionSec: s.positionSec
-            });
+        const transport = new HybridTransport({
+            spotifySource,
+            onRemoteState: (s) => {
+                playerStore.syncFromRemote({
+                    track: s.track,
+                    isPlaying: s.isPlaying,
+                    positionSec: s.positionSec
+                });
+            }
         });
         playerStore.setTransport(transport);
 
@@ -241,26 +328,23 @@ function boot() {
         }
     };
 
-    void musicSource.init().then(() => {
-        // After we know auth state, ensure the router is on the right screen.
-        const connected = musicSource.getState().isConnected;
+    void Promise.all([spotifySource.init(), soundCloudSource.init()]).then(() => {
+        const spotifyConnected = spotifySource.getState().isConnected;
+        const scConnected = soundCloudSource.getState().isConnected;
+        const authed = spotifyConnected || scConnected;
         const currentView = appRoot.dataset.waView;
 
-        if (connected) {
-            ensureSpotifyTransport();
+        // Always have a transport so that SoundCloud-only mode works without Spotify.
+        ensureHybridTransport();
 
-            // If we started on landing because auth was unknown, jump to desired route.
-            if (currentView === 'landing') {
-                const desired = initialPath && initialPath.startsWith('/webamp/') ? initialPath : '/webamp/home';
-                router.navigate(desired);
-            }
-        } else {
-            // Not connected: if user somehow landed elsewhere, bounce to landing.
-            if (currentView && currentView !== 'landing') {
-                router.navigate('/webamp');
-            }
-            playerStore.setTransport(null);
-            transportInstalled = false;
+        // If any music source is connected and we are still on the landing page,
+        // jump to the desired route.
+        if (authed && currentView === 'landing') {
+            const desired =
+                initialPath && initialPath.startsWith('/webamp/')
+                    ? initialPath
+                    : '/webamp/home';
+            router.navigate(desired);
         }
 
         authResolved = true;

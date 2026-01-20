@@ -39,6 +39,9 @@ export const artistView: WebAmpViewController = {
         let cleanup: (() => void) | null = null;
         let cleanupActions = bindQueueActions({ root: ctx.rootEl, getTracks: () => [] });
 
+        const spotifySource = ctx.services.musicSource;
+        const isSpotifyConnected = spotifySource?.getState().isConnected ?? false;
+
         // Followed artists list (cursor-based infinite)
         (async () => {
             if (ctx.entityId) {
@@ -59,6 +62,13 @@ export const artistView: WebAmpViewController = {
                 if (destroyed || loading || !hasMore) return;
                 loading = true;
                 try {
+                    if (!isSpotifyConnected) {
+                        artistsList.replaceChildren();
+                        setArtistsStatus('Connect Spotify to see your followed artists.');
+                        hasMore = false;
+                        return;
+                    }
+
                     const data = await spotifyApi.followedArtists(50, after);
                     const artists = data?.artists;
                     const items = artists?.items ?? [];
@@ -106,6 +116,14 @@ export const artistView: WebAmpViewController = {
 
         // Top tracks when viewing a specific artist
         if (ctx.entityId && topCard && topList) {
+            if (!isSpotifyConnected) {
+                if (detailCard) detailCard.style.display = 'block';
+                if (detailName) detailName.textContent = 'Artists not available';
+                if (detailMeta) detailMeta.textContent = 'Connect Spotify to view artist details.';
+                if (topCard) topCard.style.display = 'none';
+                setTopStatus('Artist top tracks are only available for Spotify.');
+                return;
+            }
             (async () => {
                 try {
                     if (detailCard) detailCard.style.display = 'block';
@@ -159,6 +177,7 @@ export const artistView: WebAmpViewController = {
                         const album = t?.album?.name ?? '';
                         return {
                             id: t.id,
+                            source: 'spotify',
                             title: t.name,
                             artist,
                             albumId: t?.album?.id,
@@ -201,6 +220,13 @@ export const artistView: WebAmpViewController = {
 
         // Albums + singles when viewing a specific artist
         if (ctx.entityId && (albumsCard || singlesCard) && albumsList && singlesList) {
+            if (!isSpotifyConnected) {
+                if (albumsCard) albumsCard.style.display = 'none';
+                if (singlesCard) singlesCard.style.display = 'none';
+                setAlbumsStatus('Artist albums are only available for Spotify.');
+                setSinglesStatus('Artist singles are only available for Spotify.');
+                return;
+            }
             (async () => {
                 try {
                     if (albumsCard) albumsCard.style.display = 'block';

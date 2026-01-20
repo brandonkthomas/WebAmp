@@ -1,6 +1,7 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
 import { WEBAMP_ROOT } from '../router/routes';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
+import { soundcloudUserApi } from '../sources/soundcloudUserApi';
 import type { Track } from '../state/playerStore';
 import { renderListSkeleton } from '../ui/skeleton';
 import { createTrackListItem } from '../ui/trackListItem';
@@ -48,6 +49,11 @@ export const playlistView: WebAmpViewController = {
             getTracks: () => [], // overwritten in detail view when tracks exist
         });
 
+        const spotifySource = ctx.services.musicSource;
+        const soundCloudSource = ctx.services.soundCloudSource;
+        const isSpotifyConnected = spotifySource?.getState().isConnected ?? false;
+        const isSoundCloudConnected = soundCloudSource?.getState().isConnected ?? false;
+
         // All playlists list (only on /playlists)
         const loadAllPlaylists = async () => {
             if (!playlistsList || !playlistsCard) return;
@@ -57,10 +63,18 @@ export const playlistView: WebAmpViewController = {
             let hasMore = true;
 
             playlistsCard.style.display = 'block';
-            setPlaylistsStatus('Loading…');
+
+            if (!isSpotifyConnected && !isSoundCloudConnected) {
+                playlistsList.replaceChildren();
+                setPlaylistsStatus('Connect to a music source to see your playlists.');
+                return;
+            }
+
+            // Use skeletons instead of visible "Loading…" text.
+            setPlaylistsStatus('');
             renderListSkeleton(playlistsList, 8);
 
-            const loadMore = async () => {
+            const loadMoreSpotify = async () => {
                 if (destroyed || loading || !hasMore) return;
                 loading = true;
                 try {
@@ -93,6 +107,47 @@ export const playlistView: WebAmpViewController = {
                 }
             };
 
+            const loadMoreSoundCloud = async () => {
+                if (destroyed || loading || !hasMore) return;
+                loading = true;
+                try {
+                    const data = await soundcloudUserApi.myPlaylists(50);
+                    const items = (data?.collection ?? data?.items ?? []) as any[];
+
+                    if (offset === 0) playlistsList.replaceChildren();
+
+                    for (const p of items) {
+                        const id = p?.id;
+                        if (!id) continue;
+                        const title = p?.title ?? '(untitled)';
+                        const owner =
+                            (typeof p?.user?.username === 'string' && p.user.username) ||
+                            (typeof p?.user?.name === 'string' && p.user.name) ||
+                            '—';
+                        const artUrlSmall: string | undefined =
+                            typeof p?.artwork_url === 'string'
+                                ? p.artwork_url
+                                : (Array.isArray(p?.tracks) && p.tracks.length && typeof p.tracks[0]?.artwork_url === 'string'
+                                    ? p.tracks[0].artwork_url
+                                    : undefined);
+                        playlistsList.appendChild(createPlaylistListItem({
+                            playlist: { id: String(id), title, owner, artUrlSmall },
+                            onClick: () => ctx.router.navigate(`/webamp/playlists/${id}`)
+                        }));
+                    }
+
+                    hasMore = false;
+                    setPlaylistsStatus(items.length ? '' : 'No playlists found.');
+                } catch (err: any) {
+                    setPlaylistsStatus(err?.message ?? 'Failed to load playlists');
+                    hasMore = false;
+                } finally {
+                    loading = false;
+                }
+            };
+
+            const loadMore = isSpotifyConnected ? loadMoreSpotify : loadMoreSoundCloud;
+
             const scroller = attachInfiniteScroll({
                 listEl: playlistsList,
                 loadMore,
@@ -122,38 +177,79 @@ export const playlistView: WebAmpViewController = {
                     if (detailArt) detailArt.classList.add('wa-entityheader__art--loading');
 
                     tracksCard.style.display = 'block';
-                    setTracksStatus('Loading tracks…');
+                    // Skeletons only; no visible "Loading…" text.
+                    setTracksStatus('');
                     renderListSkeleton(tracksList, 10);
 
                     // Playlist details (for art/title + header + breadcrumbs)
-                    try {
-                        const p = await spotifyApi.playlist(ctx.entityId!);
-                        const playlistName = p?.name ?? ctx.getViewLabel('playlist');
-                        if (detailTitle) detailTitle.textContent = playlistName;
-                        const owner = p?.owner?.display_name ?? p?.owner?.id ?? '';
-                        const total = p?.tracks?.total;
-                        if (detailMeta) detailMeta.textContent = `${owner}${typeof total === 'number' ? ` • ${total} tracks` : ''}`;
-                        const images = p?.images ?? [];
-                        const artFull = images?.[0]?.url ?? images?.[1]?.url ?? images?.[images.length - 1]?.url;
-                        if (detailImg && artFull) {
-                            detailImg.src = artFull;
-                            if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
-                        } else if (detailArt) {
-                            detailArt.classList.remove('wa-entityheader__art--loading');
-                        }
+                    let playlistName = ctx.getViewLabel('playlist');
+                    if (isSpotifyConnected) {
+                        try {
+                            const p = await spotifyApi.playlist(ctx.entityId!);
+                            playlistName = p?.name ?? playlistName;
+                            if (detailTitle) detailTitle.textContent = playlistName;
+                            const owner = p?.owner?.display_name ?? p?.owner?.id ?? '';
+                            const total = p?.tracks?.total;
+                            if (detailMeta) detailMeta.textContent = `${owner}${typeof total === 'number' ? ` • ${total} tracks` : ''}`;
+                            const images = p?.images ?? [];
+                            const artFull = images?.[0]?.url ?? images?.[1]?.url ?? images?.[images.length - 1]?.url;
+                            if (detailImg && artFull) {
+                                detailImg.src = artFull;
+                                if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
+                            } else if (detailArt) {
+                                detailArt.classList.remove('wa-entityheader__art--loading');
+                            }
 
-                        // Update main view title + breadcrumbs now that we know the playlist name.
-                        if (headerTitle) headerTitle.textContent = playlistName;
-                        const rootLabel = ctx.getViewLabel('playlist');
-                        const rootPath = `${WEBAMP_ROOT}/playlists`;
-                        const detailPath = `${WEBAMP_ROOT}/playlists/${ctx.entityId}`;
-                        ctx.router.setBreadcrumbs([
-                            { label: rootLabel, path: rootPath },
-                            { label: playlistName, path: detailPath }
-                        ]);
-                    } catch {
-                        // ignore detail errors; tracks will still show
-                        if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
+                            // Update main view title + breadcrumbs now that we know the playlist name.
+                            if (headerTitle) headerTitle.textContent = playlistName;
+                            const rootLabel = ctx.getViewLabel('playlist');
+                            const rootPath = `${WEBAMP_ROOT}/playlists`;
+                            const detailPath = `${WEBAMP_ROOT}/playlists/${ctx.entityId}`;
+                            ctx.router.setBreadcrumbs([
+                                { label: rootLabel, path: rootPath },
+                                { label: playlistName, path: detailPath }
+                            ]);
+                        } catch {
+                            if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
+                        }
+                    } else if (isSoundCloudConnected) {
+                        try {
+                            const p = await soundcloudUserApi.playlist(ctx.entityId!);
+                            playlistName = p?.title ?? playlistName;
+                            if (detailTitle) detailTitle.textContent = playlistName;
+                            const owner =
+                                (typeof p?.user?.username === 'string' && p.user.username) ||
+                                (typeof p?.user?.name === 'string' && p.user.name) ||
+                                '';
+                            const trackCount: number | undefined =
+                                typeof p?.track_count === 'number' ? p.track_count : undefined;
+                            if (detailMeta) {
+                                detailMeta.textContent = `${owner}${typeof trackCount === 'number' ? ` • ${trackCount} tracks` : ''}`;
+                            }
+                            const artFull: string | undefined =
+                                typeof p?.artwork_url === 'string'
+                                    ? p.artwork_url
+                                    : (Array.isArray(p?.tracks) && p.tracks.length && typeof p.tracks[0]?.artwork_url === 'string'
+                                        ? p.tracks[0].artwork_url
+                                        : undefined);
+                            if (detailImg && artFull) {
+                                detailImg.src = artFull;
+                                if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
+                            } else if (detailArt) {
+                                detailArt.classList.remove('wa-entityheader__art--loading');
+                            }
+
+                            if (headerTitle) headerTitle.textContent = playlistName;
+                            const rootLabel = ctx.getViewLabel('playlist');
+                            const rootPath = `${WEBAMP_ROOT}/playlists`;
+                            const detailPath = `${WEBAMP_ROOT}/playlists/${ctx.entityId}`;
+                            ctx.router.setBreadcrumbs([
+                                { label: rootLabel, path: rootPath },
+                                { label: playlistName, path: detailPath }
+                            ]);
+                        } catch {
+                            if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
+                        }
                     }
                     let destroyed = false;
                     let offset = 0;
@@ -174,7 +270,7 @@ export const playlistView: WebAmpViewController = {
                         }
                     });
 
-                    const loadMoreTracks = async () => {
+                    const loadMoreSpotifyTracks = async () => {
                         if (destroyed || loading || !hasMore) return;
                         loading = true;
                         try {
@@ -191,6 +287,7 @@ export const playlistView: WebAmpViewController = {
                                     const album = t?.album?.name ?? '';
                                     return {
                                         id: t.id,
+                                        source: 'spotify',
                                         title: t.name,
                                         artist,
                                         albumId: t?.album?.id,
@@ -206,7 +303,6 @@ export const playlistView: WebAmpViewController = {
                             if (offset === 0) tracksList.replaceChildren();
                             allTracks.push(...next);
                             cleanupActions.refresh?.();
-                            // Only extend the global queue after explicit user interaction (play/click).
                             if (queueCommitted) {
                                 queueActive.push(...next);
                                 window.dispatchEvent(new CustomEvent('wa:queue:set', { detail: { tracks: queueActive, wrap: false } }));
@@ -226,6 +322,61 @@ export const playlistView: WebAmpViewController = {
                             loading = false;
                         }
                     };
+
+                    const loadMoreSoundCloudTracks = async () => {
+                        if (destroyed || loading || !hasMore) return;
+                        loading = true;
+                        try {
+                            const data = await soundcloudUserApi.playlistTracks(ctx.entityId!, 100);
+                            const items = (data?.collection ?? []) as any[];
+                            const next: Track[] = items
+                                .filter((t: any) => !!t && typeof t.id !== 'undefined')
+                                .map((t: any) => {
+                                    const id = t?.id;
+                                    const title = typeof t?.title === 'string' ? t.title : '(untitled)';
+                                    const artist =
+                                        typeof t?.user?.username === 'string'
+                                            ? t.user.username
+                                            : (typeof t?.user?.name === 'string' ? t.user.name : '');
+                                    const durationMs: number = typeof t?.duration === 'number' ? t.duration : 0;
+                                    const artUrl: string | undefined =
+                                        typeof t?.artwork_url === 'string'
+                                            ? t.artwork_url
+                                            : (typeof t?.user?.avatar_url === 'string' ? t.user.avatar_url : undefined);
+                                    return {
+                                        id: String(id),
+                                        source: 'soundcloud',
+                                        title,
+                                        artist,
+                                        durationSec: Math.round(durationMs / 1000),
+                                        artUrl,
+                                        artUrlSmall: artUrl
+                                    } as Track;
+                                });
+
+                            if (offset === 0) tracksList.replaceChildren();
+                            allTracks.push(...next);
+                            cleanupActions.refresh?.();
+                            if (queueCommitted) {
+                                queueActive.push(...next);
+                                window.dispatchEvent(new CustomEvent('wa:queue:set', { detail: { tracks: queueActive, wrap: false } }));
+                            }
+                            appendPlaylistTracks(next, allTracks, () => {
+                                queueCommitted = true;
+                                queueActive = allTracks.slice();
+                            });
+
+                            hasMore = false;
+                            setTracksStatus(allTracks.length ? '' : 'No tracks found.');
+                        } catch (err: any) {
+                            setTracksStatus(err?.message ?? 'Failed to load playlist tracks');
+                            hasMore = false;
+                        } finally {
+                            loading = false;
+                        }
+                    };
+
+                    const loadMoreTracks = isSpotifyConnected ? loadMoreSpotifyTracks : loadMoreSoundCloudTracks;
 
                     const scroller = attachInfiniteScroll({
                         listEl: tracksList,

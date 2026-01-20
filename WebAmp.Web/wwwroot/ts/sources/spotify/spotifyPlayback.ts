@@ -70,6 +70,7 @@ function mapPlayerStateToTrack(state: any): Track | null {
             : (t.artists?.[0]?.id ?? undefined);
     return {
         id: t.id,
+        source: 'spotify',
         title: t.name,
         artist,
         albumId: t.album?.id,

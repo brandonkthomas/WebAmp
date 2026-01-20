@@ -33,14 +33,56 @@ export function bindQueueActions(opts: {
     const actions = document.querySelector<HTMLElement>('[data-wa-queue-actions]');
     const shuffleInput = actions?.querySelector<HTMLInputElement>('[data-wa-action="shuffle-toggle"]');
     const playBtn = actions?.querySelector<HTMLButtonElement>('[data-wa-action="queue-play"]');
+    const playIcon = actions?.querySelector<HTMLImageElement>('.wa-topbar__play-icon img');
+    const playLabel = actions?.querySelector<HTMLElement>('.wa-topbar__play-label');
 
     if (!actions || !shuffleInput || !playBtn) return () => {};
 
+    let isViewQueueActive = false;
+
     const syncVisible = () => {
         const hasTracks = opts.getTracks().length > 0;
-        console.log('syncVisible', hasTracks);
         actions.style.display = hasTracks ? 'flex' : 'none';
     };
+
+    const syncPlayButton = (isPlaying: boolean) => {
+        if (playLabel) playLabel.textContent = isPlaying ? 'Pause' : 'Play';
+        if (playBtn) playBtn.setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
+        if (playIcon) {
+            const src = isPlaying
+                ? '/apps/webamp/assets/svg/pause-filled.svg'
+                : '/apps/webamp/assets/svg/play-filled.svg';
+            if (playIcon.getAttribute('src') !== src) {
+                playIcon.setAttribute('src', src);
+            }
+        }
+    };
+
+    const computeKey = (tracks: Track[]): string =>
+        tracks.map((t) => t.id).join('|');
+
+    const updateViewQueueActive = (globalTracks: Track[]) => {
+        const viewTracks = opts.getTracks();
+        if (!viewTracks.length || !globalTracks.length) {
+            isViewQueueActive = false;
+            return;
+        }
+        isViewQueueActive = computeKey(viewTracks) === computeKey(globalTracks);
+    };
+
+    const onTrackSelect = (e: Event) => {
+        const ev = e as CustomEvent<{ trackId?: string; tracks?: Track[]; wrap?: boolean }>;
+        const tracks = Array.isArray(ev.detail?.tracks) ? (ev.detail.tracks as Track[]) : [];
+        if (!tracks.length) {
+            isViewQueueActive = false;
+            return;
+        }
+        updateViewQueueActive(tracks);
+        // Visual state is handled separately via wa:player:state; no need to
+        // force "playing" here.
+    };
+
+    window.addEventListener('wa:track:select', onTrackSelect as any);
 
     // Init shuffle UI from persisted pref.
     shuffleInput.checked = getShufflePref();
@@ -54,13 +96,21 @@ export function bindQueueActions(opts: {
         const tracks = opts.getTracks();
         if (!tracks.length) return;
 
+        // If this view already owns the active queue, treat the button as a
+        // global play/pause toggle instead of restarting the playlist.
+        if (isViewQueueActive) {
+            window.dispatchEvent(new CustomEvent('wa:player:toggle'));
+            return;
+        }
+
         const shuffle = !!shuffleInput.checked;
         const queue = shuffle ? shuffleCopy(tracks) : tracks.slice();
         opts.onQueueApplied?.(queue);
 
         window.dispatchEvent(new CustomEvent('wa:queue:set', { detail: { tracks: queue, wrap: false } }));
-        window.dispatchEvent(new CustomEvent('wa:track:select', { detail: { trackId: queue[0]?.id, from: 'queue-play' } }));
+        window.dispatchEvent(new CustomEvent('wa:track:select', { detail: { trackId: queue[0]?.id, from: 'queue-play', tracks: queue } }));
         syncVisible();
+        syncPlayButton(true);
     };
 
     shuffleInput.addEventListener('change', onShuffle);
@@ -69,6 +119,7 @@ export function bindQueueActions(opts: {
     const destroy = (() => {
         shuffleInput.removeEventListener('change', onShuffle);
         playBtn.removeEventListener('click', onPlay);
+        window.removeEventListener('wa:track:select', onTrackSelect as any);
     }) as (() => void) & { refresh?: () => void };
 
     destroy.refresh = syncVisible;

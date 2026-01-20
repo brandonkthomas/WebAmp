@@ -7,6 +7,7 @@ import type { MusicSource } from '../sources/musicSource';
  */
 export interface WebAmpServices {
     musicSource?: MusicSource;
+    soundCloudSource?: MusicSource;
 }
 
 /**
@@ -286,18 +287,27 @@ export class WebAmpRouter {
     }
 
     /**
-     * Auth guard enforcing landing-only when not connected
+     * Navigation guard.
+     *
+     * Originally this enforced "landing-only until Spotify is connected".
+     * Now that WebAmp also supports SoundCloud (which does not require per-user
+     * auth), we only auto-redirect *away* from landing when Spotify is
+     * connected, but we do not block access to the rest of the app when
+     * Spotify is disconnected.
      */
     private resolveGuard(match: RouteMatch): RouteMatch {
-        const musicSource = this.services.musicSource;
-        const authed = musicSource?.getState().isConnected ?? false;
+        const spotifySource = this.services.musicSource;
+        const soundCloudSource = this.services.soundCloudSource;
+        const authed =
+            (spotifySource?.getState().isConnected ?? false) ||
+            (soundCloudSource?.getState().isConnected ?? false);
 
-        // Only show landing when not authenticated.
+        // When not authenticated with any music source, only landing is allowed.
         if (!authed && match.view !== 'landing') {
             return matchWebAmpRoute(WEBAMP_ROOT);
         }
 
-        // If authenticated, landing should not be reachable.
+        // If authenticated, landing should not be reachable; send users to Home.
         if (authed && match.view === 'landing') {
             return matchWebAmpRoute(`${WEBAMP_ROOT}/home`);
         }
@@ -309,8 +319,11 @@ export class WebAmpRouter {
      * Updates app-level dataset and global header bits
      */
     private updateAppChrome(match: RouteMatch) {
-        const musicSource = this.services.musicSource;
-        const authed = musicSource?.getState().isConnected ?? false;
+        const spotifySource = this.services.musicSource;
+        const soundCloudSource = this.services.soundCloudSource;
+        const authed =
+            (spotifySource?.getState().isConnected ?? false) ||
+            (soundCloudSource?.getState().isConnected ?? false);
         this.dom.appRoot.dataset.waView = match.view;
         this.dom.appRoot.dataset.waAuth = authed ? 'true' : 'false';
 

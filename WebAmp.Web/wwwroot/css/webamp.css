@@ -449,6 +449,12 @@ body[data-initial-state="ready"] .loading-overlay {
     opacity: 0.98;
 }
 
+/* Hide Albums/Artists when SoundCloud is the sole source */
+.wa-app[data-wa-source="soundcloud"] .wa-sidenav__link[data-wa-nav="album"],
+.wa-app[data-wa-source="soundcloud"] .wa-sidenav__link[data-wa-nav="artist"] {
+    display: none;
+}
+
 .wa-sidebar__footer {
     margin-top: auto;
     padding-top: 0.4rem;
@@ -1047,6 +1053,20 @@ body[data-initial-state="ready"] .loading-overlay {
     font-size: 0.9rem;
 }
 
+/* Used for righthand badges (recent card on Home view denoting media type) */
+.wa-listitem__pill {
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding: 0.1rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.78);
+    background: rgba(255, 255, 255, 0.06);
+}
+
 /* Track list items */
 .wa-trackitem {
     justify-content: flex-start;
@@ -1229,11 +1249,47 @@ body[data-initial-state="ready"] .loading-overlay {
     font-size: 1.05rem;
     cursor: pointer;
     min-width: 190px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
 .wa-landing__spotify:focus-visible {
     outline: 2px solid rgba(255, 255, 255, 0.9);
     outline-offset: 3px;
+}
+
+.wa-landing__soundcloud {
+    border: none;
+    border-radius: 999px;
+    padding: 0.75rem 1.25rem;
+    background: #ff5500;
+    color: white;
+    font-weight: 700;
+    font-size: 0.98rem;
+    cursor: pointer;
+    min-width: 190px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.wa-landing__soundcloud:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.9);
+    outline-offset: 3px;
+}
+
+.wa-landing__provider-icon img {
+    filter: invert(1);
+    width: 18px;
+    height: 18px;
+    display: block;
+}
+
+.wa-landing__provider-label {
+    white-space: nowrap;
 }
 
 .wa-landing__status {

@@ -40,6 +40,9 @@ export const albumView: WebAmpViewController = {
         let cleanup: (() => void) | null = null;
         let cleanupActions = bindQueueActions({ root: ctx.rootEl, getTracks: () => [] });
 
+        const spotifySource = ctx.services.musicSource;
+        const isSpotifyConnected = spotifySource?.getState().isConnected ?? false;
+
         // Saved albums list (infinite)
         (async () => {
             if (ctx.entityId) {
@@ -60,6 +63,13 @@ export const albumView: WebAmpViewController = {
                 if (destroyed || loading || !hasMore) return;
                 loading = true;
                 try {
+                    if (!isSpotifyConnected) {
+                        albumsList.replaceChildren();
+                        setAlbumsStatus('Connect Spotify to see your saved albums.');
+                        hasMore = false;
+                        return;
+                    }
+
                     const data = await spotifyApi.savedAlbums(50, offset);
                     const items = data?.items ?? [];
                     if (offset === 0) albumsList.replaceChildren();
@@ -106,6 +116,14 @@ export const albumView: WebAmpViewController = {
 
         // Album tracks when viewing a specific album
         if (ctx.entityId && tracksCard && tracksList) {
+            if (!isSpotifyConnected) {
+                if (detailCard) detailCard.style.display = 'block';
+                if (detailTitle) detailTitle.textContent = 'Albums not available';
+                if (detailMeta) detailMeta.textContent = 'Connect Spotify to view album details.';
+                if (tracksCard) tracksCard.style.display = 'none';
+                setTracksStatus('Album tracks are only available for Spotify.');
+                return;
+            }
             (async () => {
                 try {
                     tracksCard.style.display = 'block';
@@ -245,6 +263,7 @@ export const albumView: WebAmpViewController = {
                                 const artist = Array.isArray(t?.artists) ? t.artists.map((a: any) => a.name).join(', ') : '';
                                 return {
                                     id: t.id,
+                                    source: 'spotify',
                                     title: t.name,
                                     artist,
                                     albumId: ctx.entityId!,

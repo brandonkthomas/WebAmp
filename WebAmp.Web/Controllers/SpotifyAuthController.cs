@@ -9,7 +9,7 @@ namespace WebAmp.Web.Controllers;
 /// Mapped by the host app via conventional routes:
 /// - /webamp/spotify/{action}
 /// </summary>
-public sealed class WebAmpSpotifyController(SpotifyAuthService auth) : Controller
+public sealed class SpotifyAuthController(SpotifyAuthService auth) : Controller
 {
     // ============================================================================================
     /// <summary>

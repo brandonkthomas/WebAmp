@@ -1,17 +1,29 @@
 /**
- * Internal track model used by WebAmp UI and transports
+ * Supported audio sources for tracks.
+ */
+export type TrackSource = 'spotify' | 'soundcloud';
+
+/**
+ * Internal track model used by WebAmp UI and transports.
+ *
+ * Notes:
+ * - When `source` is omitted it is treated as `'spotify'` for backwards compatibility.
+ * - Spotify-backed tracks typically populate `albumId`, `primaryArtistId`, and `uri`.
+ * - SoundCloud-backed tracks set `source='soundcloud'` and only use the fields that
+ *   make sense for that provider (no `uri` / Spotify ids).
  */
 export interface Track {
     id: string;
+    source?: TrackSource;
     title: string;
     artist: string;
     /**
-     * Spotify album id for navigation (if known)
+     * Album id for navigation (Spotify-specific when populated)
      */
     albumId?: string;
     album?: string;
     /**
-     * Primary Spotify artist id for navigation (if known)
+     * Primary artist id for navigation (Spotify-specific when populated)
      */
     primaryArtistId?: string;
     trackNumber?: number;
@@ -75,6 +87,32 @@ export class PlayerStore {
 
     constructor(seedQueue: Track[] = []) {
         this.queue = seedQueue.slice();
+
+        // Keep the global topbar "Play" button in sync with the store's
+        // playing state so that clicking any track or using transport controls
+        // updates its icon/label consistently.
+        if (typeof window !== 'undefined') {
+            window.addEventListener('wa:player:state', ((e: Event) => {
+                const ev = e as CustomEvent<PlayerState>;
+                const state = ev.detail;
+                const actions = document.querySelector<HTMLElement>('[data-wa-queue-actions]');
+                const playBtn = actions?.querySelector<HTMLButtonElement>('[data-wa-action="queue-play"]');
+                const playIcon = actions?.querySelector<HTMLImageElement>('.wa-topbar__play-icon img');
+                const playLabel = actions?.querySelector<HTMLElement>('.wa-topbar__play-label');
+
+                if (!playBtn || !playIcon || !playLabel) return;
+
+                const isPlaying = state.isPlaying && !!state.track;
+                playLabel.textContent = isPlaying ? 'Pause' : 'Play';
+                playBtn.setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
+                const src = isPlaying
+                    ? '/apps/webamp/assets/svg/pause-filled.svg'
+                    : '/apps/webamp/assets/svg/play-filled.svg';
+                if (playIcon.getAttribute('src') !== src) {
+                    playIcon.setAttribute('src', src);
+                }
+            }) as EventListener);
+        }
     }
 
     /**
@@ -291,6 +329,9 @@ export class PlayerStore {
     private emit() {
         const snapshot = this.getState();
         for (const l of this.listeners) l(snapshot);
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent<PlayerState>('wa:player:state', { detail: snapshot }));
+        }
     }
 
     private startRemoteTicker() {

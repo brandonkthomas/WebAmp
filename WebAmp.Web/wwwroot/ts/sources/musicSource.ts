@@ -1,4 +1,4 @@
-export type MusicSourceId = 'spotify' | 'apple';
+export type MusicSourceId = 'spotify' | 'apple' | 'soundcloud';
 
 /**
  * Connection state snapshot for a music source

@@ -120,8 +120,10 @@ export class PlayerBar {
             const src = state.isPlaying
                 ? '/apps/webamp/assets/svg/pause-filled.svg'
                 : '/apps/webamp/assets/svg/play-filled.svg';
-            if (this.toggleIconEl.src !== src) {
-                this.toggleIconEl.src = src;
+
+            // only update if the src is different (we dont want to hit the server 4x/sec)
+            if (this.toggleIconEl.getAttribute('src') !== src) {
+                this.toggleIconEl.setAttribute('src', src);
             }
         }
 

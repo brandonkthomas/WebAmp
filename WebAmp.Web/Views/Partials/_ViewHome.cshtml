@@ -16,6 +16,11 @@
         </a>
     </div>
 
+    <div class="wa-card wa-card--glass" data-wa-home-recent-card>
+        <h2 class="wa-h2">Recent</h2>
+        <div class="wa-list" data-wa-home-recent aria-label="Recent items"></div>
+    </div>
+
     <div class="wa-grid wa-grid--2">
         <div class="wa-card wa-card--glass">
             <h2 class="wa-h2">Your Playlists</h2>
@@ -23,27 +28,9 @@
             <div class="wa-list" data-wa-playlists aria-label="Your playlists"></div>
         </div>
         <div class="wa-card wa-card--glass">
-            <h2 class="wa-h2">Liked Songs</h2>
+            <h2 class="wa-h2" data-wa-liked-heading>Liked Songs</h2>
             <div class="wa-copy" data-wa-liked-status></div>
             <div class="wa-list" data-wa-liked aria-label="Liked songs"></div>
-        </div>
-    </div>
-
-    <div class="wa-card wa-card--glass">
-        <h2 class="wa-h2">Recent</h2>
-        <div class="wa-list" aria-label="Recent items">
-            <button type="button" class="wa-listitem" data-wa-nav-href="/webamp/albums/1">
-                <span class="wa-listitem__title">Album #1</span>
-                <span class="wa-listitem__meta">Sample album</span>
-            </button>
-            <button type="button" class="wa-listitem" data-wa-nav-href="/webamp/artists/1">
-                <span class="wa-listitem__title">Artist #1</span>
-                <span class="wa-listitem__meta">Sample artist</span>
-            </button>
-            <button type="button" class="wa-listitem" data-wa-nav-href="/webamp/playlists/1">
-                <span class="wa-listitem__title">Playlist #1</span>
-                <span class="wa-listitem__meta">Sample playlist</span>
-            </button>
         </div>
     </div>
 </section>

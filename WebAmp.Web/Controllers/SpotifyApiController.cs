@@ -5,7 +5,11 @@ using WebAmp.Web.Spotify;
 
 namespace WebAmp.Web.Controllers;
 
-public sealed class WebAmpSpotifyApiController(SpotifyAuthService auth, SpotifyWebApiClient api) : ControllerBase
+// ============================================================================================
+/// <summary>
+/// JSON proxy endpoints for Spotify search and streaming.
+/// </summary>
+public sealed class SpotifyApiController(SpotifyAuthService auth, SpotifyWebApiClient api) : ControllerBase
 {
     // ============================================================================================
     /// <summary>
