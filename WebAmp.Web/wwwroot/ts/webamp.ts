@@ -75,7 +75,9 @@ function boot() {
     const disconnectIcon = document.querySelector<HTMLImageElement>('[data-wa-disconnect-icon]');
     const disconnectLabel = document.querySelector<HTMLElement>('[data-wa-disconnect-label]');
     const appRootEl = appRoot;
-    const baseDisconnectIconSrc = disconnectIcon?.getAttribute('src') ?? undefined;
+    const DISCONNECT_ICON_WEBAMP = '/apps/webamp/assets/icons/icon-WebAmp-full256.png';
+    const DISCONNECT_ICON_SPOTIFY = '/apps/webamp/assets/svg/spotify.svg';
+    const DISCONNECT_ICON_SOUNDCLOUD = '/apps/webamp/assets/svg/soundcloud.svg';
 
     const likedHeading = document.querySelector<HTMLElement>('[data-wa-liked-heading]');
     const likedList = document.querySelector<HTMLElement>('[data-wa-liked]');
@@ -113,6 +115,10 @@ function boot() {
             disconnectBtn.disabled = true;
             disconnectBtn.style.opacity = '0.6';
             if (disconnectLabel) disconnectLabel.textContent = 'Sign Out';
+            if (disconnectIcon) {
+                disconnectIcon.src = DISCONNECT_ICON_WEBAMP;
+            }
+            delete (disconnectBtn.dataset as any).waSource;
             return;
         }
 
@@ -120,15 +126,14 @@ function boot() {
         disconnectBtn.style.opacity = '';
 
         if (spotifyConnected) {
-            if (disconnectIcon && baseDisconnectIconSrc) {
-                disconnectIcon.src = baseDisconnectIconSrc;
+            if (disconnectIcon) {
+                disconnectIcon.src = DISCONNECT_ICON_SPOTIFY;
             }
             if (disconnectLabel) disconnectLabel.textContent = 'Sign Out';
             disconnectBtn.dataset.waSource = 'spotify';
         } else if (scConnected) {
-            if (disconnectIcon && baseDisconnectIconSrc) {
-                const scSrc = baseDisconnectIconSrc.replace('spotify.svg', 'soundcloud.svg');
-                disconnectIcon.src = scSrc;
+            if (disconnectIcon) {
+                disconnectIcon.src = DISCONNECT_ICON_SOUNDCLOUD;
             }
             if (disconnectLabel) disconnectLabel.textContent = 'Sign Out';
             disconnectBtn.dataset.waSource = 'soundcloud';
