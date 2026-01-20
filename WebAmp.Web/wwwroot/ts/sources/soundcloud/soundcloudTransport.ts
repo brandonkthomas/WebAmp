@@ -4,6 +4,59 @@ import { showErrorDialog, formatErrorMessage } from '../../ui/errorDialog';
 type PlaybackStateListener = (s: { track: Track | null; isPlaying: boolean; positionSec: number }) => void;
 
 /**
+ * Lazily loads the SoundCloud HTML5 Widget API script (SC.Widget) once.
+ * This mirrors how the Spotify Web Playback SDK is loaded: only when a
+ * SoundCloud-backed track is actually used for playback.
+ */
+let scWidgetReadyPromise: Promise<void> | null = null;
+
+function loadSoundCloudWidgetApi(): Promise<void> {
+    const w = window as any;
+    if (w.SC && w.SC.Widget) {
+        return Promise.resolve();
+    }
+
+    if (scWidgetReadyPromise) {
+        return scWidgetReadyPromise;
+    }
+
+    scWidgetReadyPromise = new Promise<void>((resolve, reject) => {
+        // If another script has already attached SC.Widget by the time we
+        // run, resolve immediately.
+        if (w.SC && w.SC.Widget) {
+            resolve();
+            return;
+        }
+
+        const existing = document.querySelector<HTMLScriptElement>('script[data-wa-sc-widget-api]');
+        if (existing) {
+            existing.addEventListener('load', () => resolve(), { once: true });
+            existing.addEventListener('error', () => reject(new Error('Failed to load SoundCloud Widget API')), {
+                once: true
+            });
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://w.soundcloud.com/player/api.js';
+        script.async = true;
+        script.defer = true;
+        script.setAttribute('data-wa-sc-widget-api', 'true');
+        script.onload = () => {
+            if (w.SC && w.SC.Widget) {
+                resolve();
+            } else {
+                reject(new Error('SoundCloud Widget API did not initialize correctly.'));
+            }
+        };
+        script.onerror = () => reject(new Error('Failed to load SoundCloud Widget API'));
+        document.head.appendChild(script);
+    });
+
+    return scWidgetReadyPromise;
+}
+
+/**
  * PlayerTransport implementation backed by the official SoundCloud HTML5
  * widget, embedded in a hidden iframe. This avoids dealing with raw HLS
  * stream URLs and lets SoundCloud handle streaming/auth under the hood.
@@ -22,25 +75,52 @@ export class SoundCloudTransport implements PlayerTransport {
         return (track?.source ?? 'spotify') as TrackSource;
     }
 
-    private getIframe(): HTMLIFrameElement | null {
+    private getIframe(): HTMLIFrameElement {
         if (this.iframe && document.body.contains(this.iframe)) {
             return this.iframe;
         }
-        const container = document.querySelector<HTMLElement>('[data-wa-sc-widget-container]');
-        if (!container) return null;
-        const iframe = container.querySelector<HTMLIFrameElement>('[data-wa-sc-widget]');
-        if (!iframe) return null;
+
+        // Try to reuse an existing container if present (defensive for future markup changes).
+        let container = document.querySelector<HTMLElement>('[data-wa-sc-widget-container]');
+        let iframe: HTMLIFrameElement | null = null;
+
+        if (container) {
+            iframe = container.querySelector<HTMLIFrameElement>('[data-wa-sc-widget]');
+        }
+
+        // If no iframe/container are present (which is now the default), create them lazily.
+        if (!iframe) {
+            container = container ?? document.createElement('div');
+            container.style.display = 'none';
+            container.setAttribute('data-wa-sc-widget-container', 'true');
+
+            iframe = document.createElement('iframe');
+            iframe.setAttribute('data-wa-sc-widget', 'true');
+            iframe.width = '100%';
+            iframe.height = '166';
+            iframe.scrolling = 'no';
+            iframe.frameBorder = '0';
+            iframe.allow = 'autoplay';
+            iframe.src = 'https://w.soundcloud.com/player/?url=&auto_play=false';
+
+            container.appendChild(iframe);
+            // Attach near the end of body; location is irrelevant since the iframe is hidden.
+            document.body.appendChild(container);
+        }
+
         this.iframe = iframe;
         return iframe;
     }
 
-    private ensureWidget(): any {
+    private async ensureWidget(): Promise<any> {
         if (this.widget) return this.widget;
 
         const iframe = this.getIframe();
         if (!iframe) {
             throw new Error('SoundCloud widget iframe not found.');
         }
+
+        await loadSoundCloudWidgetApi();
 
         const w = window as any;
         if (!w.SC || !w.SC.Widget) {
@@ -116,7 +196,7 @@ export class SoundCloudTransport implements PlayerTransport {
         this.lastPositionSec = Math.max(0, positionSec || 0);
 
         try {
-            const widget = this.ensureWidget();
+            const widget = await this.ensureWidget();
 
             const trackUrl = `https://api.soundcloud.com/tracks/${encodeURIComponent(track.id)}`;
 
@@ -161,7 +241,7 @@ export class SoundCloudTransport implements PlayerTransport {
         if (!this.currentTrack) return;
 
         try {
-            const widget = this.ensureWidget();
+            const widget = await this.ensureWidget();
             // The widget keeps its own play/pause state; toggle() is simpler
             // than trying to mirror the boolean.
             widget.toggle();
@@ -177,11 +257,11 @@ export class SoundCloudTransport implements PlayerTransport {
     async seek(positionSec: number): Promise<void> {
         if (!this.currentTrack) return;
 
-        const widget = this.ensureWidget();
+        try {
+            const widget = await this.ensureWidget();
         const nextPos = Math.max(0, positionSec || 0);
         const ms = nextPos * 1000;
 
-        try {
             widget.seekTo(ms);
             this.lastPositionSec = nextPos;
             this.emitRemote({
