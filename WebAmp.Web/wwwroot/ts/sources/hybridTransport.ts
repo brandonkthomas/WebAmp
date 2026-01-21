@@ -38,7 +38,7 @@ export class HybridTransport implements PlayerTransport {
         return this.spotify;
     }
 
-    async play(track: Track, positionSec: number = 0): Promise<void> {
+    async play(track: Track, positionSec: number = 0, opts?: { autoplay?: boolean }): Promise<void> {
         const source = this.getSource(track);
         if (!source) return;
         this.lastSource = source;
@@ -49,12 +49,12 @@ export class HybridTransport implements PlayerTransport {
                 throw new Error('Spotify is not connected.');
             }
             const spotify = this.ensureSpotify();
-            await spotify.play(track, positionSec);
+            await spotify.play(track, positionSec, opts);
             return;
         }
 
         // SoundCloud: no user auth required (app-level token only).
-        await this.soundcloud.play(track, positionSec);
+        await this.soundcloud.play(track, positionSec, opts);
     }
 
     async togglePlay(previouslyPlaying: boolean): Promise<void> {

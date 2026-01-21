@@ -50,7 +50,7 @@ export class SpotifyTransport implements PlayerTransport {
     /**
      * Plays a specific track URI on this device at an optional position
      */
-    async play(track: Track, positionSec: number = 0): Promise<void> {
+    async play(track: Track, positionSec: number = 0, opts?: { autoplay?: boolean }): Promise<void> {
         try {
             await this.ensureReady();
             await this.ensureActivated();
@@ -58,6 +58,12 @@ export class SpotifyTransport implements PlayerTransport {
             const uri = track.uri;
             if (!uri) throw new Error('Missing Spotify track URI');
             await spotifyApi.playTrack(deviceId, uri, Math.max(0, Math.floor(positionSec * 1000)));
+
+            // If the caller asked to "load" without playing (e.g. user was paused),
+            // immediately pause after switching tracks.
+            if (opts?.autoplay === false) {
+                await spotifyApi.pause(deviceId);
+            }
         } catch (error) {
             // For proxy errors, jsonFetch already showed a dialog; for anything else, surface a generic music error.
             if (!(error instanceof Error && error.message.includes('Spotify API proxy error'))) {

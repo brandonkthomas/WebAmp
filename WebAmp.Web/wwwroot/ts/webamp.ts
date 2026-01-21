@@ -290,6 +290,20 @@ function boot() {
         playerStore.togglePlay();
     });
 
+    // Provider transports can explicitly signal "track finished" when they have
+    // authoritative end-of-track detection (e.g. SoundCloud widget FINISH).
+    window.addEventListener('wa:transport:finish', (e: Event) => {
+        const ev = e as CustomEvent<{ source?: string; trackId?: string }>;
+        if (ev.detail?.source !== 'soundcloud') return;
+        const finishedId = ev.detail?.trackId;
+        if (!finishedId) return;
+        const st = playerStore.getState();
+        // Only advance if the finished track is still the selected track.
+        if (st.track?.id !== finishedId) return;
+        // When a track finishes naturally, we want to keep continuous playback.
+        playerStore.next({ autoplay: true });
+    });
+
     window.addEventListener('wa:track:select', (e: Event) => {
         const ev = e as CustomEvent<{ trackId?: string; tracks?: any[]; wrap?: boolean }>;
         const trackId = ev.detail?.trackId;
@@ -347,7 +361,7 @@ function boot() {
         // If UI already shows a selected/playing track, attempt to start real playback once transport becomes ready.
         const st = playerStore.getState();
         if (st.track && st.isPlaying) {
-            void transport.play(st.track, st.positionSec);
+            void transport.play(st.track, st.positionSec, { autoplay: true });
         }
     };
 

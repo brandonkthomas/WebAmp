@@ -69,6 +69,11 @@ export class SoundCloudTransport implements PlayerTransport {
     private currentTrack: Track | null = null;
     private lastPositionSec: number = 0;
     private lastProgressEmitMs: number = 0;
+    private sessionId: number = 0;
+    private sessionStarted: boolean = false;
+    private awaitingReadySessionId: number | null = null;
+    private awaitingReadyResolve: (() => void) | null = null;
+    private lastKnownPlaying: boolean = false;
 
     constructor(private readonly onRemoteState?: PlaybackStateListener) {}
 
@@ -135,13 +140,48 @@ export class SoundCloudTransport implements PlayerTransport {
         // ticker in sync with the widget.
         const Events = w.SC.Widget.Events;
 
+        const widgetErrorToError = (e: any): Error => {
+            try {
+                if (e && typeof e === 'object') {
+                    const msg = (e.message ?? e.error ?? e.title ?? e.status) as any;
+                    if (typeof msg === 'string' && msg.trim().length) return new Error(msg);
+                }
+                if (typeof e === 'string' && e.trim().length) return new Error(e);
+            } catch {
+                // ignore
+            }
+            return new Error('SoundCloud widget error');
+        };
+
+        widget.bind(Events.ERROR, (e: any) => {
+            const err = widgetErrorToError(e);
+            void showErrorDialog(formatErrorMessage(err), 'Music Service Error');
+        });
+
+        widget.bind(Events.READY, () => {
+            const expected = this.awaitingReadySessionId;
+            if (expected === null) return;
+            // Resolve the pending "ready after load" promise for the active session.
+            if (expected === this.sessionId && this.awaitingReadyResolve) {
+                const resolve = this.awaitingReadyResolve;
+                this.awaitingReadyResolve = null;
+                this.awaitingReadySessionId = null;
+                resolve();
+            }
+        });
+
+        widget.bind(Events.LOAD_PROGRESS, (_e: any) => {
+            // We don't currently surface load progress, but binding it helps document
+            // supported widget events and makes future buffering UI straightforward.
+        });
+
         widget.bind(Events.PLAY_PROGRESS, (e: any) => {
             const posMs = typeof e?.currentPosition === 'number' ? e.currentPosition : 0;
             this.lastPositionSec = Math.max(0, posMs / 1000);
 
             // Keep PlayerStore's remote clock aligned to real playback so queue auto-advance
             // happens near the actual end-of-track (and doesn't drift if the tab stalls).
-            if (this.currentTrack) {
+            if (this.currentTrack && this.sessionStarted) {
                 const now = performance.now();
                 if (now - this.lastProgressEmitMs >= 500) {
                     this.lastProgressEmitMs = now;
@@ -156,6 +196,8 @@ export class SoundCloudTransport implements PlayerTransport {
 
         widget.bind(Events.PLAY, () => {
             if (!this.currentTrack) return;
+            this.sessionStarted = true;
+            this.lastKnownPlaying = true;
             this.emitRemote({
                 track: this.currentTrack,
                 isPlaying: true,
@@ -165,6 +207,7 @@ export class SoundCloudTransport implements PlayerTransport {
 
         widget.bind(Events.PAUSE, () => {
             if (!this.currentTrack) return;
+            this.lastKnownPlaying = false;
             this.emitRemote({
                 track: this.currentTrack,
                 isPlaying: false,
@@ -172,8 +215,15 @@ export class SoundCloudTransport implements PlayerTransport {
             });
         });
 
+        widget.bind(Events.SEEK, (e: any) => {
+            const posMs = typeof e?.currentPosition === 'number' ? e.currentPosition : 0;
+            this.lastPositionSec = Math.max(0, posMs / 1000);
+        });
+
         widget.bind(Events.FINISH, () => {
             if (!this.currentTrack) return;
+            this.lastKnownPlaying = false;
+            const finishedId = this.currentTrack.id;
             const duration =
                 (typeof this.currentTrack.durationSec === 'number' && Number.isFinite(this.currentTrack.durationSec))
                     ? this.currentTrack.durationSec
@@ -183,9 +233,64 @@ export class SoundCloudTransport implements PlayerTransport {
                 isPlaying: false,
                 positionSec: duration
             });
+
+            // Explicitly notify the app layer to advance the queue.
+            // We guard by track id so a late FINISH event can't advance a newer track.
+            try {
+                queueMicrotask(() => {
+                    if (this.currentTrack?.id !== finishedId) return;
+                    window.dispatchEvent(new CustomEvent('wa:transport:finish', { detail: { source: 'soundcloud', trackId: finishedId } }));
+                });
+            } catch {
+                // ignore
+            }
         });
 
         return widget;
+    }
+
+    private async callWidgetGetter<T>(
+        invoke: (cb: (value: T) => void) => void,
+        timeoutMs: number,
+        fallback?: T
+    ): Promise<T> {
+        return await new Promise<T>((resolve, reject) => {
+            let done = false;
+            const t = window.setTimeout(() => {
+                if (done) return;
+                done = true;
+                if (arguments.length >= 3) resolve(fallback as T);
+                else reject(new Error('SoundCloud widget did not respond'));
+            }, timeoutMs);
+
+            try {
+                invoke((value: T) => {
+                    if (done) return;
+                    done = true;
+                    window.clearTimeout(t);
+                    resolve(value);
+                });
+            } catch (err) {
+                if (done) return;
+                done = true;
+                window.clearTimeout(t);
+                reject(err);
+            }
+        });
+    }
+
+    private async getPositionMs(widget: any, timeoutMs: number = 800): Promise<number> {
+        const ms = await this.callWidgetGetter<number>((cb) => widget.getPosition(cb), timeoutMs, 0);
+        return (typeof ms === 'number' && Number.isFinite(ms)) ? ms : 0;
+    }
+
+    private async getDurationMs(widget: any, timeoutMs: number = 800): Promise<number> {
+        const ms = await this.callWidgetGetter<number>((cb) => widget.getDuration(cb), timeoutMs, 0);
+        return (typeof ms === 'number' && Number.isFinite(ms)) ? ms : 0;
+    }
+
+    private async getCurrentSound(widget: any, timeoutMs: number = 800): Promise<any | null> {
+        return await this.callWidgetGetter<any>((cb) => widget.getCurrentSound(cb), timeoutMs, null);
     }
 
     private emitRemote(s: { track: Track | null; isPlaying: boolean; positionSec: number }) {
@@ -198,18 +303,21 @@ export class SoundCloudTransport implements PlayerTransport {
     }
 
     private async getIsPaused(widget: any): Promise<boolean> {
-        return await new Promise<boolean>((resolve) => {
-            try {
-                widget.isPaused((paused: any) => resolve(!!paused));
-            } catch {
-                // If the widget can't report pause state, assume it's paused to avoid lying to UI.
-                resolve(true);
-            }
-        });
+        // If the widget can't report pause state or is unresponsive, assume paused to avoid lying to UI.
+        return await this.callWidgetGetter<boolean>((cb) => widget.isPaused(cb), 800, true);
     }
 
     private async emitActualPlaybackState(widget: any): Promise<void> {
         if (!this.currentTrack) return;
+        // Validate position via widget getters whenever possible (helps avoid scrubbing jumps).
+        try {
+            const posMs = await this.getPositionMs(widget, 500);
+            const posSec = Math.max(0, posMs / 1000);
+            // Only accept sane values.
+            if (Number.isFinite(posSec)) this.lastPositionSec = posSec;
+        } catch {
+            // ignore
+        }
         const paused = await this.getIsPaused(widget);
         this.emitRemote({
             track: this.currentTrack,
@@ -221,38 +329,53 @@ export class SoundCloudTransport implements PlayerTransport {
     /**
      * Starts playback of a SoundCloud-backed track using the widget.
      */
-    async play(track: Track, positionSec: number = 0): Promise<void> {
+    async play(track: Track, positionSec: number = 0, opts?: { autoplay?: boolean }): Promise<void> {
         const source = this.getSource(track);
         if (source !== 'soundcloud') {
             // This transport is only responsible for SoundCloud tracks.
             return;
         }
 
+        const autoplay = (typeof opts?.autoplay === 'boolean')
+            ? opts.autoplay
+            : this.lastKnownPlaying;
+
+        // New playback session: reset progress tracking so we don't leak previous track position.
+        this.sessionId++;
+        this.sessionStarted = false;
+        this.lastProgressEmitMs = 0;
         this.currentTrack = track;
         this.lastPositionSec = Math.max(0, positionSec || 0);
 
         try {
             const widget = await this.ensureWidget();
+            const sessionAtStart = this.sessionId;
 
             const trackUrl = `https://api.soundcloud.com/tracks/${encodeURIComponent(track.id)}`;
 
+            // Wait for widget READY after we call load(). On iOS/Safari, calling play/seek
+            // too early is a common cause of "it just pauses".
+            const readyAfterLoad = new Promise<void>((resolve) => {
+                this.awaitingReadySessionId = sessionAtStart;
+                this.awaitingReadyResolve = resolve;
+            });
+
             await new Promise<void>((resolve, reject) => {
                 try {
-                    // Use the documented widget.load API with auto_play. This
-                    // behaves reliably after a user gesture (clicking a track
-                    // in WebAmp), and matches the behavior that worked in your
-                    // CodePen experiment.
+                    // Use the documented widget.load(url, options) API.
+                    // Per docs, existing event listeners remain active across loads.
+                    // Docs: https://developers.soundcloud.com/docs/api/html5-widget#playground
                     widget.load(trackUrl, {
-                        auto_play: true,
+                        // We explicitly play() only if we were previously playing.
+                        auto_play: false,
                         hide_related: true,
                         show_comments: false,
                         show_user: true,
                         show_reposts: false,
                         visual: false,
                         callback: () => {
-                            // "load" callback does NOT guarantee audio actually started.
-                            // Emit a conservative state (paused) and let PLAY/PAUSE events
-                            // (and the isPaused probe below) reflect reality.
+                            // Callback indicates the widget is ready to accept external calls,
+                            // but we also await the READY event (more reliable on iOS/Safari).
                             this.emitRemote({ track, isPlaying: false, positionSec: this.lastPositionSec });
                             resolve();
                         }
@@ -262,25 +385,70 @@ export class SoundCloudTransport implements PlayerTransport {
                 }
             });
 
-            // Seek (best-effort) then force a play attempt. This improves:
-            // - Initial autoplay reliability
-            // - Auto-advance to next queue item
-            if (this.lastPositionSec > 0) {
-                try {
-                    widget.seekTo(this.lastPositionSec * 1000);
-                } catch {
-                    // ignore
+            // If another track started while we were loading, abort.
+            if (this.sessionId !== sessionAtStart) return;
+
+            // Wait for READY after load (with a timeout so we don't hang forever).
+            const readyWon = await Promise.race([
+                readyAfterLoad.then(() => true),
+                new Promise<boolean>((r) => setTimeout(() => r(false), 1500))
+            ]);
+            if (this.sessionId !== sessionAtStart) return;
+
+            if (!readyWon) {
+                // Don't fail immediately: probe the widget API to see if it's alive.
+                // If getters respond, proceed cautiously; otherwise treat as failed.
+                const alive = await (async () => {
+                    try {
+                        await this.getCurrentSound(widget, 650);
+                        return true;
+                    } catch {
+                        // try a cheaper probe
+                        try {
+                            await this.getIsPaused(widget);
+                            return true;
+                        } catch {
+                            return false;
+                        }
+                    }
+                })();
+                if (!alive) {
+                    throw new Error('SoundCloud widget did not become ready.');
                 }
             }
+
+            // Now safe to seek. Always seek (even to 0) to prevent "carry over" positions.
             try {
-                widget.play();
+                widget.seekTo(this.lastPositionSec * 1000);
             } catch {
                 // ignore
             }
 
-            // After a short delay, sync state to what the widget is actually doing.
-            // (PLAY event will also fire when it really starts.)
-            await new Promise<void>((r) => setTimeout(r, 300));
+            // Only attempt to play if caller says we should be playing (e.g., we were previously playing).
+            if (autoplay) {
+                try {
+                    widget.play();
+                } catch {
+                    // ignore
+                }
+            }
+
+            // Validate duration/position after load for sanity (best-effort).
+            try {
+                const [_posMs, _durMs] = await Promise.all([
+                    this.getPositionMs(widget, 650),
+                    this.getDurationMs(widget, 650)
+                ]);
+                // lastPositionSec is already tracked; we just force a sane range check.
+                if (this.currentTrack?.durationSec && _durMs > 0) {
+                    // no-op; future: we could reconcile durationSec if API is more accurate.
+                }
+            } catch {
+                // ignore
+            }
+
+            await new Promise<void>((r) => setTimeout(r, 250));
+            if (this.sessionId !== sessionAtStart) return;
             await this.emitActualPlaybackState(widget);
         } catch (error) {
             void showErrorDialog(formatErrorMessage(error), 'Music Service Error');
@@ -296,9 +464,9 @@ export class SoundCloudTransport implements PlayerTransport {
 
         try {
             const widget = await this.ensureWidget();
-            // The widget keeps its own play/pause state; toggle() is simpler
-            // than trying to mirror the boolean.
-            widget.toggle();
+            // Explicit play/pause is more deterministic than widget.toggle().
+            if (previouslyPlaying) widget.pause();
+            else widget.play();
             // Best-effort: sync state after toggle in case the widget doesn't emit promptly.
             setTimeout(() => {
                 void this.emitActualPlaybackState(widget);

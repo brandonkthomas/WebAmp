@@ -52,7 +52,7 @@ export type PlayerListener = (state: PlayerState) => void;
  * Pluggable playback engine interface (Spotify transport implements this)
  */
 export interface PlayerTransport {
-    play(track: Track, positionSec?: number): Promise<void>;
+    play(track: Track, positionSec?: number, opts?: { autoplay?: boolean }): Promise<void>;
     togglePlay(isPlaying: boolean): Promise<void>;
     seek(positionSec: number): Promise<void>;
 }
@@ -169,17 +169,21 @@ export class PlayerStore {
 
         this.state = {
             track,
-            isPlaying: autoplay ? true : this.state.isPlaying,
+            isPlaying: !!autoplay,
             positionSec: 0
         };
 
         this.emit();
-        if (this.transport && autoplay) {
-            // Start local progress immediately; remote state updates may arrive later.
-            this.remoteBaseMs = performance.now();
-            this.remoteBasePosSec = 0;
-            this.startRemoteTicker();
-            void this.transport.play(track, 0);
+        if (this.transport) {
+            if (autoplay) {
+                // Start local progress immediately; remote state updates may arrive later.
+                this.remoteBaseMs = performance.now();
+                this.remoteBasePosSec = 0;
+                this.startRemoteTicker();
+            } else {
+                this.stopRemoteTicker();
+            }
+            void this.transport.play(track, 0, { autoplay });
             return;
         }
         if (this.state.isPlaying) this.ensureTicker();
@@ -213,9 +217,10 @@ export class PlayerStore {
     /**
      * Advances to next track, stops at end unless queue wrap is enabled
      */
-    next() {
+    next(opts?: { autoplay?: boolean }) {
         if (!this.queue.length) return;
 
+        const shouldAutoplay = typeof opts?.autoplay === 'boolean' ? opts.autoplay : this.state.isPlaying;
         const currentId = this.state.track?.id;
         const idx = currentId ? this.queue.findIndex((t) => t.id === currentId) : -1;
         const atEnd = idx >= 0 && idx === this.queue.length - 1;
@@ -229,15 +234,16 @@ export class PlayerStore {
             return;
         }
         const nextIdx = idx >= 0 ? (idx + 1) % this.queue.length : 0;
-        this.selectTrackById(this.queue[nextIdx].id, true);
+        this.selectTrackById(this.queue[nextIdx].id, shouldAutoplay);
     }
 
     /**
      * Goes to previous track, restarts track if current position > 3s
      */
-    prev() {
+    prev(opts?: { autoplay?: boolean }) {
         if (!this.queue.length) return;
 
+        const shouldAutoplay = typeof opts?.autoplay === 'boolean' ? opts.autoplay : this.state.isPlaying;
         // If we're more than 3 seconds in, treat prev as restart.
         if (this.state.track && this.state.positionSec > 3) {
             this.seek(0);
@@ -247,7 +253,7 @@ export class PlayerStore {
         const currentId = this.state.track?.id;
         const idx = currentId ? this.queue.findIndex((t) => t.id === currentId) : -1;
         const prevIdx = idx >= 0 ? (idx - 1 + this.queue.length) % this.queue.length : 0;
-        this.selectTrackById(this.queue[prevIdx].id, true);
+        this.selectTrackById(this.queue[prevIdx].id, shouldAutoplay);
     }
 
     /**
@@ -361,7 +367,7 @@ export class PlayerStore {
             if (duration > 0 && nextPos >= duration - 0.35) {
                 this.remoteRafId = null;
                 this.remoteUiEmitMs = null;
-                this.next();
+                this.next({ autoplay: true });
                 return;
             }
 
