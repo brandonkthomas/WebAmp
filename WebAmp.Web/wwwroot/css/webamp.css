@@ -481,6 +481,9 @@ body[data-initial-state="ready"] .loading-overlay {
     text-align: right;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
 }
 
 .wa-sidebar__status {
@@ -1712,6 +1715,7 @@ body[data-initial-state="ready"] .loading-overlay {
         background: rgba(0, 0, 0, 0.55);
         opacity: 0;
         transition: opacity 0.18s ease;
+        z-index: 0;
     }
 
     body[data-wa-now-playing-open="true"] .wa-nowplaying__backdrop {
@@ -1735,6 +1739,7 @@ body[data-initial-state="ready"] .loading-overlay {
         flex-direction: column;
         --wa-nowplaying-grab-h: 3.5rem;
         overscroll-behavior: contain;
+        z-index: 1;
     }
 
     @supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
