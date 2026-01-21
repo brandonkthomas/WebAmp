@@ -213,6 +213,45 @@ body[data-initial-state="ready"] .loading-overlay {
     opacity: 0.9;
 }
 
+@keyframes wa-spin {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Indeterminate "busy" ring for play buttons while switching tracks */
+.wa-playerbar__btn--play[data-wa-busy="true"],
+.wa-nowplaying__btn--play[data-wa-busy="true"] {
+    position: relative;
+}
+
+.wa-playerbar__btn--play[data-wa-busy="true"] .wa-playerbar__icon,
+.wa-nowplaying__btn--play[data-wa-busy="true"] .wa-nowplaying__icon--playpause {
+    opacity: 0;
+}
+
+.wa-playerbar__btn--play[data-wa-busy="true"]::after,
+.wa-nowplaying__btn--play[data-wa-busy="true"]::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    border: 2px solid rgba(255, 255, 255, 0.22);
+    border-top-color: rgba(255, 255, 255, 0.88);
+    animation: wa-spin 0.9s linear infinite;
+    pointer-events: none;
+}
+
+.wa-nowplaying__btn--play[data-wa-busy="true"]::after {
+    width: 26px;
+    height: 26px;
+    border-width: 3px;
+    border-color: rgba(10, 10, 12, 0.22);
+    border-top-color: rgba(10, 10, 12, 0.82);
+}
+
 /* ============================================================================== */
 /* Glass surface overrides for WebAmp shell
 /* NOTE:

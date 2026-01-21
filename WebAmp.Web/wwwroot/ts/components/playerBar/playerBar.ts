@@ -127,6 +127,12 @@ export class PlayerBar {
             }
         }
 
+        // Busy state: show a throbber ring on the play button while switching tracks.
+        if (this.btnToggle) {
+            if (state.isBusy) this.btnToggle.setAttribute('data-wa-busy', 'true');
+            else this.btnToggle.removeAttribute('data-wa-busy');
+        }
+
         if (this.timeCurrentEl) this.timeCurrentEl.textContent = formatTime(position);
         if (this.timeDurationEl) this.timeDurationEl.textContent = formatTime(duration);
 

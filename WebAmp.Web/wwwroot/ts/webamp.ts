@@ -304,6 +304,13 @@ function boot() {
         playerStore.next({ autoplay: true });
     });
 
+    // Transport busy state (e.g. SoundCloud widget load/ready/seek) so UI can show
+    // an indeterminate throbber for play buttons while switching tracks.
+    window.addEventListener('wa:transport:busy', (e: Event) => {
+        const ev = e as CustomEvent<{ busy?: boolean }>;
+        playerStore.setBusy(!!ev.detail?.busy);
+    });
+
     window.addEventListener('wa:track:select', (e: Event) => {
         const ev = e as CustomEvent<{ trackId?: string; tracks?: any[]; wrap?: boolean }>;
         const trackId = ev.detail?.trackId;

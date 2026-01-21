@@ -68,12 +68,27 @@ export class SoundCloudTransport implements PlayerTransport {
     private iframe: HTMLIFrameElement | null = null;
     private currentTrack: Track | null = null;
     private lastPositionSec: number = 0;
+    /**
+     * Starting position (in seconds) for the current playback session.
+     * For WebAmp's SoundCloud provider this is always 0 when switching tracks,
+     * but we track it explicitly so we can detect and ignore stale progress
+     * events from the previous track.
+     */
+    private sessionStartPositionSec: number = 0;
     private lastProgressEmitMs: number = 0;
     private sessionId: number = 0;
     private sessionStarted: boolean = false;
+    /**
+     * True between `play()` starting a new track and the first sane PLAY_PROGRESS
+     * reading for that track. While this is true, we ignore large jumps away from
+     * `sessionStartPositionSec` so that late PLAY_PROGRESS events for the previous
+     * track can't poison the new track's starting position.
+     */
+    private awaitingInitialProgress: boolean = false;
     private awaitingReadySessionId: number | null = null;
     private awaitingReadyResolve: (() => void) | null = null;
     private lastKnownPlaying: boolean = false;
+    private desiredPlaying: boolean = false;
 
     constructor(private readonly onRemoteState?: PlaybackStateListener) {}
 
@@ -176,8 +191,28 @@ export class SoundCloudTransport implements PlayerTransport {
         });
 
         widget.bind(Events.PLAY_PROGRESS, (e: any) => {
+            // IMPORTANT: The widget can emit late PLAY_PROGRESS events during track changes.
+            // If we record those, we can accidentally seek the *next* track to the previous
+            // track's ending timestamp. Only accept progress once the current session has
+            // actually started playing.
+            if (!this.sessionStarted) return;
             const posMs = typeof e?.currentPosition === 'number' ? e.currentPosition : 0;
-            this.lastPositionSec = Math.max(0, posMs / 1000);
+            const nextPosSec = Math.max(0, posMs / 1000);
+
+            // During a fresh track load we expect the first real progress tick to be
+            // very close to the session's starting position (0 for WebAmp). If we see
+            // a large jump away from that, it's almost always a late event for the
+            // previous track and should be ignored to avoid carrying over its timestamp.
+            if (this.awaitingInitialProgress) {
+                const deltaFromStart = Math.abs(nextPosSec - this.sessionStartPositionSec);
+                if (deltaFromStart > 2) {
+                    // Treat as stale; wait for a progress event near the session start instead.
+                    return;
+                }
+                this.awaitingInitialProgress = false;
+            }
+
+            this.lastPositionSec = nextPosSec;
 
             // Keep PlayerStore's remote clock aligned to real playback so queue auto-advance
             // happens near the actual end-of-track (and doesn't drift if the tab stalls).
@@ -216,6 +251,9 @@ export class SoundCloudTransport implements PlayerTransport {
         });
 
         widget.bind(Events.SEEK, (e: any) => {
+            // SEEK can also arrive during transitions; avoid letting it poison the next load.
+            // If the track hasn't started yet, keep the explicit seek target we set in play().
+            if (!this.sessionStarted) return;
             const posMs = typeof e?.currentPosition === 'number' ? e.currentPosition : 0;
             this.lastPositionSec = Math.max(0, posMs / 1000);
         });
@@ -293,6 +331,22 @@ export class SoundCloudTransport implements PlayerTransport {
         return await this.callWidgetGetter<any>((cb) => widget.getCurrentSound(cb), timeoutMs, null);
     }
 
+    private async waitForCurrentSoundId(widget: any, expectedTrackId: string, timeoutMs: number = 1600): Promise<boolean> {
+        const expected = String(expectedTrackId);
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+            try {
+                const s = await this.getCurrentSound(widget, 650);
+                const id = (s && (s.id ?? s.soundId ?? s.sound_id)) as any;
+                if (id != null && String(id) === expected) return true;
+            } catch {
+                // ignore and retry
+            }
+            await new Promise<void>((r) => setTimeout(r, 90));
+        }
+        return false;
+    }
+
     private emitRemote(s: { track: Track | null; isPlaying: boolean; positionSec: number }) {
         if (!this.onRemoteState) return;
         this.onRemoteState({
@@ -311,10 +365,14 @@ export class SoundCloudTransport implements PlayerTransport {
         if (!this.currentTrack) return;
         // Validate position via widget getters whenever possible (helps avoid scrubbing jumps).
         try {
-            const posMs = await this.getPositionMs(widget, 500);
-            const posSec = Math.max(0, posMs / 1000);
-            // Only accept sane values.
-            if (Number.isFinite(posSec)) this.lastPositionSec = posSec;
+            // Avoid reading a stale position during a track transition by verifying the current sound id.
+            const ok = await this.waitForCurrentSoundId(widget, this.currentTrack.id, 650);
+            if (ok) {
+                const posMs = await this.getPositionMs(widget, 500);
+                const posSec = Math.max(0, posMs / 1000);
+                // Only accept sane values.
+                if (Number.isFinite(posSec)) this.lastPositionSec = posSec;
+            }
         } catch {
             // ignore
         }
@@ -339,6 +397,7 @@ export class SoundCloudTransport implements PlayerTransport {
         const autoplay = (typeof opts?.autoplay === 'boolean')
             ? opts.autoplay
             : this.lastKnownPlaying;
+        this.desiredPlaying = autoplay;
 
         // New playback session: reset progress tracking so we don't leak previous track position.
         this.sessionId++;
@@ -346,12 +405,25 @@ export class SoundCloudTransport implements PlayerTransport {
         this.lastProgressEmitMs = 0;
         this.currentTrack = track;
         this.lastPositionSec = Math.max(0, positionSec || 0);
+        this.sessionStartPositionSec = this.lastPositionSec;
+        // Until we see a sane first PLAY_PROGRESS tick for this session, ignore
+        // any large jumps coming from the widget (they are typically late events
+        // from the previous track).
+        this.awaitingInitialProgress = true;
 
         try {
             const widget = await this.ensureWidget();
             const sessionAtStart = this.sessionId;
 
             const trackUrl = `https://api.soundcloud.com/tracks/${encodeURIComponent(track.id)}`;
+
+            if (autoplay) {
+                try {
+                    window.dispatchEvent(new CustomEvent('wa:transport:busy', { detail: { busy: true } }));
+                } catch {
+                    // ignore
+                }
+            }
 
             // Wait for widget READY after we call load(). On iOS/Safari, calling play/seek
             // too early is a common cause of "it just pauses".
@@ -417,6 +489,12 @@ export class SoundCloudTransport implements PlayerTransport {
                 }
             }
 
+            // Ensure the widget has actually switched to the new sound before we seek.
+            // Otherwise seekTo() can apply to the previous track and the new track will start
+            // at the old timestamp (and only reset to 0 if the new track is shorter).
+            await this.waitForCurrentSoundId(widget, track.id, 1800);
+            if (this.sessionId !== sessionAtStart) return;
+
             // Now safe to seek. Always seek (even to 0) to prevent "carry over" positions.
             try {
                 widget.seekTo(this.lastPositionSec * 1000);
@@ -425,7 +503,7 @@ export class SoundCloudTransport implements PlayerTransport {
             }
 
             // Only attempt to play if caller says we should be playing (e.g., we were previously playing).
-            if (autoplay) {
+            if (autoplay && this.desiredPlaying) {
                 try {
                     widget.play();
                 } catch {
@@ -453,6 +531,14 @@ export class SoundCloudTransport implements PlayerTransport {
         } catch (error) {
             void showErrorDialog(formatErrorMessage(error), 'Music Service Error');
             throw error;
+        } finally {
+            if (autoplay) {
+                try {
+                    window.dispatchEvent(new CustomEvent('wa:transport:busy', { detail: { busy: false } }));
+                } catch {
+                    // ignore
+                }
+            }
         }
     }
 
@@ -465,6 +551,7 @@ export class SoundCloudTransport implements PlayerTransport {
         try {
             const widget = await this.ensureWidget();
             // Explicit play/pause is more deterministic than widget.toggle().
+            this.desiredPlaying = !previouslyPlaying;
             if (previouslyPlaying) widget.pause();
             else widget.play();
             // Best-effort: sync state after toggle in case the widget doesn't emit promptly.
@@ -490,6 +577,10 @@ export class SoundCloudTransport implements PlayerTransport {
 
             widget.seekTo(ms);
             this.lastPositionSec = nextPos;
+            // An explicit seek defines a new "expected" position; do not apply the
+            // initial-progress guard for this session any more.
+            this.sessionStartPositionSec = nextPos;
+            this.awaitingInitialProgress = false;
             // Don't assume seeking implies playback.
             await this.emitActualPlaybackState(widget);
         } catch (error) {
@@ -498,4 +589,3 @@ export class SoundCloudTransport implements PlayerTransport {
         }
     }
 }
-

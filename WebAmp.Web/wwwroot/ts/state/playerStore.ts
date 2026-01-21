@@ -43,6 +43,11 @@ export interface Track {
 export interface PlayerState {
     track: Track | null;
     isPlaying: boolean;
+    /**
+     * True while a transport is switching/loading tracks and UI should show an indeterminate
+     * "loading" state for the play button.
+     */
+    isBusy: boolean;
     positionSec: number;
 }
 
@@ -71,6 +76,7 @@ export class PlayerStore {
     private state: PlayerState = {
         track: null,
         isPlaying: false,
+        isBusy: false,
         positionSec: 0
     };
 
@@ -137,6 +143,12 @@ export class PlayerStore {
         return { ...this.state };
     }
 
+    setBusy(isBusy: boolean) {
+        if (this.state.isBusy === isBusy) return;
+        this.state = { ...this.state, isBusy };
+        this.emit();
+    }
+
     /**
      * Replaces the current queue
      */
@@ -170,16 +182,17 @@ export class PlayerStore {
         this.state = {
             track,
             isPlaying: !!autoplay,
+            isBusy: this.transport ? !!autoplay : false,
             positionSec: 0
         };
 
         this.emit();
         if (this.transport) {
             if (autoplay) {
-                // Start local progress immediately; remote state updates may arrive later.
-                this.remoteBaseMs = performance.now();
-                this.remoteBasePosSec = 0;
-                this.startRemoteTicker();
+            // Start local progress immediately; remote state updates may arrive later.
+            this.remoteBaseMs = performance.now();
+            this.remoteBasePosSec = 0;
+            this.startRemoteTicker();
             } else {
                 this.stopRemoteTicker();
             }
@@ -201,7 +214,8 @@ export class PlayerStore {
 
         if (this.transport) {
             const next = !this.state.isPlaying;
-            this.state = { ...this.state, isPlaying: next };
+            // Any user toggle should cancel "busy" UI immediately.
+            this.state = { ...this.state, isPlaying: next, isBusy: false };
             this.emit();
             void this.transport.togglePlay(!next /* previous */);
             if (next) this.startRemoteTicker();
@@ -321,7 +335,17 @@ export class PlayerStore {
             ...safeUpdate,
             track: mergedTrack
         };
-        this.state = next;
+        // When we receive an authoritative remote update for the currently selected track,
+        // clear any "busy" loading state.
+        const incomingId = (hasTrackProp && incomingTrack) ? incomingTrack.id : mergedTrack?.id;
+        const shouldClearBusy =
+            !!this.state.isBusy
+            && !!mergedTrack
+            && typeof incomingId === 'string'
+            && mergedTrack.id === incomingId
+            && (typeof safeUpdate.isPlaying === 'boolean' || typeof safeUpdate.positionSec === 'number');
+
+        this.state = shouldClearBusy ? { ...next, isBusy: false } : next;
 
         // Update the remote clock base whenever we get a position update.
         if (typeof safeUpdate.positionSec === 'number') {
