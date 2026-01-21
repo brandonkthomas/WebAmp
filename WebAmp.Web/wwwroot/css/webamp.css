@@ -1268,6 +1268,10 @@ body[data-initial-state="ready"] .loading-overlay {
     gap: 0.9rem;
 }
 
+.wa-landing__signin button {
+    height: 3rem;
+}
+
 .wa-landing__signin-label {
     font-size: 0.95rem;
     letter-spacing: 0.28em;
@@ -1800,10 +1804,11 @@ body[data-initial-state="ready"] .loading-overlay {
     .wa-nowplaying__art {
         /*
          * Always keep album art perfectly square, and if the full-width square
-         * would be too tall for the viewport, shrink based on viewport height
-         * (vmin) which naturally introduces left/right padding.
+         * would be too tall for the viewport, shrink based on max-height which
+         * naturally introduces left/right padding.
          */
-        width: min(100%, 66vmin);
+        width: min(100%, 720px);
+        max-height: min(52dvh, 720px);
         aspect-ratio: 1 / 1;
         margin: 0 auto;
         border-radius: 18px;
