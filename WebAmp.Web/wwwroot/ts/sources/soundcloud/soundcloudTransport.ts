@@ -547,7 +547,14 @@ export class SoundCloudTransport implements PlayerTransport {
      */
     async togglePlay(previouslyPlaying: boolean): Promise<void> {
         if (!this.currentTrack) return;
-
+        const startingPlayback = !previouslyPlaying;
+        if (startingPlayback) {
+            try {
+                window.dispatchEvent(new CustomEvent('wa:transport:busy', { detail: { busy: true } }));
+            } catch {
+                // ignore
+            }
+        }
         try {
             const widget = await this.ensureWidget();
             // Explicit play/pause is more deterministic than widget.toggle().
@@ -561,6 +568,14 @@ export class SoundCloudTransport implements PlayerTransport {
         } catch (error) {
             void showErrorDialog(formatErrorMessage(error), 'Music Service Error');
             throw error;
+        } finally {
+            if (startingPlayback) {
+                try {
+                    window.dispatchEvent(new CustomEvent('wa:transport:busy', { detail: { busy: false } }));
+                } catch {
+                    // ignore
+                }
+            }
         }
     }
 

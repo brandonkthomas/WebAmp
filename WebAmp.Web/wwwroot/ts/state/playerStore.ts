@@ -95,6 +95,14 @@ export class PlayerStore {
     private remoteBasePosSec: number | null = null;
     private remoteUiEmitMs: number | null = null;
 
+    /**
+     * Tracks whether a transport (e.g. SoundCloud widget) has indicated it is
+     * busy performing an async operation such as loading/switching tracks.
+     * While this flag is true, remote state snapshots should not clear the
+     * user's perceived "loading" spinner.
+     */
+    private transportBusy: boolean = false;
+
     constructor(seedQueue: Track[] = []) {
         this.queue = seedQueue.slice();
 
@@ -144,6 +152,8 @@ export class PlayerStore {
     }
 
     setBusy(isBusy: boolean) {
+        // Remember whether the underlying transport reports itself as busy.
+        this.transportBusy = isBusy;
         if (this.state.isBusy === isBusy) return;
         this.state = { ...this.state, isBusy };
         this.emit();
@@ -336,10 +346,12 @@ export class PlayerStore {
             track: mergedTrack
         };
         // When we receive an authoritative remote update for the currently selected track,
-        // clear any "busy" loading state.
+        // clear any "busy" loading state, unless the transport has explicitly
+        // reported that it is still busy (e.g. SoundCloud widget mid-load).
         const incomingId = (hasTrackProp && incomingTrack) ? incomingTrack.id : mergedTrack?.id;
         const shouldClearBusy =
             !!this.state.isBusy
+            && !this.transportBusy
             && !!mergedTrack
             && typeof incomingId === 'string'
             && mergedTrack.id === incomingId
