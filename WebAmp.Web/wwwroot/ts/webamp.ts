@@ -94,36 +94,9 @@ function boot() {
     const DISCONNECT_ICON_SPOTIFY = '/apps/webamp/assets/svg/spotify.svg';
     const DISCONNECT_ICON_SOUNDCLOUD = '/apps/webamp/assets/svg/soundcloud.svg';
 
-    const likedHeading = document.querySelector<HTMLElement>('[data-wa-liked-heading]');
-    const likedList = document.querySelector<HTMLElement>('[data-wa-liked]');
-    const likedRootHeading = document.querySelector<HTMLElement>('[data-wa-liked-heading-root]');
-
     const updateSourceChrome = () => {
         const spotifyConnected = spotifySource.getState().isConnected;
         const scConnected = soundCloudSource.getState().isConnected;
-
-        // Update app-level source dataset for CSS (e.g., hide Albums/Artists
-        // when only SoundCloud is active).
-        if (appRootEl) {
-            let src = 'none';
-            if (spotifyConnected && !scConnected) src = 'spotify';
-            else if (scConnected && !spotifyConnected) src = 'soundcloud';
-            appRootEl.dataset.waSource = src;
-        }
-
-        // Rename "Liked Songs" to "Likes" when SoundCloud is the sole source.
-        if (likedHeading || likedRootHeading) {
-            if (scConnected && !spotifyConnected) {
-                if (likedHeading) likedHeading.textContent = 'Likes';
-                if (likedRootHeading) likedRootHeading.textContent = 'Likes';
-                if (likedList) likedList.setAttribute('aria-label', 'Likes');
-            } else {
-                if (likedHeading) likedHeading.textContent = 'Liked Songs';
-                if (likedRootHeading) likedRootHeading.textContent = 'Liked Songs';
-                if (likedList) likedList.setAttribute('aria-label', 'Liked songs');
-            }
-        }
-
         if (!disconnectBtn) return;
 
         if (!spotifyConnected && !scConnected) {

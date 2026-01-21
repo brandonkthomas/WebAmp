@@ -321,11 +321,35 @@ export class WebAmpRouter {
     private updateAppChrome(match: RouteMatch) {
         const spotifySource = this.services.musicSource;
         const soundCloudSource = this.services.soundCloudSource;
-        const authed =
-            (spotifySource?.getState().isConnected ?? false) ||
-            (soundCloudSource?.getState().isConnected ?? false);
+        const spotifyConnected = spotifySource?.getState().isConnected ?? false;
+        const scConnected = soundCloudSource?.getState().isConnected ?? false;
+        const authed = spotifyConnected || scConnected;
+
         this.dom.appRoot.dataset.waView = match.view;
         this.dom.appRoot.dataset.waAuth = authed ? 'true' : 'false';
+
+        // Track which provider is active at the app level so CSS and labels
+        // (e.g., Albums/Artists visibility, "Liked Songs" vs "Likes") can react.
+        let src = 'none';
+        if (spotifyConnected && !scConnected) src = 'spotify';
+        else if (scConnected && !spotifyConnected) src = 'soundcloud';
+        this.dom.appRoot.dataset.waSource = src;
+
+        // Rename "Liked Songs" to "Likes" when SoundCloud is the sole source.
+        const likedHeading = document.querySelector<HTMLElement>('[data-wa-liked-heading]');
+        const likedList = document.querySelector<HTMLElement>('[data-wa-liked]');
+        const likedRootHeading = document.querySelector<HTMLElement>('[data-wa-liked-heading-root]');
+        if (likedHeading || likedRootHeading || likedList) {
+            if (src === 'soundcloud') {
+                if (likedHeading) likedHeading.textContent = 'Likes';
+                if (likedRootHeading) likedRootHeading.textContent = 'Likes';
+                if (likedList) likedList.setAttribute('aria-label', 'Likes');
+            } else {
+                if (likedHeading) likedHeading.textContent = 'Liked Songs';
+                if (likedRootHeading) likedRootHeading.textContent = 'Liked Songs';
+                if (likedList) likedList.setAttribute('aria-label', 'Liked songs');
+            }
+        }
 
         const topbarTitle = document.querySelector<HTMLElement>('[data-wa-topbar-title]');
         if (topbarTitle) {
