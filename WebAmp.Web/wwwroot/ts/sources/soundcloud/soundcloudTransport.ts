@@ -413,7 +413,7 @@ export class SoundCloudTransport implements PlayerTransport {
                     }
                 })();
                 if (!alive) {
-                    throw new Error('SoundCloud widget did not become ready.');
+                    throw new Error('SoundCloud did not respond.');
                 }
             }
 

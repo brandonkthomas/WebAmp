@@ -126,7 +126,7 @@ export async function ensureSpotifyPlayback(onState?: PlaybackStateListener): Pr
             });
 
             const deviceIdPromise: Promise<string> = new Promise((resolve, reject) => {
-                const timeout = window.setTimeout(() => reject(new Error('Spotify player did not become ready in time')), 15000);
+                const timeout = window.setTimeout(() => reject(new Error('Spotify player did not respond.')), 15000);
                 player.addListener('ready', ({ device_id }: any) => {
                     window.clearTimeout(timeout);
                     resolve(device_id);
