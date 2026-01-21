@@ -62,6 +62,7 @@ export class NowPlayingMobile {
     private dragStartY: number | null = null;
     private dragLastY: number | null = null;
     private dragging = false;
+    private didDrag = false;
 
     constructor(opts: { root: HTMLElement; playerBarRoot?: HTMLElement | null; store: PlayerStore }) {
         this.root = opts.root;
@@ -201,15 +202,21 @@ export class NowPlayingMobile {
             }, { passive: true });
         }
 
-        // Drag down to close (grab handle OR anywhere on the sheet).
+        // Drag down to close (grab handle OR anywhere on the sheet), except when
+        // the gesture begins on interactive controls (especially the scrubber).
         const canStartSheetDragFromTarget = (target: HTMLElement | null) => {
             if (!target) return true;
+            // The grab handle is always allowed.
+            if (target.closest('[data-wa-nowplaying-grab]')) return true;
             // Don't steal gestures from interactive controls / inputs.
             if (target.closest('button')) return false;
             if (target.closest('input')) return false;
             if (target.closest('a')) return false;
-            // The grab handle is always allowed.
-            if (target.closest('[data-wa-nowplaying-grab]')) return true;
+            // Also treat the shuffle toggle label as interactive.
+            if (target.closest('.comp-toggle')) return false;
+            // Never start drag-to-close from the scrubber area.
+            if (target.closest('.wa-nowplaying__scrub')) return false;
+            if (target.closest('[data-wa-nowplaying-scrubber]')) return false;
             // If the content is scrolled, let the user scroll back up before drag-to-close.
             const c = this.contentEl;
             if (c && c.scrollTop > 1) return false;
@@ -218,6 +225,7 @@ export class NowPlayingMobile {
 
         const startDrag = (clientY: number, captureEl?: HTMLElement, pointerId?: number) => {
             this.dragging = true;
+            this.didDrag = false;
             this.dragStartY = clientY;
             this.dragLastY = clientY;
             if (captureEl && typeof pointerId === 'number') {
@@ -230,6 +238,7 @@ export class NowPlayingMobile {
             if (!this.dragging || this.dragStartY === null) return;
             this.dragLastY = clientY;
             const dy = Math.max(0, clientY - this.dragStartY);
+            if (dy > 6) this.didDrag = true;
             this.setSheetTranslateY(dy);
         };
 
@@ -242,8 +251,7 @@ export class NowPlayingMobile {
             this.setDragging(false);
 
             // If pulled down enough, close; else snap back open.
-            // Treat a "tap" on the grabber as close (dy ~ 0), since users expect that.
-            if (dy < 8 || dy > 90) this.close();
+            if (dy > 90) this.close();
             else this.setSheetTranslateY(0);
         };
 
@@ -273,11 +281,14 @@ export class NowPlayingMobile {
         this.grabBtn?.addEventListener('pointermove', onPointerMove);
         this.grabBtn?.addEventListener('pointerup', onPointerUp);
         this.grabBtn?.addEventListener('pointercancel', onPointerUp);
-
-        this.sheet?.addEventListener('pointerdown', onPointerDown);
-        this.sheet?.addEventListener('pointermove', onPointerMove);
-        this.sheet?.addEventListener('pointerup', onPointerUp);
-        this.sheet?.addEventListener('pointercancel', onPointerUp);
+        // Tap grab handle closes (but a real drag should not be double-handled).
+        this.grabBtn?.addEventListener('click', (e) => {
+            if (!this.enabled) return;
+            if (!this.open) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (!this.didDrag) this.close();
+        });
 
         // TouchEvents path (iOS Safari reliability)
         const onTouchStart = (e: TouchEvent) => {
@@ -309,6 +320,12 @@ export class NowPlayingMobile {
         this.grabBtn?.addEventListener('touchmove', onTouchMove, { passive: false });
         this.grabBtn?.addEventListener('touchend', onTouchEnd, { passive: false });
         this.grabBtn?.addEventListener('touchcancel', onTouchEnd, { passive: false });
+
+        // Allow swipe-down starting anywhere on the sheet (except controls/scrubber).
+        this.sheet?.addEventListener('pointerdown', onPointerDown);
+        this.sheet?.addEventListener('pointermove', onPointerMove);
+        this.sheet?.addEventListener('pointerup', onPointerUp);
+        this.sheet?.addEventListener('pointercancel', onPointerUp);
 
         this.sheet?.addEventListener('touchstart', onTouchStart, { passive: false });
         this.sheet?.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -433,6 +450,11 @@ export class NowPlayingMobile {
             }
         }
 
+        if (this.btnToggle) {
+            if (state.isBusy) this.btnToggle.setAttribute('data-wa-busy', 'true');
+            else this.btnToggle.removeAttribute('data-wa-busy');
+        }
+
         if (this.timeCurrentEl) this.timeCurrentEl.textContent = formatTime(position);
         if (this.timeDurationEl) this.timeDurationEl.textContent = formatTime(duration);
 
@@ -458,4 +480,3 @@ export class NowPlayingMobile {
         }
     }
 }
-
