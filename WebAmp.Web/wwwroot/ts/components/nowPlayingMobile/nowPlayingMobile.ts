@@ -33,6 +33,7 @@ export class NowPlayingMobile {
     private readonly playerBarRoot: HTMLElement | null;
 
     private sheet: HTMLElement | null;
+    private contentEl: HTMLElement | null;
     private grabBtn: HTMLButtonElement | null;
     private closeEls: HTMLElement[];
 
@@ -78,6 +79,7 @@ export class NowPlayingMobile {
         this.isMobileMql = window.matchMedia('(max-width: 820px)');
 
         this.sheet = this.root.querySelector<HTMLElement>('.wa-nowplaying__sheet');
+        this.contentEl = this.root.querySelector<HTMLElement>('.wa-nowplaying__content');
         this.grabBtn = this.root.querySelector<HTMLButtonElement>('[data-wa-nowplaying-grab]');
         this.closeEls = Array.from(this.root.querySelectorAll<HTMLElement>('[data-wa-nowplaying-close]'));
 
@@ -199,29 +201,39 @@ export class NowPlayingMobile {
             }, { passive: true });
         }
 
-        // Drag down to close using the grab handle.
-        this.grabBtn?.addEventListener('pointerdown', (e: PointerEvent) => {
-            if (!this.enabled) return;
-            if (!this.open) return;
-            e.preventDefault();
-            e.stopPropagation();
+        // Drag down to close (grab handle OR anywhere on the sheet).
+        const canStartSheetDragFromTarget = (target: HTMLElement | null) => {
+            if (!target) return true;
+            // Don't steal gestures from interactive controls / inputs.
+            if (target.closest('button')) return false;
+            if (target.closest('input')) return false;
+            if (target.closest('a')) return false;
+            // The grab handle is always allowed.
+            if (target.closest('[data-wa-nowplaying-grab]')) return true;
+            // If the content is scrolled, let the user scroll back up before drag-to-close.
+            const c = this.contentEl;
+            if (c && c.scrollTop > 1) return false;
+            return true;
+        };
+
+        const startDrag = (clientY: number, captureEl?: HTMLElement, pointerId?: number) => {
             this.dragging = true;
-            this.dragStartY = e.clientY;
-            this.dragLastY = e.clientY;
-            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+            this.dragStartY = clientY;
+            this.dragLastY = clientY;
+            if (captureEl && typeof pointerId === 'number') {
+                try { captureEl.setPointerCapture(pointerId); } catch { /* ignore */ }
+            }
             this.setDragging(true);
-        });
+        };
 
-        this.grabBtn?.addEventListener('pointermove', (e: PointerEvent) => {
+        const moveDrag = (clientY: number) => {
             if (!this.dragging || this.dragStartY === null) return;
-            e.preventDefault();
-            e.stopPropagation();
-            this.dragLastY = e.clientY;
-            const dy = Math.max(0, e.clientY - this.dragStartY);
+            this.dragLastY = clientY;
+            const dy = Math.max(0, clientY - this.dragStartY);
             this.setSheetTranslateY(dy);
-        });
+        };
 
-        const endDrag = (e: PointerEvent) => {
+        const endDrag = () => {
             if (!this.dragging || this.dragStartY === null || this.dragLastY === null) return;
             const dy = Math.max(0, this.dragLastY - this.dragStartY);
             this.dragging = false;
@@ -230,52 +242,78 @@ export class NowPlayingMobile {
             this.setDragging(false);
 
             // If pulled down enough, close; else snap back open.
-            if (dy > 90) this.close();
+            // Treat a "tap" on the grabber as close (dy ~ 0), since users expect that.
+            if (dy < 8 || dy > 90) this.close();
             else this.setSheetTranslateY(0);
         };
 
-        this.grabBtn?.addEventListener('pointerup', endDrag);
-        this.grabBtn?.addEventListener('pointercancel', endDrag);
-
-        // iOS Safari can be inconsistent with PointerEvents; add explicit touch handlers.
-        this.grabBtn?.addEventListener('touchstart', (e: TouchEvent) => {
+        // PointerEvents path (desktop + some mobile browsers)
+        const onPointerDown = (e: PointerEvent) => {
             if (!this.enabled) return;
             if (!this.open) return;
-            const t = e.touches[0];
-            if (!t) return;
+            if (!canStartSheetDragFromTarget(e.target as HTMLElement | null)) return;
             e.preventDefault();
             e.stopPropagation();
-            this.dragging = true;
-            this.dragStartY = t.clientY;
-            this.dragLastY = t.clientY;
-            this.setDragging(true);
-        }, { passive: false });
-
-        this.grabBtn?.addEventListener('touchmove', (e: TouchEvent) => {
-            if (!this.dragging || this.dragStartY === null) return;
-            const t = e.touches[0];
-            if (!t) return;
-            e.preventDefault();
-            e.stopPropagation();
-            this.dragLastY = t.clientY;
-            const dy = Math.max(0, t.clientY - this.dragStartY);
-            this.setSheetTranslateY(dy);
-        }, { passive: false });
-
-        const endTouchDrag = (e: TouchEvent) => {
-            if (!this.dragging || this.dragStartY === null || this.dragLastY === null) return;
-            e.preventDefault();
-            e.stopPropagation();
-            const dy = Math.max(0, this.dragLastY - this.dragStartY);
-            this.dragging = false;
-            this.dragStartY = null;
-            this.dragLastY = null;
-            this.setDragging(false);
-            if (dy > 90) this.close();
-            else this.setSheetTranslateY(0);
+            startDrag(e.clientY, e.currentTarget as HTMLElement, e.pointerId);
         };
-        this.grabBtn?.addEventListener('touchend', endTouchDrag, { passive: false });
-        this.grabBtn?.addEventListener('touchcancel', endTouchDrag, { passive: false });
+        const onPointerMove = (e: PointerEvent) => {
+            if (!this.dragging) return;
+            e.preventDefault();
+            e.stopPropagation();
+            moveDrag(e.clientY);
+        };
+        const onPointerUp = (e: PointerEvent) => {
+            if (!this.dragging) return;
+            e.preventDefault();
+            e.stopPropagation();
+            endDrag();
+        };
+
+        this.grabBtn?.addEventListener('pointerdown', onPointerDown);
+        this.grabBtn?.addEventListener('pointermove', onPointerMove);
+        this.grabBtn?.addEventListener('pointerup', onPointerUp);
+        this.grabBtn?.addEventListener('pointercancel', onPointerUp);
+
+        this.sheet?.addEventListener('pointerdown', onPointerDown);
+        this.sheet?.addEventListener('pointermove', onPointerMove);
+        this.sheet?.addEventListener('pointerup', onPointerUp);
+        this.sheet?.addEventListener('pointercancel', onPointerUp);
+
+        // TouchEvents path (iOS Safari reliability)
+        const onTouchStart = (e: TouchEvent) => {
+            if (!this.enabled) return;
+            if (!this.open) return;
+            if (!canStartSheetDragFromTarget(e.target as HTMLElement | null)) return;
+            const t = e.touches[0];
+            if (!t) return;
+            e.preventDefault();
+            e.stopPropagation();
+            startDrag(t.clientY);
+        };
+        const onTouchMove = (e: TouchEvent) => {
+            if (!this.dragging) return;
+            const t = e.touches[0];
+            if (!t) return;
+            e.preventDefault();
+            e.stopPropagation();
+            moveDrag(t.clientY);
+        };
+        const onTouchEnd = (e: TouchEvent) => {
+            if (!this.dragging) return;
+            e.preventDefault();
+            e.stopPropagation();
+            endDrag();
+        };
+
+        this.grabBtn?.addEventListener('touchstart', onTouchStart, { passive: false });
+        this.grabBtn?.addEventListener('touchmove', onTouchMove, { passive: false });
+        this.grabBtn?.addEventListener('touchend', onTouchEnd, { passive: false });
+        this.grabBtn?.addEventListener('touchcancel', onTouchEnd, { passive: false });
+
+        this.sheet?.addEventListener('touchstart', onTouchStart, { passive: false });
+        this.sheet?.addEventListener('touchmove', onTouchMove, { passive: false });
+        this.sheet?.addEventListener('touchend', onTouchEnd, { passive: false });
+        this.sheet?.addEventListener('touchcancel', onTouchEnd, { passive: false });
 
         // Subscribe to state updates.
         this.unsubscribe = this.store.subscribe((state) => this.render(state));

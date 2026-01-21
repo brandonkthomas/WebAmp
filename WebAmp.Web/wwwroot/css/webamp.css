@@ -1714,9 +1714,9 @@ body[data-initial-state="ready"] .loading-overlay {
         transition: opacity 0.18s ease;
     }
 
-    /* body[data-wa-now-playing-open="true"] .wa-nowplaying__backdrop {
+    body[data-wa-now-playing-open="true"] .wa-nowplaying__backdrop {
         opacity: 1;
-    } */
+    }
 
     .wa-nowplaying__sheet {
         position: absolute;
@@ -1733,7 +1733,7 @@ body[data-initial-state="ready"] .loading-overlay {
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        --wa-nowplaying-grab-h: 34px;
+        --wa-nowplaying-grab-h: 3.5rem;
         overscroll-behavior: contain;
     }
 
@@ -1758,6 +1758,7 @@ body[data-initial-state="ready"] .loading-overlay {
         top: env(safe-area-inset-top, 0px);
         left: 0;
         right: 0;
+        z-index: 3; /* ensure grab handle stays above scrollable content */
         height: var(--wa-nowplaying-grab-h);
         padding: 0;
         border: 0;
@@ -1776,6 +1777,8 @@ body[data-initial-state="ready"] .loading-overlay {
     }
 
     .wa-nowplaying__content {
+        position: relative;
+        z-index: 1;
         height: 100vh;
         height: 100dvh;
         padding: calc(env(safe-area-inset-top, 0px) + var(--wa-nowplaying-grab-h) + 0.85rem) 1.4rem 1.4rem;
@@ -1790,10 +1793,14 @@ body[data-initial-state="ready"] .loading-overlay {
     }
 
     .wa-nowplaying__art {
-        width: 100%;
-        max-width: none;
+        /*
+         * Always keep album art perfectly square, and if the full-width square
+         * would be too tall for the viewport, shrink based on viewport height
+         * (vmin) which naturally introduces left/right padding.
+         */
+        width: min(100%, 66vmin);
         aspect-ratio: 1 / 1;
-        margin: 0;
+        margin: 0 auto;
         border-radius: 18px;
         border: 1px solid rgba(255, 255, 255, 0.14);
         overflow: hidden;
