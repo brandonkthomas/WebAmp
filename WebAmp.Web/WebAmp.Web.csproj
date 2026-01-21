@@ -8,6 +8,9 @@
 
     <!-- Serve module static assets under /apps/webamp/* when referenced by a host app -->
     <StaticWebAssetBasePath>apps/webamp</StaticWebAssetBasePath>
+
+    <!-- Version injected by host build/push script (defaults to dev for local builds). -->
+    <WebAmpAppVersion Condition="'$(WebAmpAppVersion)' == ''">dev</WebAmpAppVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,7 +35,7 @@
     </PropertyGroup>
     <Exec
       Condition="Exists('$(_WebAmpClientTs)')"
-      Command="ESBUILD=&quot;$(EsbuildCli)&quot;; if [ -z &quot;$ESBUILD&quot; ]; then if [ -x &quot;$(_EsbuildCliPortfolio)&quot; ]; then ESBUILD=&quot;$(_EsbuildCliPortfolio)&quot;; else ESBUILD=&quot;$(_EsbuildCliDefault)&quot;; fi; fi; &quot;$ESBUILD&quot; &quot;$(_WebAmpClientTs)&quot; --bundle --format=esm --outfile=&quot;$(_WebAmpOutFile)&quot; --log-level=warning --resolve-extensions=.ts,.js" />
+      Command="ESBUILD=&quot;$(EsbuildCli)&quot;; if [ -z &quot;$ESBUILD&quot; ]; then if [ -x &quot;$(_EsbuildCliPortfolio)&quot; ]; then ESBUILD=&quot;$(_EsbuildCliPortfolio)&quot;; else ESBUILD=&quot;$(_EsbuildCliDefault)&quot;; fi; fi; &quot;$ESBUILD&quot; &quot;$(_WebAmpClientTs)&quot; --bundle --format=esm --outfile=&quot;$(_WebAmpOutFile)&quot; --log-level=warning --resolve-extensions=.ts,.js --define:__WEBAMP_APP_VERSION__=&quot;\&quot;$(WebAmpAppVersion)\&quot;&quot;" />
   </Target>
 
 </Project>

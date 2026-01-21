@@ -21,6 +21,9 @@ import { SidebarController } from './components/sidebar/sidebar';
 import { HybridTransport } from './sources/hybridTransport';
 import { getDominantColor } from './ui/dominantColor';
 
+// Injected at bundle time by esbuild (see WebAmp.Web.csproj).
+declare const __WEBAMP_APP_VERSION__: string;
+
 function getTemplate(id: string): HTMLTemplateElement {
     const el = document.getElementById(id);
     if (!(el instanceof HTMLTemplateElement)) {
@@ -38,8 +41,18 @@ function boot() {
     const sidebarOverlay = document.querySelector<HTMLElement>('[data-wa-sidebar-overlay]');
     const sidebarOpenBtn = document.querySelector<HTMLElement>('[data-wa-sidebar-toggle]');
     const sidebarCloseBtn = document.querySelector<HTMLElement>('[data-wa-sidebar-close]');
+    const versionEl = document.querySelector<HTMLElement>('[data-wa-version]');
 
     if (!appRoot || !viewHost) return;
+
+    if (versionEl) {
+        const v = (typeof __WEBAMP_APP_VERSION__ === 'string' && __WEBAMP_APP_VERSION__.trim().length)
+            ? __WEBAMP_APP_VERSION__.trim()
+            : 'dev';
+        const m = v.match(/(\d+)\s*$/);
+        const buildNum = m?.[1] ?? v;
+        versionEl.textContent = `build ${buildNum}`;
+    }
 
     // Keep the global loading overlay up until we resolve Spotify auth (prevents a "landing flash" on reload).
     let authResolved = false;
