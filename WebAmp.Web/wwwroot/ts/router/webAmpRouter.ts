@@ -379,15 +379,33 @@ export class WebAmpRouter {
     }
 
     /**
-     * Updates `document.title` based on view + optional entity id
+     * Updates `document.title` based on the current logical location.
+     *
+     * For non-landing views this now prefers the label of the "current"
+     * breadcrumb (i.e., the last crumb in the trail) so that detail pages
+     * use the human-friendly title instead of raw ids.
      */
     private updateTitle(match: RouteMatch) {
         const base = 'WebAmp';
-        const suffix =
-            match.view === 'landing' ? 'Landing' : this.getViewLabel(match.view);
+        const crumbs = this.customBreadcrumbs ?? this.buildBreadcrumbs(match);
 
-        const withId = match.entityId ? `${suffix} • ${match.entityId}` : suffix;
-        document.title = withId ? `${base} — ${withId}` : base;
+        let suffix: string | null = null;
+
+        if (crumbs.length) {
+            // Use the label of the "current" breadcrumb (last in the list)
+            const current = crumbs[crumbs.length - 1];
+            const label = current.label?.trim();
+            suffix = label && label.length > 0 ? label : null;
+        } else if (match.view !== 'landing') {
+            // Fallback for views that don't expose breadcrumbs
+            const label = this.getViewLabel(match.view)?.trim();
+            suffix = label && label.length > 0 ? label : null;
+        } else {
+            // Landing page: keep the title minimal
+            suffix = null;
+        }
+
+        document.title = suffix ? `${base} — ${suffix}` : base;
     }
 
     /**
@@ -397,6 +415,8 @@ export class WebAmpRouter {
         this.customBreadcrumbs = crumbs;
         if (this.lastMatch) {
             this.updateBreadcrumbs(this.lastMatch);
+            // Keep the browser title in sync with the active breadcrumb.
+            this.updateTitle(this.lastMatch);
         }
     }
 
