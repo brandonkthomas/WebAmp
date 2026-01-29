@@ -121,8 +121,11 @@ export class SoundCloudTransport implements PlayerTransport {
             iframe.height = '166';
             iframe.scrolling = 'no';
             iframe.frameBorder = '0';
+            // Allow autoplay so the widget can advance within the same media element
+            // when the user has already interacted with the page (important on iOS/Safari).
             iframe.allow = 'autoplay';
-            iframe.src = 'https://w.soundcloud.com/player/?url=&auto_play=false';
+            // Initial src is a stub; real configuration is provided via widget.load().
+            iframe.src = 'https://w.soundcloud.com/player/?url=&auto_play=false&show_artwork=false&single_active=false';
 
             container.appendChild(iframe);
             // Attach near the end of body; location is irrelevant since the iframe is hidden.
@@ -436,14 +439,22 @@ export class SoundCloudTransport implements PlayerTransport {
                 try {
                     // Use the documented widget.load(url, options) API.
                     // Per docs, existing event listeners remain active across loads.
-                    // Docs: https://developers.soundcloud.com/docs/api/html5-widget#playground
+                    // Docs: https://developers.soundcloud.com/docs/api/html5-widget#methods
                     widget.load(trackUrl, {
-                        // We explicitly play() only if we were previously playing.
-                        auto_play: false,
+                        // Let the widget handle in-iframe autoplay when appropriate.
+                        // This is often treated more leniently by mobile Safari than a
+                        // cross-frame widget.play() call, as long as the user has
+                        // previously interacted with the page.
+                        auto_play: autoplay,
+                        // The iframe is hidden, so artwork and most UI chrome are wasted.
+                        show_artwork: false,
                         hide_related: true,
                         show_comments: false,
-                        show_user: true,
+                        show_user: false,
                         show_reposts: false,
+                        // We only ever keep a single hidden widget iframe around, but
+                        // be explicit so other embeds on the page don't toggle it off.
+                        single_active: false,
                         visual: false,
                         callback: () => {
                             // Callback indicates the widget is ready to accept external calls,
