@@ -74,6 +74,72 @@ public sealed class SoundCloudApiController(
 
     // ============================================================================================
     /// <summary>
+    /// Searches public SoundCloud playlists.
+    /// </summary>
+    /// <param name="q">Free text query.</param>
+    /// <param name="limit">Number of items to return (1-50).</param>
+    /// <param name="cursor">
+    /// Optional pagination cursor (see SoundCloud <c>linked_partitioning</c> docs).
+    /// </param>
+    [HttpGet]
+    public async Task<IActionResult> SearchPlaylists(
+        [FromQuery] string q,
+        [FromQuery] int limit = 20,
+        [FromQuery] string? cursor = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+        {
+            return BadRequest(new { error = "missing_q" });
+        }
+
+        limit = Math.Clamp(limit, 1, 50);
+
+        var path = $"playlists?q={Uri.EscapeDataString(q)}&limit={limit}&linked_partitioning=true";
+        if (!string.IsNullOrWhiteSpace(cursor))
+        {
+            path += $"&cursor={Uri.EscapeDataString(cursor)}";
+        }
+
+        var (status, json) = await GetWithUserOrAppAsync(path, cancellationToken);
+        return ProxyJson(status, json);
+    }
+
+    // ============================================================================================
+    /// <summary>
+    /// Searches public SoundCloud users (artists).
+    /// </summary>
+    /// <param name="q">Free text query.</param>
+    /// <param name="limit">Number of items to return (1-50).</param>
+    /// <param name="cursor">
+    /// Optional pagination cursor (see SoundCloud <c>linked_partitioning</c> docs).
+    /// </param>
+    [HttpGet]
+    public async Task<IActionResult> SearchUsers(
+        [FromQuery] string q,
+        [FromQuery] int limit = 20,
+        [FromQuery] string? cursor = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+        {
+            return BadRequest(new { error = "missing_q" });
+        }
+
+        limit = Math.Clamp(limit, 1, 50);
+
+        var path = $"users?q={Uri.EscapeDataString(q)}&limit={limit}&linked_partitioning=true";
+        if (!string.IsNullOrWhiteSpace(cursor))
+        {
+            path += $"&cursor={Uri.EscapeDataString(cursor)}";
+        }
+
+        var (status, json) = await GetWithUserOrAppAsync(path, cancellationToken);
+        return ProxyJson(status, json);
+    }
+
+    // ============================================================================================
+    /// <summary>
     /// Returns raw SoundCloud track metadata for a given id.
     /// </summary>
     [HttpGet]

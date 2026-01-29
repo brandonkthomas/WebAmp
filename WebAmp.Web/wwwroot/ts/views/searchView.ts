@@ -313,17 +313,36 @@ export const searchView: WebAmpViewController = {
 
                     setStatus('');
                 } else {
-                    // SoundCloud: we currently surface track results only.
-                    const data = await soundcloudApi.searchTracks(currentQuery, 25);
+                    // SoundCloud: search tracks, playlists, and users in parallel.
+                    const [tracksRes, playlistsRes, usersRes] = await Promise.allSettled([
+                        soundcloudApi.searchTracks(currentQuery, 25),
+                        soundcloudApi.searchPlaylists(currentQuery, 12),
+                        soundcloudApi.searchUsers(currentQuery, 12)
+                    ]);
                     if (destroyed) return;
 
-                    const collection = Array.isArray((data as any)?.collection)
-                        ? (data as any).collection
-                        : Array.isArray(data)
-                            ? data
-                            : [];
+                    if (tracksRes.status === 'rejected') {
+                        throw tracksRes.reason;
+                    }
 
-                    const scTracks: Track[] = collection
+                    const toCollection = (data: any): any[] =>
+                        Array.isArray(data?.collection)
+                            ? data.collection
+                            : Array.isArray(data?.items)
+                                ? data.items
+                                : Array.isArray(data)
+                                    ? data
+                                    : [];
+
+                    const trackItems = toCollection(tracksRes.value);
+                    const playlistItems = playlistsRes.status === 'fulfilled'
+                        ? toCollection(playlistsRes.value)
+                        : [];
+                    const userItems = usersRes.status === 'fulfilled'
+                        ? toCollection(usersRes.value)
+                        : [];
+
+                    const scTracks: Track[] = trackItems
                         .filter((it: any) => !!it && typeof it.id !== 'undefined')
                         .map((it: any) => {
                             const id = String(it.id);
@@ -355,17 +374,24 @@ export const searchView: WebAmpViewController = {
 
                     resultsEl.replaceChildren();
 
-                    const wrap = document.createElement('div');
-                    const h = document.createElement('h2');
-                    h.className = 'wa-h2';
-                    h.textContent = 'SoundCloud Tracks';
-                    const list = document.createElement('div');
-                    list.className = 'wa-list';
-                    wrap.appendChild(h);
-                    wrap.appendChild(list);
+                    const makeSection = (title: string) => {
+                        const wrap = document.createElement('div');
+                        const h = document.createElement('h2');
+                        h.className = 'wa-h2';
+                        h.textContent = title;
+                        const list = document.createElement('div');
+                        list.className = 'wa-list';
+                        wrap.appendChild(h);
+                        wrap.appendChild(list);
+                        return { wrap, list };
+                    };
+
+                    const tracksSec = makeSection('Tracks');
+                    const playlistsSec = makeSection('Playlists');
+                    const artistsSec = makeSection('Artists');
 
                     for (const t of scTracks) {
-                        list.appendChild(createTrackListItem({
+                        tracksSec.list.appendChild(createTrackListItem({
                             track: t,
                             onClick: () =>
                                 window.dispatchEvent(new CustomEvent('wa:track:select', {
@@ -374,13 +400,70 @@ export const searchView: WebAmpViewController = {
                         }));
                     }
 
-                    if (!scTracks.length) {
+                    const scPlaylists = playlistItems
+                        .filter((p: any) => !!p && typeof p.id !== 'undefined')
+                        .map((p: any) => {
+                            const id = String(p.id);
+                            const title = typeof p.title === 'string' ? p.title : (typeof p.name === 'string' ? p.name : '(untitled)');
+                            const owner =
+                                (typeof p?.user?.username === 'string' && p.user.username) ||
+                                (typeof p?.user?.name === 'string' && p.user.name) ||
+                                '—';
+                            const artUrlSmall: string | undefined =
+                                typeof p?.artwork_url === 'string'
+                                    ? p.artwork_url
+                                    : (Array.isArray(p?.tracks) && p.tracks.length && typeof p.tracks[0]?.artwork_url === 'string'
+                                        ? p.tracks[0].artwork_url
+                                        : undefined);
+                            return { id, title, owner, artUrlSmall };
+                        });
+
+                    for (const p of scPlaylists) {
+                        playlistsSec.list.appendChild(createPlaylistListItem({
+                            playlist: p,
+                            onClick: () => ctx.router.navigate(`/webamp/playlists/${p.id}`)
+                        }));
+                    }
+
+                    const scArtists = userItems
+                        .filter((u: any) => !!u && typeof u.id !== 'undefined')
+                        .map((u: any) => {
+                            const id = String(u.id);
+                            const name =
+                                (typeof u.username === 'string' && u.username) ||
+                                (typeof u.full_name === 'string' && u.full_name) ||
+                                (typeof u.name === 'string' && u.name) ||
+                                '(untitled)';
+                            const artUrlSmall: string | undefined =
+                                typeof u.avatar_url === 'string' ? u.avatar_url : undefined;
+                            const permalinkUrl = typeof u.permalink_url === 'string' ? u.permalink_url : undefined;
+                            return { id, name, artUrlSmall, permalinkUrl };
+                        });
+
+                    for (const a of scArtists) {
+                        artistsSec.list.appendChild(createArtistListItem({
+                            artist: { id: a.id, name: a.name, artUrlSmall: a.artUrlSmall },
+                            onClick: () => {
+                                if (a.permalinkUrl) window.open(a.permalinkUrl, '_blank', 'noopener');
+                            }
+                        }));
+                    }
+
+                    const any =
+                        tracksSec.list.childElementCount ||
+                        playlistsSec.list.childElementCount ||
+                        artistsSec.list.childElementCount;
+
+                    if (!any) {
                         setStatus('No results found.');
                         if (resultsCard) resultsCard.style.display = 'none';
                         return;
                     }
 
-                    resultsEl.appendChild(wrap);
+                    if (tracksSec.list.childElementCount) resultsEl.appendChild(tracksSec.wrap);
+                    if (playlistsSec.list.childElementCount) resultsEl.appendChild(playlistsSec.wrap);
+                    if (artistsSec.list.childElementCount) resultsEl.appendChild(artistsSec.wrap);
+
                     setStatus('');
                 }
             } catch (err: any) {

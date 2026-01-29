@@ -59,6 +59,26 @@ export const soundcloudApi = {
         return await jsonFetch<any>(url);
     },
 
+    /** Searches public SoundCloud playlists via server proxy. */
+    async searchPlaylists(q: string, limit: number = 20, cursor?: string): Promise<any> {
+        const params = new URLSearchParams();
+        params.set('q', q);
+        params.set('limit', String(limit));
+        if (cursor) params.set('cursor', cursor);
+        const url = `/api/webamp/soundcloud/searchplaylists?${params.toString()}`;
+        return await jsonFetch<any>(url);
+    },
+
+    /** Searches public SoundCloud users via server proxy. */
+    async searchUsers(q: string, limit: number = 20, cursor?: string): Promise<any> {
+        const params = new URLSearchParams();
+        params.set('q', q);
+        params.set('limit', String(limit));
+        if (cursor) params.set('cursor', cursor);
+        const url = `/api/webamp/soundcloud/searchusers?${params.toString()}`;
+        return await jsonFetch<any>(url);
+    },
+
     /** Fetches raw SoundCloud track metadata for a given id. */
     async track(id: string): Promise<any> {
         const url = `/api/webamp/soundcloud/track?id=${encodeURIComponent(id)}`;
