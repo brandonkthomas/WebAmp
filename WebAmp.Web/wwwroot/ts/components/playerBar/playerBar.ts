@@ -1,4 +1,5 @@
 import type { PlayerState } from '../../state/playerStore';
+import { applyCachedArt } from '../../storage/clientCache';
 import type { PlayerStore } from '../../state/playerStore';
 
 /**
@@ -145,11 +146,11 @@ export class PlayerBar {
             const nextUrl = track?.artUrl ?? null;
             if (nextUrl && nextUrl !== this.lastArtUrl) {
                 this.lastArtUrl = nextUrl;
-                this.artImg.src = nextUrl;
+                applyCachedArt(this.artImg, nextUrl);
                 this.artImg.style.display = 'block';
             } else if (!nextUrl) {
                 this.lastArtUrl = null;
-                this.artImg.removeAttribute('src');
+                applyCachedArt(this.artImg, null);
                 this.artImg.style.display = 'none';
             }
         }

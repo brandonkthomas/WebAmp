@@ -1,4 +1,5 @@
 import type { PlayerState, PlayerStore } from '../../state/playerStore';
+import { applyCachedArt } from '../../storage/clientCache';
 import { getShufflePref, setShufflePref } from '../../ui/queueActions';
 
 function upgradeSoundCloudArtworkUrl(url: string): string {
@@ -470,11 +471,11 @@ export class NowPlayingMobile {
                 : baseUrl;
             if (nextUrl && nextUrl !== this.lastArtUrl) {
                 this.lastArtUrl = nextUrl;
-                this.artImg.src = nextUrl;
+                applyCachedArt(this.artImg, nextUrl);
                 this.artImg.style.display = 'block';
             } else if (!nextUrl) {
                 this.lastArtUrl = null;
-                this.artImg.removeAttribute('src');
+                applyCachedArt(this.artImg, null);
                 this.artImg.style.display = 'none';
             }
         }
