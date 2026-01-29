@@ -20,26 +20,45 @@ body {
     min-height: 100%;
     background: #1c1c1c;
     color: rgba(255, 255, 255, 0.92);
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    font-family:
+        system-ui,
+        -apple-system,
+        Segoe UI,
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
 }
 
 /* ============================================================================== */
 /* Animated album-art color wash background
 /* ============================================================================== */
-@property --wa-accent-r { syntax: '<number>'; inherits: true; initial-value: 14; }
-@property --wa-accent-g { syntax: '<number>'; inherits: true; initial-value: 14; }
-@property --wa-accent-b { syntax: '<number>'; inherits: true; initial-value: 18; }
+@property --wa-accent-r {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 14;
+}
+@property --wa-accent-g {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 14;
+}
+@property --wa-accent-b {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 18;
+}
 
 body {
     /* Base color */
     background-color: #1c1c1c;
     /* Accent wash */
-    background-image:
-        linear-gradient(
-            145deg,
-            rgba(var(--wa-accent-r), var(--wa-accent-g), var(--wa-accent-b), 0.52) 0%,
-            rgba(28, 28, 28, 0.98) 70%
-        );
+    background-image: linear-gradient(
+        145deg,
+        rgba(var(--wa-accent-r), var(--wa-accent-g), var(--wa-accent-b), 0.52)
+            0%,
+        rgba(28, 28, 28, 0.98) 70%
+    );
     background-attachment: fixed;
     transition:
         --wa-accent-r 900ms ease,
@@ -49,7 +68,7 @@ body {
 
 /* Subtle SVG noise overlay to reduce gradient banding */
 body::before {
-    content: '';
+    content: "";
     position: fixed;
     inset: 0;
     pointer-events: none;
@@ -105,7 +124,10 @@ a {
     background: #1c1c1c;
     display: block;
     opacity: 1;
-    transition: opacity 0.2s ease, filter 0.2s ease, transform 0.2s ease;
+    transition:
+        opacity 0.2s ease,
+        filter 0.2s ease,
+        transform 0.2s ease;
 }
 
 .loading-overlay img {
@@ -140,31 +162,40 @@ body[data-initial-state="ready"] .loading-overlay {
 /* Skeleton loaders
 /* ============================================================================== */
 @keyframes wa-shimmer {
-    0% { transform: translateX(-120%); }
-    100% { transform: translateX(120%); }
+    0% {
+        transform: translateX(-120%);
+    }
+    100% {
+        transform: translateX(120%);
+    }
 }
 
 .wa-skeleton {
     display: inline-block;
     position: relative;
     overflow: hidden;
-    background: rgba(255, 255, 255, 0.10);
+    background: rgba(255, 255, 255, 0.1);
     border-radius: 999px;
 }
 
 .wa-skeleton::after {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
     transform: translateX(-120%);
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.18),
+        transparent
+    );
     animation: wa-shimmer 1.1s ease-in-out infinite;
 }
 
 .wa-listitem--skeleton {
     cursor: default;
     pointer-events: none;
-    border-color: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
 .wa-skeleton--title {
@@ -181,15 +212,20 @@ body[data-initial-state="ready"] .loading-overlay {
 /* Entity header artwork skeleton */
 .wa-entityheader__art--loading {
     position: relative;
-    background: rgba(255, 255, 255, 0.10);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .wa-entityheader__art--loading::after {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
     transform: translateX(-120%);
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.18),
+        transparent
+    );
     animation: wa-shimmer 1.1s ease-in-out infinite;
 }
 
@@ -214,8 +250,12 @@ body[data-initial-state="ready"] .loading-overlay {
 }
 
 @keyframes wa-spin {
-    from { transform: translate(-50%, -50%) rotate(0deg); }
-    to { transform: translate(-50%, -50%) rotate(360deg); }
+    from {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+    to {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
 }
 
 /* Indeterminate "busy" ring for play buttons while switching tracks */
@@ -231,7 +271,7 @@ body[data-initial-state="ready"] .loading-overlay {
 
 .wa-playerbar__btn--play[data-wa-busy="true"]::after,
 .wa-nowplaying__btn--play[data-wa-busy="true"]::after {
-    content: '';
+    content: "";
     position: absolute;
     left: 50%;
     top: 50%;
@@ -281,7 +321,9 @@ body[data-initial-state="ready"] .loading-overlay {
     position: relative;
 }
 
-@supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+@supports (
+    (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))
+) {
     /*
         IMPORTANT:
         Do NOT apply backdrop-filter to the shell container itself; it can cause
@@ -290,13 +332,17 @@ body[data-initial-state="ready"] .loading-overlay {
         non-ancestor layer instead.
     */
     .wa-shell.glass-surface::before {
-        content: '';
+        content: "";
         position: absolute;
         inset: 0;
         border-radius: inherit;
         pointer-events: none;
         /* Blur disabled for perf; use a subtle static background instead */
-        background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.04), transparent 55%);
+        background: radial-gradient(
+            circle at top left,
+            rgba(255, 255, 255, 0.04),
+            transparent 55%
+        );
         /* backdrop-filter: blur(10px) saturate(1.25);
         -webkit-backdrop-filter: blur(10px) saturate(1.25); */
         z-index: -1;
@@ -333,7 +379,9 @@ body[data-initial-state="ready"] .loading-overlay {
     display: grid;
     grid-template-columns: 260px minmax(0, 1fr);
     gap: 0.9rem;
-    min-height: calc(100vh - var(--wa-playerbar-height) - env(safe-area-inset-bottom, 0px));
+    min-height: calc(
+        100vh - var(--wa-playerbar-height) - env(safe-area-inset-bottom, 0px)
+    );
 }
 
 .wa-content {
@@ -552,7 +600,9 @@ body[data-initial-state="ready"] .loading-overlay {
 }
 
 /* Topbar blur */
-@supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+@supports (
+    (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))
+) {
     .wa-topbar__inner {
         backdrop-filter: blur(16px) saturate(1.25);
         -webkit-backdrop-filter: blur(16px) saturate(1.25);
@@ -615,7 +665,9 @@ body[data-initial-state="ready"] .loading-overlay {
 /* Main view host */
 .wa-main {
     padding: 0.2rem 0.1rem 0.75rem 0.1rem;
-    padding-bottom: calc(var(--wa-playerbar-height) + env(safe-area-inset-bottom, 0px) + 1rem);
+    padding-bottom: calc(
+        var(--wa-playerbar-height) + env(safe-area-inset-bottom, 0px) + 1rem
+    );
 }
 
 /* Desktop app-shell behavior: only the content column scrolls. Sidebar stays pinned and stops above player bar. */
@@ -639,12 +691,16 @@ body[data-initial-state="ready"] .loading-overlay {
 
     /* Reserve space for the fixed player bar by shrinking the app layout. */
     .wa-layout {
-        height: calc(100% - var(--wa-playerbar-height) - env(safe-area-inset-bottom, 0px));
+        height: calc(
+            100% - var(--wa-playerbar-height) - env(safe-area-inset-bottom, 0px)
+        );
         min-height: 0;
     }
 
     .wa-content {
-        height: calc(100% + 1.15rem); /* spill behind bottom player a tiny bit */
+        height: calc(
+            100% + 1.15rem
+        ); /* spill behind bottom player a tiny bit */
         min-height: 0;
         padding-top: 4rem; /* 3.5rem for the topbar + 0.5rem for the gap */
         overflow-y: auto;
@@ -658,7 +714,9 @@ body[data-initial-state="ready"] .loading-overlay {
 
     /* Desktop: position the fixed top bar over the content column only */
     .wa-topbar {
-        left: calc(1.1rem + 260px + 0.9rem); /* page padding + sidebar width + gap */
+        left: calc(
+            1.1rem + 260px + 0.9rem
+        ); /* page padding + sidebar width + gap */
         padding: 0.65rem 0rem;
         right: 1.1rem;
     }
@@ -690,7 +748,7 @@ body[data-initial-state="ready"] .loading-overlay {
     }
 
     .wa-sidebar {
-        height: 100%;
+        height: 99%;
         max-height: 100%;
         margin-top: 0.7rem;
         overflow: hidden;
@@ -747,7 +805,7 @@ body[data-initial-state="ready"] .loading-overlay {
     margin: 0 0 0.45rem 0;
     font-size: 1.05rem;
     /* text-transform: uppercase; */
-    letter-spacing: 0.0.04em;
+    letter-spacing: 0.04em;
     color: rgba(255, 255, 255, 0.86);
 }
 
@@ -798,7 +856,7 @@ body[data-initial-state="ready"] .loading-overlay {
 
 .wa-copy {
     margin: 0;
-    color: rgba(255, 255, 255, 0.80);
+    color: rgba(255, 255, 255, 0.8);
     line-height: 1.6;
 }
 
@@ -901,7 +959,9 @@ body[data-initial-state="ready"] .loading-overlay {
 
 .wa-card--link {
     display: block;
-    transition: transform 0.12s ease, border-color 0.12s ease;
+    transition:
+        transform 0.12s ease,
+        border-color 0.12s ease;
 }
 
 .wa-card--link:hover {
@@ -912,7 +972,9 @@ body[data-initial-state="ready"] .loading-overlay {
 /* List items share the same subtle hover lift as cards on pointer devices */
 @media (hover: hover) and (pointer: fine) {
     .wa-listitem {
-        transition: transform 0.12s ease, border-color 0.12s ease;
+        transition:
+            transform 0.12s ease,
+            border-color 0.12s ease;
     }
 
     .wa-listitem:hover {
@@ -1012,7 +1074,7 @@ body[data-initial-state="ready"] .loading-overlay {
 
 .wa-searchbar__input:focus {
     border-color: rgba(255, 255, 255, 0.34);
-    background: rgba(0, 0, 0, 0.30);
+    background: rgba(0, 0, 0, 0.3);
 }
 
 .wa-searchbar__input::-webkit-search-cancel-button {
@@ -1020,8 +1082,7 @@ body[data-initial-state="ready"] .loading-overlay {
     height: 18px;
     width: 18px;
     cursor: pointer;
-    background:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' d='M6 6 L18 18 M18 6 L6 18'/%3E%3C/svg%3E")
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' d='M6 6 L18 18 M18 6 L6 18'/%3E%3C/svg%3E")
         center/18px 18px no-repeat;
     opacity: 0.9;
 }
@@ -1176,25 +1237,31 @@ body[data-initial-state="ready"] .loading-overlay {
     display: flex;
 }
 
-.wa-trackitem[data-wa-now-playing="true"][data-wa-playing="true"] .wa-trackitem__indicator-icon--wave {
+.wa-trackitem[data-wa-now-playing="true"][data-wa-playing="true"]
+    .wa-trackitem__indicator-icon--wave {
     display: block;
 }
 
-.wa-trackitem[data-wa-now-playing="true"][data-wa-playing="false"] .wa-trackitem__indicator-icon--wave-paused {
+.wa-trackitem[data-wa-now-playing="true"][data-wa-playing="false"]
+    .wa-trackitem__indicator-icon--wave-paused {
     display: block;
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .wa-trackitem[data-wa-now-playing="true"]:hover .wa-trackitem__indicator-icon--wave,
-    .wa-trackitem[data-wa-now-playing="true"]:hover .wa-trackitem__indicator-icon--wave-paused {
+    .wa-trackitem[data-wa-now-playing="true"]:hover
+        .wa-trackitem__indicator-icon--wave,
+    .wa-trackitem[data-wa-now-playing="true"]:hover
+        .wa-trackitem__indicator-icon--wave-paused {
         display: none;
     }
 
-    .wa-trackitem[data-wa-now-playing="true"][data-wa-playing="true"]:hover .wa-trackitem__indicator-icon--pause {
+    .wa-trackitem[data-wa-now-playing="true"][data-wa-playing="true"]:hover
+        .wa-trackitem__indicator-icon--pause {
         display: block;
     }
 
-    .wa-trackitem[data-wa-now-playing="true"][data-wa-playing="false"]:hover .wa-trackitem__indicator-icon--play {
+    .wa-trackitem[data-wa-now-playing="true"][data-wa-playing="false"]:hover
+        .wa-trackitem__indicator-icon--play {
         display: block;
     }
 }
@@ -1399,7 +1466,9 @@ body[data-initial-state="ready"] .loading-overlay {
 }
 
 /* player bar blur */
-@supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+@supports (
+    (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))
+) {
     .wa-playerbar__bg {
         backdrop-filter: blur(16px) saturate(1.25);
         -webkit-backdrop-filter: blur(16px) saturate(1.25);
@@ -1649,7 +1718,9 @@ body[data-initial-state="ready"] .loading-overlay {
         pointer-events: auto;
     }
 
-    @supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+    @supports (
+        (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))
+    ) {
         .wa-sidebar {
             backdrop-filter: blur(20px) saturate(1.2) brightness(0.82);
             -webkit-backdrop-filter: blur(20px) saturate(1.2) brightness(0.82);
@@ -1785,7 +1856,9 @@ body[data-initial-state="ready"] .loading-overlay {
         z-index: 1;
     }
 
-    @supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+    @supports (
+        (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))
+    ) {
         .wa-nowplaying__sheet {
             backdrop-filter: blur(22px) saturate(1.15);
             -webkit-backdrop-filter: blur(22px) saturate(1.15);
@@ -1829,7 +1902,11 @@ body[data-initial-state="ready"] .loading-overlay {
         z-index: 1;
         height: 100vh;
         height: 100dvh;
-        padding: calc(env(safe-area-inset-top, 0px) + var(--wa-nowplaying-grab-h) + 0.85rem) 1.4rem 1.4rem;
+        padding: calc(
+                env(safe-area-inset-top, 0px) + var(--wa-nowplaying-grab-h) +
+                    0.85rem
+            )
+            1.4rem 1.4rem;
         padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
         display: flex;
         flex-direction: column;
