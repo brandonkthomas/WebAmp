@@ -9,11 +9,13 @@
 // To: Portfolio/wwwroot/ts/components/dialogs.ts
 // Path: ../../../../../Portfolio/wwwroot/ts/components/dialogs
 import { showAlert } from '../../../../../Portfolio/wwwroot/ts/components/dialogs';
+import { logEvent } from '../../../../../Portfolio/wwwroot/ts/common';
 
 /**
  * Shows an error dialog with a user-friendly message using Portfolio's UI kit
  */
 export async function showErrorDialog(message: string, title: string = 'Error'): Promise<void> {
+    logEvent('WebAmp', 'ui:error', { title, message }, undefined, 'error');
     return await showAlert({
         title,
         message,

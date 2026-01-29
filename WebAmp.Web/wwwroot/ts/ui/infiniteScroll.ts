@@ -1,8 +1,15 @@
+import { logEvent } from '../../../../../Portfolio/wwwroot/ts/common';
+
 /**
  * Handle returned by `attachInfiniteScroll`
  */
 export interface InfiniteScrollController {
     destroy(): void;
+}
+
+
+function getListLabel(el: HTMLElement): string {
+    return el.getAttribute('aria-label') || el.getAttribute('data-wa-view') || el.getAttribute('data-wa-list') || el.className || 'list';
 }
 
 function findScrollParent(el: HTMLElement): Element | null {
@@ -68,25 +75,31 @@ export function attachInfiniteScroll(opts: {
 
     const root = opts.root !== undefined ? opts.root : findScrollParent(opts.listEl);
 
+    const listLabel = getListLabel(opts.listEl);
+    logEvent('WebAmp', 'scroll:init', { list: listLabel, hasRoot: !!root });
+
     const io = new IntersectionObserver(
         (entries) => {
             const entry = entries[0];
             if (!entry?.isIntersecting) return;
             if (!opts.hasMore()) return;
             if (opts.isLoading()) return;
-            
+
+            logEvent('WebAmp', 'scroll:load', { list: listLabel, hasMore: opts.hasMore() });
+
             // Start the load operation
             const loadPromise = Promise.resolve(opts.loadMore());
-            
+
             // Call render() immediately and again after a microtask to catch loading state changes
             render();
             queueMicrotask(() => {
                 render(); // Update after loadMore has had a chance to set loading = true
             });
-            
+
             // Update render after load completes
             loadPromise.finally(() => {
                 requestAnimationFrame(() => render());
+                logEvent('WebAmp', 'scroll:done', { list: listLabel, hasMore: opts.hasMore() });
             });
         },
         {

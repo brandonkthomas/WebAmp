@@ -1,3 +1,5 @@
+import { logEvent } from '../../../../../Portfolio/wwwroot/ts/common';
+
 /**
  * Supported audio sources for tracks.
  */
@@ -88,6 +90,7 @@ export class PlayerStore {
     private lastUiEmitMs: number | null = null;
     private transport: PlayerTransport | null = null;
 
+    private lastLoggedPlayback: { trackId: string | null; isPlaying: boolean; isBusy: boolean } | null = null;
     // When using a real transport (Spotify), we still need a local "clock" to animate progress,
     // because Web Playback SDK state updates are not emitted continuously.
     private remoteRafId: number | null = null;
@@ -165,6 +168,13 @@ export class PlayerStore {
     setQueue(queue: Track[], opts?: { wrap?: boolean }) {
         this.queue = queue.slice();
         this.queueWrap = opts?.wrap ?? false;
+        const size = this.queue.length;
+        logEvent('WebAmp', 'queue:set', {
+            size,
+            wrap: this.queueWrap,
+            firstId: this.queue[0]?.id ?? null,
+            source: this.queue[0]?.source ?? null
+        });
     }
 
     /**
@@ -374,6 +384,17 @@ export class PlayerStore {
 
     private emit() {
         const snapshot = this.getState();
+        const trackId = snapshot.track?.id ?? null;
+        const last = this.lastLoggedPlayback;
+        if (!last || last.trackId != trackId || last.isPlaying !== snapshot.isPlaying || last.isBusy !== snapshot.isBusy) {
+            logEvent('WebAmp', 'playback:state', {
+                trackId,
+                source: snapshot.track?.source ?? null,
+                isPlaying: snapshot.isPlaying,
+                isBusy: snapshot.isBusy
+            });
+            this.lastLoggedPlayback = { trackId, isPlaying: snapshot.isPlaying, isBusy: snapshot.isBusy };
+        }
         for (const l of this.listeners) l(snapshot);
         if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent<PlayerState>('wa:player:state', { detail: snapshot }));

@@ -1,3 +1,5 @@
+import { logEvent } from '../../../../../Portfolio/wwwroot/ts/common';
+
 const DB_NAME = 'webamp-client-cache';
 const DB_VERSION = 1;
 const META_STORE = 'meta';
@@ -137,7 +139,11 @@ function formatBytes(bytes: number): string {
 
 async function logCacheSizes(context: string): Promise<void> {
     const [metaSize, artSize] = await Promise.all([getMetaTotalSize(), getArtTotalSize()]);
-    console.log(`[WebAmp cache] ${context} metadata=${formatBytes(metaSize)} art=${formatBytes(artSize)}`);
+    logEvent('WebAmp', 'cache:size', {
+        context,
+        metadata: formatBytes(metaSize),
+        art: formatBytes(artSize)
+    });
 }
 
 async function enforceArtLimit(): Promise<void> {

@@ -1,5 +1,6 @@
 import type { MusicSource, MusicSourceListener, MusicSourceState } from './musicSource';
 import { soundcloudUserApi } from './soundcloudUserApi';
+import { logEvent } from '../../../../../Portfolio/wwwroot/ts/common';
 
 /**
  * MusicSource implementation backed by SoundCloud user authentication
@@ -11,6 +12,7 @@ export class SoundCloudSource implements MusicSource {
 
     private state: MusicSourceState = { isConnected: false };
     private listeners: MusicSourceListener[] = [];
+    private lastLoggedConnected: boolean | null = null;
 
     getState(): MusicSourceState {
         return { ...this.state };
@@ -60,6 +62,10 @@ export class SoundCloudSource implements MusicSource {
 
     private emit() {
         const snap = this.getState();
+        if (this.lastLoggedConnected !== snap.isConnected) {
+            logEvent('WebAmp', 'source:state', { source: this.id, connected: snap.isConnected });
+            this.lastLoggedConnected = snap.isConnected;
+        }
         for (const l of this.listeners) l(snap);
     }
 }

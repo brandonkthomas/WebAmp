@@ -1,5 +1,6 @@
 import { cachedJsonFetch } from '../../storage/clientCache';
 import { showErrorDialog, formatErrorMessage } from '../../ui/errorDialog';
+import { logEvent } from '../../../../../../Portfolio/wwwroot/ts/common';
 
 /**
  * Minimal auth/status info returned by the server proxy
@@ -13,21 +14,33 @@ export interface SpotifyStatus {
  * JSON fetch helper for same-origin WebAmp Spotify proxy endpoints
  */
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
+    const startedAt = performance.now();
+    const method = init?.method ?? 'GET';
+    let status: number | null = null;
+    let errorLogged = false;
     try {
-    const res = await fetch(url, {
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
-        ...init
-    });
-    if (!res.ok) {
-        const text = await res.text().catch(() => '');
+        const res = await fetch(url, {
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+            ...init
+        });
+        status = res.status;
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
             const error = new Error(`Spotify API proxy error ${res.status}: ${text}`);
+            logEvent('WebAmp', 'api:error', { source: 'spotify', method, status, ms: Math.round(performance.now() - startedAt), url }, error.message, 'error');
+            errorLogged = true;
             // Show error dialog to user
             void showErrorDialog(formatErrorMessage(error), 'Music Service Error');
             throw error;
-    }
-    return (await res.json()) as T;
+        }
+        logEvent('WebAmp', 'api:ok', { source: 'spotify', method, status, ms: Math.round(performance.now() - startedAt), url });
+        return (await res.json()) as T;
     } catch (error) {
+        if (!errorLogged) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            logEvent('WebAmp', 'api:error', { source: 'spotify', method, status, ms: Math.round(performance.now() - startedAt), url }, message, 'error');
+        }
         // If it's not already our formatted error, show a dialog
         if (!(error instanceof Error && error.message.includes('Spotify API proxy error'))) {
             void showErrorDialog(formatErrorMessage(error), 'Music Service Error');

@@ -1,5 +1,6 @@
 import { cachedJsonFetch } from '../../storage/clientCache';
 import { showErrorDialog, formatErrorMessage } from '../../ui/errorDialog';
+import { logEvent } from '../../../../../../Portfolio/wwwroot/ts/common';
 
 export interface SoundCloudStatus {
     isConfigured: boolean;
@@ -15,6 +16,10 @@ export interface SoundCloudStreamInfo {
 }
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
+    const startedAt = performance.now();
+    const method = init?.method ?? 'GET';
+    let status: number | null = null;
+    let errorLogged = false;
     try {
         const res = await fetch(url, {
             credentials: 'same-origin',
@@ -24,16 +29,24 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
             },
             ...init
         });
+        status = res.status;
         if (!res.ok) {
             const text = await res.text().catch(() => '');
             const error = new Error(`SoundCloud API proxy error ${res.status}: ${text}`);
+            logEvent('WebAmp', 'api:error', { source: 'soundcloud', method, status, ms: Math.round(performance.now() - startedAt), url }, error.message, 'error');
+            errorLogged = true;
             void showErrorDialog(formatErrorMessage(error), 'Music Service Error');
             throw error;
         }
+        logEvent('WebAmp', 'api:ok', { source: 'soundcloud', method, status, ms: Math.round(performance.now() - startedAt), url });
         // Some endpoints may legitimately return empty bodies (204); guard for that.
         const text = await res.text();
         return (text ? (JSON.parse(text) as T) : ({} as T));
     } catch (error) {
+        if (!errorLogged) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            logEvent('WebAmp', 'api:error', { source: 'soundcloud', method, status, ms: Math.round(performance.now() - startedAt), url }, message, 'error');
+        }
         if (!(error instanceof Error && error.message.includes('SoundCloud API proxy error'))) {
             void showErrorDialog(formatErrorMessage(error), 'Music Service Error');
         }

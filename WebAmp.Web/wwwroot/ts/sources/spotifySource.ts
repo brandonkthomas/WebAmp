@@ -1,5 +1,6 @@
 import type { MusicSource, MusicSourceListener, MusicSourceState } from './musicSource';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
+import { logEvent } from '../../../../../Portfolio/wwwroot/ts/common';
 
 /**
  * Real Spotify-backed MusicSource using server-side auth endpoints
@@ -10,6 +11,7 @@ export class SpotifySource implements MusicSource {
 
     private state: MusicSourceState = { isConnected: false };
     private listeners: MusicSourceListener[] = [];
+    private lastLoggedConnected: boolean | null = null;
 
     getState(): MusicSourceState {
         return { ...this.state };
@@ -58,6 +60,10 @@ export class SpotifySource implements MusicSource {
 
     private emit() {
         const snap = this.getState();
+        if (this.lastLoggedConnected !== snap.isConnected) {
+            logEvent('WebAmp', 'source:state', { source: this.id, connected: snap.isConnected });
+            this.lastLoggedConnected = snap.isConnected;
+        }
         for (const l of this.listeners) l(snap);
     }
 }
