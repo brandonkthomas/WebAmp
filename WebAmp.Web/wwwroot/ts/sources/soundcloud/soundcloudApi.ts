@@ -1,3 +1,4 @@
+import { cachedJsonFetch } from '../../storage/clientCache';
 import { showErrorDialog, formatErrorMessage } from '../../ui/errorDialog';
 
 export interface SoundCloudStatus {
@@ -40,6 +41,10 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
     }
 }
 
+async function cachedGet<T>(key: string, url: string): Promise<T> {
+    return await cachedJsonFetch<T>(key, () => jsonFetch<T>(url));
+}
+
 /**
  * Thin client for server-side SoundCloud proxy endpoints.
  */
@@ -56,7 +61,7 @@ export const soundcloudApi = {
         params.set('limit', String(limit));
         if (cursor) params.set('cursor', cursor);
         const url = `/api/webamp/soundcloud/searchtracks?${params.toString()}`;
-        return await jsonFetch<any>(url);
+        return await cachedGet<any>(`soundcloud:${url}`, url);
     },
 
     /** Searches public SoundCloud playlists via server proxy. */
@@ -66,7 +71,7 @@ export const soundcloudApi = {
         params.set('limit', String(limit));
         if (cursor) params.set('cursor', cursor);
         const url = `/api/webamp/soundcloud/searchplaylists?${params.toString()}`;
-        return await jsonFetch<any>(url);
+        return await cachedGet<any>(`soundcloud:${url}`, url);
     },
 
     /** Searches public SoundCloud users via server proxy. */
@@ -76,13 +81,13 @@ export const soundcloudApi = {
         params.set('limit', String(limit));
         if (cursor) params.set('cursor', cursor);
         const url = `/api/webamp/soundcloud/searchusers?${params.toString()}`;
-        return await jsonFetch<any>(url);
+        return await cachedGet<any>(`soundcloud:${url}`, url);
     },
 
     /** Fetches raw SoundCloud track metadata for a given id. */
     async track(id: string): Promise<any> {
         const url = `/api/webamp/soundcloud/track?id=${encodeURIComponent(id)}`;
-        return await jsonFetch<any>(url);
+        return await cachedGet<any>(`soundcloud:${url}`, url);
     },
 
     /**

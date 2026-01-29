@@ -2,6 +2,7 @@ import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRo
 import { WEBAMP_ROOT } from '../router/routes';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
 import type { Track } from '../state/playerStore';
+import { applyCachedArt } from '../storage/clientCache';
 import { renderListSkeleton } from '../ui/skeleton';
 import { createTrackListItem } from '../ui/trackListItem';
 import { attachInfiniteScroll } from '../ui/infiniteScroll';
@@ -202,7 +203,7 @@ export const albumView: WebAmpViewController = {
                     if (detailTitle) detailTitle.textContent = albumName;
                     updateDetailMeta();
                     if (detailImg && (artUrlFull || artUrl)) {
-                        detailImg.src = artUrlFull ?? artUrl;
+                        applyCachedArt(detailImg, artUrlFull ?? artUrl);
                         if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
                     } else if (detailArt) {
                         detailArt.classList.remove('wa-entityheader__art--loading');

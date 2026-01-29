@@ -3,6 +3,7 @@ import { WEBAMP_ROOT } from '../router/routes';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
 import { soundcloudUserApi } from '../sources/soundcloudUserApi';
 import type { Track } from '../state/playerStore';
+import { applyCachedArt } from '../storage/clientCache';
 import { renderListSkeleton } from '../ui/skeleton';
 import { createTrackListItem } from '../ui/trackListItem';
 import { createPlaylistListItem } from '../ui/playlistListItem';
@@ -194,7 +195,7 @@ export const playlistView: WebAmpViewController = {
                             const images = p?.images ?? [];
                             const artFull = images?.[0]?.url ?? images?.[1]?.url ?? images?.[images.length - 1]?.url;
                             if (detailImg && artFull) {
-                                detailImg.src = artFull;
+                                applyCachedArt(detailImg, artFull);
                                 if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
                             } else if (detailArt) {
                                 detailArt.classList.remove('wa-entityheader__art--loading');
@@ -233,7 +234,7 @@ export const playlistView: WebAmpViewController = {
                                         ? p.tracks[0].artwork_url
                                         : undefined);
                             if (detailImg && artFull) {
-                                detailImg.src = artFull;
+                                applyCachedArt(detailImg, artFull);
                                 if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
                             } else if (detailArt) {
                                 detailArt.classList.remove('wa-entityheader__art--loading');

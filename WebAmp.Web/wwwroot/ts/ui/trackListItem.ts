@@ -1,4 +1,5 @@
 import type { Track } from '../state/playerStore';
+import { applyCachedArt } from '../storage/clientCache';
 import { escapeHtml } from '../utils';
 
 /**
@@ -56,7 +57,7 @@ export function createTrackListItem(opts: {
         const artHtml = `
         <span class="wa-trackitem__art" aria-hidden="true">
             ${art
-                ? `<img class="wa-trackitem__img" src="${escapeHtml(art)}" alt="" loading="lazy" decoding="async" />`
+                ? `<img class="wa-trackitem__img" alt="" loading="lazy" decoding="async" />`
                 : `<span class="wa-trackitem__img wa-trackitem__img--empty"></span>`}
             ${indicatorHtml}
         </span>
@@ -83,7 +84,7 @@ export function createTrackListItem(opts: {
             : `
         <span class="wa-trackitem__art" aria-hidden="true">
             ${art
-                ? `<img class="wa-trackitem__img" src="${escapeHtml(art)}" alt="" loading="lazy" decoding="async" />`
+                ? `<img class="wa-trackitem__img" alt="" loading="lazy" decoding="async" />`
                 : `<span class="wa-trackitem__img wa-trackitem__img--empty"></span>`}
             ${indicatorHtml}
         </span>
@@ -96,6 +97,12 @@ export function createTrackListItem(opts: {
             ${showMeta ? `<span class="wa-trackitem__meta">${escapeHtml(defaultMeta)}</span>` : ''}
         </span>
         `;
+    }
+
+
+    if (art) {
+        const img = btn.querySelector<HTMLImageElement>('img.wa-trackitem__img');
+        applyCachedArt(img, art);
     }
 
     // Allow clicking the now-playing overlay without triggering the row click (which would restart the track).

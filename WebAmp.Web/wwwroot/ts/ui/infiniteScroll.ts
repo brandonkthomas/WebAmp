@@ -5,6 +5,17 @@ export interface InfiniteScrollController {
     destroy(): void;
 }
 
+function findScrollParent(el: HTMLElement): Element | null {
+    let cur: HTMLElement | null = el.parentElement;
+    while (cur) {
+        const style = getComputedStyle(cur);
+        const overflow = `${style.overflow} ${style.overflowY} ${style.overflowX}`;
+        if (/(auto|scroll|overlay)/.test(overflow)) return cur;
+        cur = cur.parentElement;
+    }
+    return null;
+}
+
 /**
  * Attaches an IntersectionObserver sentinel after `listEl` and calls `loadMore` when visible
  * Keeps sentinel as a sibling so callers can `replaceChildren()` on the list without breaking the observer
@@ -55,6 +66,8 @@ export function attachInfiniteScroll(opts: {
     };
     render();
 
+    const root = opts.root !== undefined ? opts.root : findScrollParent(opts.listEl);
+
     const io = new IntersectionObserver(
         (entries) => {
             const entry = entries[0];
@@ -77,7 +90,7 @@ export function attachInfiniteScroll(opts: {
             });
         },
         {
-            root: opts.root ?? null,
+            root,
             rootMargin: opts.rootMargin ?? '600px 0px',
             threshold: 0.01
         }

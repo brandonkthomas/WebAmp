@@ -1,3 +1,4 @@
+import { cachedJsonFetch } from '../storage/clientCache';
 import { showErrorDialog, formatErrorMessage } from '../ui/errorDialog';
 
 export interface SoundCloudUserStatus {
@@ -31,6 +32,10 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
     }
 }
 
+async function cachedGet<T>(key: string, url: string): Promise<T> {
+    return await cachedJsonFetch<T>(key, () => jsonFetch<T>(url));
+}
+
 /**
  * Client for user-scoped SoundCloud proxy endpoints (Authorization Code flow).
  */
@@ -47,25 +52,25 @@ export const soundcloudUserApi = {
         const params = new URLSearchParams();
         params.set('limit', String(limit));
         if (cursor) params.set('cursor', cursor);
-        return await jsonFetch<any>(`/api/webamp/soundclouduser/myplaylists?${params.toString()}`);
+        return await cachedGet<any>(`soundclouduser:/api/webamp/soundclouduser/myplaylists?${params.toString()}`, `/api/webamp/soundclouduser/myplaylists?${params.toString()}`);
     },
 
     async likedTracks(limit: number = 20, cursor?: string): Promise<any> {
         const params = new URLSearchParams();
         params.set('limit', String(limit));
         if (cursor) params.set('cursor', cursor);
-        return await jsonFetch<any>(`/api/webamp/soundclouduser/likedtracks?${params.toString()}`);
+        return await cachedGet<any>(`soundclouduser:/api/webamp/soundclouduser/likedtracks?${params.toString()}`, `/api/webamp/soundclouduser/likedtracks?${params.toString()}`);
     },
 
     async recentActivities(limit: number = 10, cursor?: string): Promise<any> {
         const params = new URLSearchParams();
         params.set('limit', String(limit));
         if (cursor) params.set('cursor', cursor);
-        return await jsonFetch<any>(`/api/webamp/soundclouduser/recentactivities?${params.toString()}`);
+        return await cachedGet<any>(`soundclouduser:/api/webamp/soundclouduser/recentactivities?${params.toString()}`, `/api/webamp/soundclouduser/recentactivities?${params.toString()}`);
     },
 
     async playlist(id: string): Promise<any> {
-        return await jsonFetch<any>(`/api/webamp/soundclouduser/playlist?id=${encodeURIComponent(id)}`);
+        return await cachedGet<any>(`soundclouduser:/api/webamp/soundclouduser/playlist?id=${encodeURIComponent(id)}`, `/api/webamp/soundclouduser/playlist?id=${encodeURIComponent(id)}`);
     },
 
     async playlistTracks(id: string, limit: number = 100, cursor?: string): Promise<any> {
@@ -73,7 +78,7 @@ export const soundcloudUserApi = {
         params.set('id', id);
         params.set('limit', String(limit));
         if (cursor) params.set('cursor', cursor);
-        return await jsonFetch<any>(`/api/webamp/soundclouduser/playlisttracks?${params.toString()}`);
+        return await cachedGet<any>(`soundclouduser:/api/webamp/soundclouduser/playlisttracks?${params.toString()}`, `/api/webamp/soundclouduser/playlisttracks?${params.toString()}`);
     }
 };
 

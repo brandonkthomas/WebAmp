@@ -1,3 +1,4 @@
+import { applyCachedArt } from '../storage/clientCache';
 import { escapeHtml } from '../utils';
 
 export interface AlbumListItemModel {
@@ -23,13 +24,19 @@ export function createAlbumListItem(opts: {
     const art = album.artUrlSmall ?? '';
     btn.innerHTML = `
         <span class="wa-trackitem__art" aria-hidden="true">
-            ${art ? `<img class="wa-trackitem__img" src="${escapeHtml(art)}" alt="" loading="lazy" decoding="async" />` : `<span class="wa-trackitem__img wa-trackitem__img--empty"></span>`}
+            ${art ? `<img class="wa-trackitem__img" alt="" loading="lazy" decoding="async" />` : `<span class="wa-trackitem__img wa-trackitem__img--empty"></span>`}
         </span>
         <span class="wa-trackitem__text">
             <span class="wa-trackitem__title">${escapeHtml(album.title)}</span>
             <span class="wa-trackitem__meta">${escapeHtml(album.artist)}</span>
         </span>
     `;
+
+
+    if (art) {
+        const img = btn.querySelector<HTMLImageElement>('img.wa-trackitem__img');
+        applyCachedArt(img, art);
+    }
 
     btn.addEventListener('click', onClick);
     return btn;

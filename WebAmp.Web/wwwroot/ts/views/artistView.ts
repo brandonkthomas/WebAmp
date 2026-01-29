@@ -2,6 +2,7 @@ import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRo
 import { WEBAMP_ROOT } from '../router/routes';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
 import type { Track } from '../state/playerStore';
+import { applyCachedArt } from '../storage/clientCache';
 import { renderListSkeleton } from '../ui/skeleton';
 import { createTrackListItem } from '../ui/trackListItem';
 import { attachInfiniteScroll } from '../ui/infiniteScroll';
@@ -148,7 +149,7 @@ export const artistView: WebAmpViewController = {
                         const images = a?.images ?? [];
                         const artUrl = images?.[0]?.url ?? images?.[1]?.url ?? images?.[images.length - 1]?.url;
                         if (detailImg && artUrl) {
-                            detailImg.src = artUrl;
+                            applyCachedArt(detailImg, artUrl);
                             if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
                         } else if (detailArt) {
                             detailArt.classList.remove('wa-entityheader__art--loading');

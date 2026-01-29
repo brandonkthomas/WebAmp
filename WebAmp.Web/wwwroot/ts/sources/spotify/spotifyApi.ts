@@ -1,3 +1,4 @@
+import { cachedJsonFetch } from '../../storage/clientCache';
 import { showErrorDialog, formatErrorMessage } from '../../ui/errorDialog';
 
 /**
@@ -35,6 +36,10 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
     }
 }
 
+async function cachedGet<T>(key: string, url: string): Promise<T> {
+    return await cachedJsonFetch<T>(key, () => jsonFetch<T>(url));
+}
+
 /**
  * Thin client for server-side Spotify proxy endpoints
  */
@@ -57,63 +62,63 @@ export const spotifyApi = {
     /** Searches Spotify content via proxy */
     async search(q: string, type: string = 'track,artist,album,playlist', limit: number = 10, offset: number = 0): Promise<any> {
         const url = `/api/webamp/spotify/search?q=${encodeURIComponent(q)}&type=${encodeURIComponent(type)}&limit=${limit}&offset=${offset}`;
-        return await jsonFetch<any>(url);
+        return await cachedGet<any>(`spotify:${url}`, url);
     },
 
     /** Lists current user playlists (paged) */
     async myPlaylists(limit: number = 20, offset: number = 0): Promise<any> {
-        return await jsonFetch<any>(`/api/webamp/spotify/myplaylists?limit=${limit}&offset=${offset}`);
+        return await cachedGet<any>(`spotify:/api/webamp/spotify/myplaylists?limit=${limit}&offset=${offset}`, `/api/webamp/spotify/myplaylists?limit=${limit}&offset=${offset}`);
     },
 
     /** Lists current user saved tracks (paged) */
     async savedTracks(limit: number = 20, offset: number = 0): Promise<any> {
-        return await jsonFetch<any>(`/api/webamp/spotify/savedtracks?limit=${limit}&offset=${offset}`);
+        return await cachedGet<any>(`spotify:/api/webamp/spotify/savedtracks?limit=${limit}&offset=${offset}`, `/api/webamp/spotify/savedtracks?limit=${limit}&offset=${offset}`);
     },
 
     /** Lists current user saved albums (paged) */
     async savedAlbums(limit: number = 20, offset: number = 0): Promise<any> {
-        return await jsonFetch<any>(`/api/webamp/spotify/savedalbums?limit=${limit}&offset=${offset}`);
+        return await cachedGet<any>(`spotify:/api/webamp/spotify/savedalbums?limit=${limit}&offset=${offset}`, `/api/webamp/spotify/savedalbums?limit=${limit}&offset=${offset}`);
     },
 
     /** Lists followed artists using cursor pagination */
     async followedArtists(limit: number = 20, after?: string): Promise<any> {
         const a = after ? `&after=${encodeURIComponent(after)}` : '';
-        return await jsonFetch<any>(`/api/webamp/spotify/followedartists?limit=${limit}${a}`);
+        return await cachedGet<any>(`spotify:/api/webamp/spotify/followedartists?limit=${limit}${a}`, `/api/webamp/spotify/followedartists?limit=${limit}${a}`);
     },
 
     /** Lists playlist tracks (paged) */
     async playlistTracks(id: string, limit: number = 100, offset: number = 0): Promise<any> {
-        return await jsonFetch<any>(`/api/webamp/spotify/playlisttracks?id=${encodeURIComponent(id)}&limit=${limit}&offset=${offset}`);
+        return await cachedGet<any>(`spotify:/api/webamp/spotify/playlisttracks?id=${encodeURIComponent(id)}&limit=${limit}&offset=${offset}`, `/api/webamp/spotify/playlisttracks?id=${encodeURIComponent(id)}&limit=${limit}&offset=${offset}`);
     },
 
     /** Fetches playlist metadata */
     async playlist(id: string): Promise<any> {
-        return await jsonFetch<any>(`/api/webamp/spotify/playlist?id=${encodeURIComponent(id)}`);
+        return await cachedGet<any>(`spotify:/api/webamp/spotify/playlist?id=${encodeURIComponent(id)}`, `/api/webamp/spotify/playlist?id=${encodeURIComponent(id)}`);
     },
 
     /** Lists album tracks (paged) */
     async albumTracks(id: string, limit: number = 50, offset: number = 0): Promise<any> {
-        return await jsonFetch<any>(`/api/webamp/spotify/albumtracks?id=${encodeURIComponent(id)}&limit=${limit}&offset=${offset}`);
+        return await cachedGet<any>(`spotify:/api/webamp/spotify/albumtracks?id=${encodeURIComponent(id)}&limit=${limit}&offset=${offset}`, `/api/webamp/spotify/albumtracks?id=${encodeURIComponent(id)}&limit=${limit}&offset=${offset}`);
     },
 
     /** Fetches album metadata */
     async album(id: string): Promise<any> {
-        return await jsonFetch<any>(`/api/webamp/spotify/album?id=${encodeURIComponent(id)}`);
+        return await cachedGet<any>(`spotify:/api/webamp/spotify/album?id=${encodeURIComponent(id)}`, `/api/webamp/spotify/album?id=${encodeURIComponent(id)}`);
     },
 
     /** Fetches artist top tracks for a market */
     async artistTopTracks(id: string, market: string = 'US'): Promise<any> {
-        return await jsonFetch<any>(`/api/webamp/spotify/artisttoptracks?id=${encodeURIComponent(id)}&market=${encodeURIComponent(market)}`);
+        return await cachedGet<any>(`spotify:/api/webamp/spotify/artisttoptracks?id=${encodeURIComponent(id)}&market=${encodeURIComponent(market)}`, `/api/webamp/spotify/artisttoptracks?id=${encodeURIComponent(id)}&market=${encodeURIComponent(market)}`);
     },
 
     /** Fetches artist metadata */
     async artist(id: string): Promise<any> {
-        return await jsonFetch<any>(`/api/webamp/spotify/artist?id=${encodeURIComponent(id)}`);
+        return await cachedGet<any>(`spotify:/api/webamp/spotify/artist?id=${encodeURIComponent(id)}`, `/api/webamp/spotify/artist?id=${encodeURIComponent(id)}`);
     },
 
     /** Lists artist albums (paged) */
     async artistAlbums(id: string, includeGroups: string = 'album,single', limit: number = 50, offset: number = 0): Promise<any> {
-        return await jsonFetch<any>(`/api/webamp/spotify/artistalbums?id=${encodeURIComponent(id)}&includeGroups=${encodeURIComponent(includeGroups)}&limit=${limit}&offset=${offset}`);
+        return await cachedGet<any>(`spotify:/api/webamp/spotify/artistalbums?id=${encodeURIComponent(id)}&includeGroups=${encodeURIComponent(includeGroups)}&limit=${limit}&offset=${offset}`, `/api/webamp/spotify/artistalbums?id=${encodeURIComponent(id)}&includeGroups=${encodeURIComponent(includeGroups)}&limit=${limit}&offset=${offset}`);
     },
 
     /** Transfers playback to the Web Playback SDK device */
