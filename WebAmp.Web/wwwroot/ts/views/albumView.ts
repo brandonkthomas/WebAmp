@@ -8,6 +8,7 @@ import { createTrackListItem } from '../ui/trackListItem';
 import { attachInfiniteScroll } from '../ui/infiniteScroll';
 import { createAlbumListItem } from '../ui/albumListItem';
 import { bindQueueActions } from '../ui/queueActions';
+import { appendFragment } from '../utils';
 
 export const albumView: WebAmpViewController = {
     id: 'album',
@@ -290,18 +291,20 @@ export const albumView: WebAmpViewController = {
                                 window.dispatchEvent(new CustomEvent('wa:queue:set', { detail: { tracks: queueActive, wrap: false } }));
                             }
 
-                            for (const t of next) {
-                                tracksList.appendChild(createTrackListItem({
-                                    track: t,
-                                    leading: 'index',
-                                    showMeta: false,
-                                    onClick: () => {
-                                        queueCommitted = true;
-                                        queueActive = allTracks.slice();
-                                        window.dispatchEvent(new CustomEvent('wa:track:select', { detail: { trackId: t.id, tracks: queueActive, wrap: false, from: 'album' } }));
-                                    }
-                                }));
-                            }
+                            appendFragment(tracksList, (frag) => {
+                                for (const t of next) {
+                                    frag.appendChild(createTrackListItem({
+                                        track: t,
+                                        leading: 'index',
+                                        showMeta: false,
+                                        onClick: () => {
+                                            queueCommitted = true;
+                                            queueActive = allTracks.slice();
+                                            window.dispatchEvent(new CustomEvent('wa:track:select', { detail: { trackId: t.id, tracks: queueActive, wrap: false, from: 'album' } }));
+                                        }
+                                    }));
+                                }
+                            });
 
                             offset += items.length;
                             hasMore = items.length >= 50;

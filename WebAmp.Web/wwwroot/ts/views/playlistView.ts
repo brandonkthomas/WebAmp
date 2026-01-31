@@ -9,6 +9,7 @@ import { createTrackListItem } from '../ui/trackListItem';
 import { createPlaylistListItem } from '../ui/playlistListItem';
 import { attachInfiniteScroll } from '../ui/infiniteScroll';
 import { bindQueueActions } from '../ui/queueActions';
+import { appendFragment } from '../utils';
 
 export const playlistView: WebAmpViewController = {
     id: 'playlist',
@@ -33,15 +34,17 @@ export const playlistView: WebAmpViewController = {
         const appendPlaylistTracks = (tracks: Track[], allTracks: Track[], onInteract: () => void) => {
             if (!tracksList || !tracksCard) return;
             tracksCard.style.display = 'block';
-            for (const t of tracks) {
-                tracksList.appendChild(createTrackListItem({
-                    track: t,
-                    onClick: () => {
-                        onInteract();
-                        window.dispatchEvent(new CustomEvent('wa:track:select', { detail: { trackId: t.id, tracks: allTracks.slice(), wrap: false, from: 'playlist' } }));
-                    }
-                }));
-            }
+            appendFragment(tracksList, (frag) => {
+                for (const t of tracks) {
+                    frag.appendChild(createTrackListItem({
+                        track: t,
+                        onClick: () => {
+                            onInteract();
+                            window.dispatchEvent(new CustomEvent('wa:track:select', { detail: { trackId: t.id, tracks: allTracks.slice(), wrap: false, from: 'playlist' } }));
+                        }
+                    }));
+                }
+            });
         };
 
         let cleanup: (() => void) | null = null;
@@ -62,6 +65,7 @@ export const playlistView: WebAmpViewController = {
             let offset = 0;
             let loading = false;
             let hasMore = true;
+            let scCursor: string | null = null;
 
             playlistsCard.style.display = 'block';
 
@@ -99,7 +103,8 @@ export const playlistView: WebAmpViewController = {
 
                     offset += items.length;
                     hasMore = items.length >= 50;
-                    setPlaylistsStatus(offset ? '' : 'No playlists found.');
+                    const total = playlistsList.childElementCount;
+                    setPlaylistsStatus(total ? '' : 'No playlists found.');
                 } catch (err: any) {
                     setPlaylistsStatus(err?.message ?? 'Failed to load playlists');
                     hasMore = false;
@@ -112,10 +117,10 @@ export const playlistView: WebAmpViewController = {
                 if (destroyed || loading || !hasMore) return;
                 loading = true;
                 try {
-                    const data = await soundcloudUserApi.myPlaylists(50);
+                    const data = await soundcloudUserApi.myPlaylists(50, scCursor ?? undefined);
                     const items = (data?.collection ?? data?.items ?? []) as any[];
 
-                    if (offset === 0) playlistsList.replaceChildren();
+                    if (!scCursor) playlistsList.replaceChildren();
 
                     for (const p of items) {
                         const id = p?.id;
@@ -137,8 +142,24 @@ export const playlistView: WebAmpViewController = {
                         }));
                     }
 
-                    hasMore = false;
-                    setPlaylistsStatus(items.length ? '' : 'No playlists found.');
+                    // linked_partitioning: use next_href cursor when present (same pattern as liked tracks)
+                    let nextCursor: string | null = null;
+                    const nextHref = typeof (data as any)?.next_href === 'string' ? (data as any).next_href : null;
+                    if (nextHref) {
+                        try {
+                            const url = new URL(nextHref);
+                            const c = url.searchParams.get('cursor');
+                            if (c) nextCursor = c;
+                        } catch {
+                            // ignore parse errors; treat as single page
+                        }
+                    }
+
+                    scCursor = nextCursor;
+                    hasMore = !!nextCursor && items.length > 0;
+
+                    const total = playlistsList.childElementCount;
+                    setPlaylistsStatus(total ? '' : 'No playlists found.');
                 } catch (err: any) {
                     setPlaylistsStatus(err?.message ?? 'Failed to load playlists');
                     hasMore = false;
@@ -256,6 +277,7 @@ export const playlistView: WebAmpViewController = {
                     let offset = 0;
                     let loading = false;
                     let hasMore = true;
+                    let scNextHref: string | null = null;
                     const allTracks: Track[] = [];
                     let queueCommitted = false;
                     let queueActive: Track[] = [];
@@ -330,7 +352,12 @@ export const playlistView: WebAmpViewController = {
                         if (destroyed || loading || !hasMore) return;
                         loading = true;
                         try {
-                            const data = await soundcloudUserApi.playlistTracks(ctx.entityId!, 100);
+                            const data = await soundcloudUserApi.playlistTracks(
+                                ctx.entityId!,
+                                100,
+                                undefined,
+                                scNextHref ?? undefined
+                            );
                             const items = (data?.collection ?? []) as any[];
                             const next: Track[] = items
                                 .filter((t: any) => !!t && typeof t.id !== 'undefined')
@@ -357,7 +384,7 @@ export const playlistView: WebAmpViewController = {
                                     } as Track;
                                 });
 
-                            if (offset === 0) tracksList.replaceChildren();
+                            if (allTracks.length === 0) tracksList.replaceChildren();
                             allTracks.push(...next);
                             cleanupActions.refresh?.();
                             if (queueCommitted) {
@@ -369,7 +396,10 @@ export const playlistView: WebAmpViewController = {
                                 queueActive = allTracks.slice();
                             });
 
-                            hasMore = false;
+                            // SoundCloud returns next_href as full API URL for the next page
+                            scNextHref = typeof (data as any)?.next_href === 'string' ? (data as any).next_href : null;
+                            hasMore = !!scNextHref && next.length > 0;
+
                             setTracksStatus(allTracks.length ? '' : 'No tracks found.');
                         } catch (err: any) {
                             setTracksStatus(err?.message ?? 'Failed to load playlist tracks');

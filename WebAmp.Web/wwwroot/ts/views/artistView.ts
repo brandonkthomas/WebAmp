@@ -9,6 +9,7 @@ import { attachInfiniteScroll } from '../ui/infiniteScroll';
 import { createArtistListItem } from '../ui/artistListItem';
 import { createAlbumListItem } from '../ui/albumListItem';
 import { bindQueueActions } from '../ui/queueActions';
+import { appendFragment } from '../utils';
 
 export const artistView: WebAmpViewController = {
     id: 'artist',
@@ -200,15 +201,17 @@ export const artistView: WebAmpViewController = {
                         getTracks: () => tracks
                     });
                     cleanupActions.refresh?.();
-                    for (let i = 0; i < tracks.length; i++) {
-                        const t = tracks[i];
-                        topList.appendChild(createTrackListItem({
-                            track: t,
-                            index: i + 1,
-                            variant: 'artistTop',
-                            onClick: () => window.dispatchEvent(new CustomEvent('wa:track:select', { detail: { trackId: t.id, tracks: tracks.slice(), wrap: false, from: 'artist' } }))
-                        }));
-                    }
+                    appendFragment(topList, (frag) => {
+                        for (let i = 0; i < tracks.length; i++) {
+                            const t = tracks[i];
+                            frag.appendChild(createTrackListItem({
+                                track: t,
+                                index: i + 1,
+                                variant: 'artistTop',
+                                onClick: () => window.dispatchEvent(new CustomEvent('wa:track:select', { detail: { trackId: t.id, tracks: tracks.slice(), wrap: false, from: 'artist' } }))
+                            }));
+                        }
+                    });
                     setTopStatus(tracks.length ? '' : 'No top tracks found.');
                 } catch (err: any) {
                     if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');

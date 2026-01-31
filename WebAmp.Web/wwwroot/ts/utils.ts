@@ -28,6 +28,16 @@ export function shuffleCopy<T>(arr: T[]): T[] {
     return a;
 }
 
+
+/**
+ * Appends multiple nodes with a single DOM insertion to reduce layout thrash.
+ */
+export function appendFragment(parent: Element, build: (frag: DocumentFragment) => void): void {
+    const frag = document.createDocumentFragment();
+    build(frag);
+    parent.appendChild(frag);
+}
+
 /**
  * SoundCloud artwork URLs often embed a size token (e.g. "-large", "t300x300").
  * Attempt to upgrade to a higher-res variant when possible.

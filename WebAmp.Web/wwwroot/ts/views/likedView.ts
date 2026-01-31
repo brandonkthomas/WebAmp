@@ -6,6 +6,7 @@ import { createTrackListItem } from '../ui/trackListItem';
 import { attachInfiniteScroll } from '../ui/infiniteScroll';
 import { bindQueueActions } from '../ui/queueActions';
 import { renderListSkeleton } from '../ui/skeleton';
+import { appendFragment } from '../utils';
 
 function mapSpotifyTrack(t: any): Track {
     const images = t?.album?.images ?? [];
@@ -58,16 +59,18 @@ export const likedView: WebAmpViewController = {
         });
 
         const appendTracks = (tracks: Track[]) => {
-            for (const t of tracks) {
-                likedEl.appendChild(createTrackListItem({
-                    track: t,
-                    onClick: () => {
-                        queueCommitted = true;
-                        queueActive = allTracks.slice();
-                        window.dispatchEvent(new CustomEvent('wa:track:select', { detail: { trackId: t.id, tracks: queueActive, wrap: false, from: 'liked' } }));
-                    }
-                }));
-            }
+            appendFragment(likedEl, (frag) => {
+                for (const t of tracks) {
+                    frag.appendChild(createTrackListItem({
+                        track: t,
+                        onClick: () => {
+                            queueCommitted = true;
+                            queueActive = allTracks.slice();
+                            window.dispatchEvent(new CustomEvent('wa:track:select', { detail: { trackId: t.id, tracks: queueActive, wrap: false, from: 'liked' } }));
+                        }
+                    }));
+                }
+            });
         };
 
         const spotifySource = ctx.services.musicSource;
