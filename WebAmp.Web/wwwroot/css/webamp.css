@@ -1061,6 +1061,7 @@ body[data-initial-state="ready"] .loading-overlay {
 
 .wa-searchbar__input {
     width: 100%;
+    font-size: calc(1em + 2pt); /* Prevent Safari zoom on focus (inputs <16px trigger zoom) */
     border-radius: var(--wa-radius-lg);
     border: 1px solid rgba(255, 255, 255, 0.18);
     background: rgba(0, 0, 0, 0.22);

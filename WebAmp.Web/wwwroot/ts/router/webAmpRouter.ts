@@ -108,14 +108,14 @@ export class WebAmpRouter {
             const backBtn = closestAttrEl(target, 'data-wa-nav-back');
             if (backBtn) {
                 e.preventDefault();
-                window.history.back();
+                this.goBack();
                 return;
             }
 
             const fwdBtn = closestAttrEl(target, 'data-wa-nav-forward');
             if (fwdBtn) {
                 e.preventDefault();
-                window.history.forward();
+                this.goForward();
                 return;
             }
 
@@ -161,6 +161,36 @@ export class WebAmpRouter {
 
             this.syncToLocation(/* pushHistory */ false);
         });
+    }
+
+    /**
+     * Goes back one step in internal view history (avoids browser history which may include external URLs like OAuth redirects).
+     */
+    goBack() {
+        if (this.historyIndex <= 0) return;
+        this.historyIndex--;
+        const path = this.historyStack[this.historyIndex];
+        const match = this.resolveGuard(matchWebAmpRoute(path));
+        const search = window.location.search || '';
+        const url = `${match.canonicalPath}${search}`;
+        history.replaceState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', url);
+        this.render(match);
+        this.updateHistoryButtons();
+    }
+
+    /**
+     * Goes forward one step in internal view history.
+     */
+    goForward() {
+        if (this.historyIndex >= this.historyStack.length - 1) return;
+        this.historyIndex++;
+        const path = this.historyStack[this.historyIndex];
+        const match = this.resolveGuard(matchWebAmpRoute(path));
+        const search = window.location.search || '';
+        const url = `${match.canonicalPath}${search}`;
+        history.replaceState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', url);
+        this.render(match);
+        this.updateHistoryButtons();
     }
 
     /**

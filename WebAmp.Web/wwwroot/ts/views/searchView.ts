@@ -519,6 +519,11 @@ export const searchView: WebAmpViewController = {
             // ignore
         }
 
+        // Auto-focus search input when view opens (works on mobile too)
+        requestAnimationFrame(() => {
+            input.focus();
+        });
+
         (searchView as any)._cleanup = () => {
             destroyed = true;
             cleanupActions();
