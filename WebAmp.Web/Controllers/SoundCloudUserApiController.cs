@@ -130,24 +130,37 @@ public sealed class SoundCloudUserApiController(SoundCloudUserAuthService auth, 
     // ============================================================================================
     /// <summary>
     /// Returns tracks for a specific playlist using linked partitioning.
+    /// First page: pass id (and optionally limit). Subsequent pages: pass next_href
+    /// from the previous response (SoundCloud returns a full API URL).
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> PlaylistTracks(
-        [FromQuery] string id,
+        [FromQuery] string? id,
         [FromQuery] int limit = 100,
-        [FromQuery] string? cursor = null)
+        [FromQuery] string? cursor = null,
+        [FromQuery] string? next_href = null)
     {
-        if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "missing_id" });
-        limit = Math.Clamp(limit, 1, 200);
-
-        var encoded = Uri.EscapeDataString(id);
-        var path = $"playlists/{encoded}/tracks?linked_partitioning=true&limit={limit}";
-        if (!string.IsNullOrWhiteSpace(cursor))
+        string pathOrUrl;
+        if (!string.IsNullOrWhiteSpace(next_href))
         {
-            path += $"&cursor={Uri.EscapeDataString(cursor)}";
+            pathOrUrl = next_href;
+        }
+        else if (!string.IsNullOrWhiteSpace(id))
+        {
+            limit = Math.Clamp(limit, 1, 200);
+            var encoded = Uri.EscapeDataString(id);
+            pathOrUrl = $"playlists/{encoded}/tracks?linked_partitioning=true&limit={limit}&access=playable,preview,blocked";
+            if (!string.IsNullOrWhiteSpace(cursor))
+            {
+                pathOrUrl += $"&cursor={Uri.EscapeDataString(cursor)}";
+            }
+        }
+        else
+        {
+            return BadRequest(new { error = "missing_id_or_next_href" });
         }
 
-        var (status, json) = await api.GetAsync(HttpContext, path);
+        var (status, json) = await api.GetAsync(HttpContext, pathOrUrl);
         return ProxyJson(status, json);
     }
 
