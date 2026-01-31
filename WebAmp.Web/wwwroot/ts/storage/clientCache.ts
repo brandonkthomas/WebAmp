@@ -2,23 +2,19 @@ import { logEvent } from '../../../../../Portfolio/wwwroot/ts/common';
 
 const DB_NAME = 'webamp-client-cache';
 const DB_VERSION = 1;
-const META_STORE = 'meta';
 const ART_STORE = 'art';
 const ART_CACHE = 'webamp-art-cache-v1';
 const ART_LIMIT = 100;
-
-type MetaRecord = {
-    key: string;
-    value: any;
-    size: number;
-    updatedAt: number;
-};
+const ART_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
 type ArtRecord = {
     url: string;
     size: number;
     addedAt: number;
 };
+
+/** Metadata cache: in-memory only, cleared on page refresh. */
+const metaCache = new Map<string, { value: any; size: number }>();
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -28,9 +24,6 @@ function openDb(): Promise<IDBDatabase> {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
             request.onupgradeneeded = () => {
                 const db = request.result;
-                if (!db.objectStoreNames.contains(META_STORE)) {
-                    db.createObjectStore(META_STORE, { keyPath: 'key' });
-                }
                 if (!db.objectStoreNames.contains(ART_STORE)) {
                     db.createObjectStore(ART_STORE, { keyPath: 'url' });
                 }
@@ -49,35 +42,10 @@ function promisify<T>(req: IDBRequest<T>): Promise<T> {
     });
 }
 
-async function getMetaRecord<T>(key: string): Promise<MetaRecord | null> {
-    const db = await openDb();
-    const tx = db.transaction(META_STORE, 'readonly');
-    const store = tx.objectStore(META_STORE);
-    const record = await promisify<MetaRecord | undefined>(store.get(key));
-    return record ?? null;
-}
-
-async function setMetaRecord(key: string, value: any): Promise<void> {
-    const db = await openDb();
-    const tx = db.transaction(META_STORE, 'readwrite');
-    const store = tx.objectStore(META_STORE);
-    const json = JSON.stringify(value);
-    const size = new TextEncoder().encode(json).length;
-    const record: MetaRecord = {
-        key,
-        value,
-        size,
-        updatedAt: Date.now()
-    };
-    await promisify(store.put(record));
-}
-
-async function getMetaTotalSize(): Promise<number> {
-    const db = await openDb();
-    const tx = db.transaction(META_STORE, 'readonly');
-    const store = tx.objectStore(META_STORE);
-    const records = await promisify<MetaRecord[]>(store.getAll());
-    return records.reduce((sum, rec) => sum + (rec.size || 0), 0);
+function getMetaTotalSize(): number {
+    let sum = 0;
+    for (const rec of metaCache.values()) sum += rec.size || 0;
+    return sum;
 }
 
 async function getArtRecord(url: string): Promise<ArtRecord | null> {
@@ -137,8 +105,12 @@ function formatBytes(bytes: number): string {
     return `${value.toFixed(value >= 10 || idx === 0 ? 0 : 1)} ${units[idx]}`;
 }
 
+function isArtExpired(rec: ArtRecord): boolean {
+    return Date.now() - rec.addedAt > ART_TTL_MS;
+}
+
 async function logCacheSizes(context: string): Promise<void> {
-    const [metaSize, artSize] = await Promise.all([getMetaTotalSize(), getArtTotalSize()]);
+    const [metaSize, artSize] = [getMetaTotalSize(), await getArtTotalSize()];
     logEvent('WebAmp', 'cache:size', {
         context,
         metadata: formatBytes(metaSize),
@@ -148,9 +120,18 @@ async function logCacheSizes(context: string): Promise<void> {
 
 async function enforceArtLimit(): Promise<void> {
     const records = await getArtRecords();
-    if (records.length <= ART_LIMIT) return;
-    records.sort((a, b) => b.addedAt - a.addedAt);
-    const evict = records.slice(ART_LIMIT);
+    const valid = records.filter((r) => !isArtExpired(r));
+    const expired = records.filter((r) => isArtExpired(r));
+    if (expired.length) {
+        const cache = await caches.open(ART_CACHE);
+        for (const rec of expired) {
+            await cache.delete(rec.url);
+            await deleteArtRecord(rec.url);
+        }
+    }
+    if (valid.length <= ART_LIMIT) return;
+    valid.sort((a, b) => b.addedAt - a.addedAt);
+    const evict = valid.slice(ART_LIMIT);
     if (!evict.length) return;
     const cache = await caches.open(ART_CACHE);
     for (const rec of evict) {
@@ -160,21 +141,12 @@ async function enforceArtLimit(): Promise<void> {
 }
 
 export async function cachedJsonFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
-    try {
-        const cached = await getMetaRecord<T>(key);
-        if (cached) {
-            return cached.value as T;
-        }
-    } catch {
-        // Ignore cache read errors and fall through to fetch.
-    }
+    const cached = metaCache.get(key);
+    if (cached) return cached.value as T;
     const data = await fetcher();
-    try {
-        await setMetaRecord(key, data);
-        await logCacheSizes('metadata+');
-    } catch {
-        // Ignore cache write errors to avoid breaking requests.
-    }
+    const json = JSON.stringify(data);
+    metaCache.set(key, { value: data, size: new TextEncoder().encode(json).length });
+    void logCacheSizes('metadata+');
     return data;
 }
 
@@ -193,9 +165,14 @@ export async function resolveCachedArtUrl(url: string): Promise<string | null> {
         const cache = await caches.open(ART_CACHE);
         const cached = await cache.match(url);
         if (cached) {
-            void touchArtRecord(url);
-            const objectUrl = await responseToObjectUrl(cached.clone());
-            return objectUrl ?? url;
+            const artRec = await getArtRecord(url);
+            if (artRec && !isArtExpired(artRec)) {
+                void touchArtRecord(url);
+                const objectUrl = await responseToObjectUrl(cached.clone());
+                return objectUrl ?? url;
+            }
+            await cache.delete(url);
+            if (artRec) await deleteArtRecord(url);
         }
         const res = await fetch(url, { mode: 'cors' });
         if (!res.ok) return url;
@@ -209,6 +186,30 @@ export async function resolveCachedArtUrl(url: string): Promise<string | null> {
     } catch {
         return url;
     }
+}
+
+/**
+ * Clears the client metadata and art cache, then reloads the page.
+ * Exposed as window.waClearCacheAndReload for DevTools use.
+ */
+export async function clearClientCacheAndReload(): Promise<void> {
+    if (dbPromise) {
+        try {
+            const db = await dbPromise;
+            db.close();
+        } catch { /* ignore */ }
+        dbPromise = null;
+    }
+    await new Promise<void>((resolve, reject) => {
+        const req = indexedDB.deleteDatabase(DB_NAME);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+        req.onblocked = () => resolve();
+    });
+    if (typeof caches !== 'undefined') {
+        await caches.delete(ART_CACHE);
+    }
+    location.reload();
 }
 
 export function applyCachedArt(img: HTMLImageElement | null, url?: string | null): void {
