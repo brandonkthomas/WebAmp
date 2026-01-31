@@ -74,9 +74,10 @@ export function attachInfiniteScroll(opts: {
     render();
 
     const root = opts.root !== undefined ? opts.root : findScrollParent(opts.listEl);
+    const rootMargin = opts.rootMargin ?? (root ? '200px 0px' : '600px 0px');
 
     const listLabel = getListLabel(opts.listEl);
-    logEvent('WebAmp', 'scroll:init', { list: listLabel, hasRoot: !!root });
+    logEvent('WebAmp', 'scroll:init', { list: listLabel, hasRoot: !!root, rootMargin });
 
     const io = new IntersectionObserver(
         (entries) => {
@@ -104,7 +105,7 @@ export function attachInfiniteScroll(opts: {
         },
         {
             root,
-            rootMargin: opts.rootMargin ?? '600px 0px',
+            rootMargin,
             threshold: 0.01
         }
     );
