@@ -20,6 +20,7 @@ import { SoundCloudSource } from './sources/soundCloudSource';
 import { SidebarController } from './components/sidebar/sidebar';
 import { HybridTransport } from './sources/hybridTransport';
 import { getDominantColor } from './ui/dominantColor';
+import { clearClientCacheAndReload } from './storage/clientCache';
 
 // Injected at bundle time by esbuild (see WebAmp.Web.csproj).
 declare const __WEBAMP_APP_VERSION__: string;
@@ -318,6 +319,8 @@ function boot() {
     });
 
     router.start();
+
+    (window as any).waClearCacheAndReload = clearClientCacheAndReload;
 
     // Background: check auth status and always install a hybrid transport.
     // The transport will route playback to Spotify or SoundCloud based on track.source,
