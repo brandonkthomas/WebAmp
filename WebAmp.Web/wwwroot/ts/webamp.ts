@@ -59,7 +59,7 @@ function boot() {
     let authResolved = false;
     document.body.dataset.initialState = 'loading';
     window.addEventListener('load', () => {
-        // Layout.cshtml sets initialState=ready on app pages at window.onload; override it until auth resolves.
+        // Layout.cshtml sets initialState=ready on can-pinch-to-zoom pages at window.onload; override it until auth resolves.
         queueMicrotask(() => {
             if (!authResolved) document.body.dataset.initialState = 'loading';
         });
