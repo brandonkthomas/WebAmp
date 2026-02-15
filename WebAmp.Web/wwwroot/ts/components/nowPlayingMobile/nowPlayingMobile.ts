@@ -139,6 +139,7 @@ export class NowPlayingMobile {
             const onShuffle = () => {
                 const enabled = !!this.shuffleInput?.checked;
                 setShufflePref(enabled);
+                window.dispatchEvent(new CustomEvent('wa:shuffle:set', { detail: { enabled } }));
                 // Keep topbar checkbox in sync if present.
                 const topbarShuffle = this.topbarShuffleInput ?? document.querySelector<HTMLInputElement>('[data-wa-action="shuffle-toggle"]');
                 if (topbarShuffle) topbarShuffle.checked = enabled;

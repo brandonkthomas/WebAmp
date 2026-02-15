@@ -1,4 +1,5 @@
 import { logEvent } from '../../../../../Portfolio/wwwroot/ts/common';
+import { shuffleCopy } from '../utils';
 
 /**
  * Supported audio sources for tracks.
@@ -89,8 +90,10 @@ export class PlayerStore {
     };
 
     private listeners: PlayerListener[] = [];
+    private baseQueue: Track[] = [];
     private queue: Track[] = [];
     private queueWrap: boolean = false;
+    private shuffleEnabled: boolean = false;
     private rafId: number | null = null;
     private lastTickMs: number | null = null;
     private lastUiEmitMs: number | null = null;
@@ -113,6 +116,7 @@ export class PlayerStore {
     private transportBusy: boolean = false;
 
     constructor(seedQueue: Track[] = []) {
+        this.baseQueue = seedQueue.slice();
         this.queue = seedQueue.slice();
 
         // Keep the global topbar "Play" button in sync with the store's
@@ -139,6 +143,40 @@ export class PlayerStore {
                     playIcon.setAttribute('src', src);
                 }
             }) as EventListener);
+        }
+    }
+
+    /**
+     * Enables/disables shuffle for the active queue.
+     * This affects playback order for next/prev/auto-advance (not just "shuffle play").
+     */
+    setShuffleEnabled(enabled: boolean) {
+        const next = !!enabled;
+        if (this.shuffleEnabled === next) return;
+        this.shuffleEnabled = next;
+        this.applyQueueTransform();
+        logEvent('WebAmp', 'queue:shuffle', { enabled: this.shuffleEnabled, size: this.queue.length });
+    }
+
+    private applyQueueTransform() {
+        const currentId = this.state.track?.id ?? null;
+        const base = this.baseQueue.slice();
+
+        if (!this.shuffleEnabled) {
+            this.queue = base;
+        } else if (currentId) {
+            const current = base.find((t) => t.id === currentId) ?? null;
+            const rest = base.filter((t) => t.id !== currentId);
+            this.queue = current ? [current, ...shuffleCopy(rest)] : shuffleCopy(base);
+        } else {
+            this.queue = shuffleCopy(base);
+        }
+
+        // Keep the selected track object aligned to the transformed queue.
+        if (currentId) {
+            const nextTrack = this.queue.find((t) => t.id === currentId) ?? this.state.track;
+            this.state = { ...this.state, track: nextTrack ?? null };
+            this.emit();
         }
     }
 
@@ -172,8 +210,12 @@ export class PlayerStore {
      * Replaces the current queue
      */
     setQueue(queue: Track[], opts?: { wrap?: boolean }) {
+        this.baseQueue = queue.slice();
         this.queue = queue.slice();
         this.queueWrap = opts?.wrap ?? false;
+        if (this.shuffleEnabled) {
+            this.applyQueueTransform();
+        }
         const size = this.queue.length;
         logEvent('WebAmp', 'queue:set', {
             size,

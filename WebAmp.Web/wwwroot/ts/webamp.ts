@@ -21,6 +21,7 @@ import { SidebarController } from './components/sidebar/sidebar';
 import { HybridTransport } from './sources/hybridTransport';
 import { getDominantColor } from './ui/dominantColor';
 import { clearClientCacheAndReload } from './storage/clientCache';
+import { getShufflePref } from './ui/queueActions';
 
 // Injected at bundle time by esbuild (see WebAmp.Web.csproj).
 declare const __WEBAMP_APP_VERSION__: string;
@@ -85,6 +86,13 @@ function boot() {
     const spotifySource = new SpotifySource();
     const soundCloudSource = new SoundCloudSource();
     const initialPath = window.location.pathname;
+
+    // Apply persisted shuffle preference to the store so it affects playback order.
+    playerStore.setShuffleEnabled(getShufflePref());
+    window.addEventListener('wa:shuffle:set', (e: Event) => {
+        const ev = e as CustomEvent<{ enabled?: boolean }>;
+        playerStore.setShuffleEnabled(!!ev.detail?.enabled);
+    });
 
     // Global disconnect handler (sidebar button) and source-aware footer chrome.
     const disconnectBtn = document.querySelector<HTMLButtonElement>('[data-wa-action="source-disconnect"]');

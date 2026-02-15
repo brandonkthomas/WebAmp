@@ -89,7 +89,10 @@ export function bindQueueActions(opts: {
     syncVisible();
 
     const onShuffle = () => {
-        setShufflePref(!!shuffleInput.checked);
+        const enabled = !!shuffleInput.checked;
+        setShufflePref(enabled);
+        // Inform PlayerStore so shuffle affects playback order immediately.
+        window.dispatchEvent(new CustomEvent('wa:shuffle:set', { detail: { enabled } }));
     };
 
     const onPlay = () => {
