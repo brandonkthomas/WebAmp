@@ -55,8 +55,9 @@ export class PlayerBar {
      * Binds DOM event handlers and subscribes to store updates
      */
     private bind() {
-        this.btnPrev?.addEventListener('click', () => this.store.prev());
-        this.btnNext?.addEventListener('click', () => this.store.next());
+        // Treat next/prev as explicit intent to keep playback going.
+        this.btnPrev?.addEventListener('click', () => this.store.prev({ autoplay: true }));
+        this.btnNext?.addEventListener('click', () => this.store.next({ autoplay: true }));
         this.btnToggle?.addEventListener('click', () => this.store.togglePlay());
 
         this.scrubber?.addEventListener('input', () => {
