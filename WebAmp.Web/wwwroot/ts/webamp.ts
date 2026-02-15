@@ -340,6 +340,31 @@ function boot() {
             }
         });
         playerStore.setTransport(transport);
+``
+        // Preload the SoundCloud widget early so first track-tap autoplay can stay
+        // within Safari's user-activation window (avoids awaiting api.js on first play).
+        try {
+            transport.primeSoundCloud();
+        } catch {
+            // ignore
+        }
+
+        // Safari (especially iOS) is sensitive to the first-play user activation boundary.
+        // Prime the SoundCloud widget on the earliest user interaction so that when a track
+        // is selected, widget.load() can be called without waiting for api.js.
+        const primeOnce = () => {
+            try {
+                transport.primeSoundCloud();
+            } catch {
+                // ignore
+            }
+            window.removeEventListener('pointerdown', primeOnce, true);
+            window.removeEventListener('touchstart', primeOnce, true);
+            window.removeEventListener('mousedown', primeOnce, true);
+        };
+        window.addEventListener('pointerdown', primeOnce, true);
+        window.addEventListener('touchstart', primeOnce, true);
+        window.addEventListener('mousedown', primeOnce, true);
 
         // If UI already shows a selected/playing track, attempt to start real playback once transport becomes ready.
         const st = playerStore.getState();
