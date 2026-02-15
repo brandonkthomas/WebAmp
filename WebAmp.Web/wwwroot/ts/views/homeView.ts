@@ -257,6 +257,7 @@ export const homeView: WebAmpViewController = {
                                 title,
                                 artist,
                                 durationSec: typeof origin.duration === 'number' ? Math.round(origin.duration / 1000) : 0,
+                                permalinkUrl: typeof origin?.permalink_url === 'string' ? origin.permalink_url : undefined,
                                 artUrl: typeof origin.artwork_url === 'string'
                                     ? origin.artwork_url
                                     : (typeof origin?.user?.avatar_url === 'string' ? origin.user.avatar_url : undefined),

@@ -373,6 +373,8 @@ export const playlistView: WebAmpViewController = {
                                         typeof t?.artwork_url === 'string'
                                             ? t.artwork_url
                                             : (typeof t?.user?.avatar_url === 'string' ? t.user.avatar_url : undefined);
+                                    const permalinkUrl: string | undefined =
+                                        typeof t?.permalink_url === 'string' ? t.permalink_url : undefined;
                                     return {
                                         id: String(id),
                                         source: 'soundcloud',
@@ -380,7 +382,8 @@ export const playlistView: WebAmpViewController = {
                                         artist,
                                         durationSec: Math.round(durationMs / 1000),
                                         artUrl,
-                                        artUrlSmall: artUrl
+                                        artUrlSmall: artUrl,
+                                        permalinkUrl
                                     } as Track;
                                 });
 

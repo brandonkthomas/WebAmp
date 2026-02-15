@@ -56,6 +56,13 @@ function loadSoundCloudWidgetApi(): Promise<void> {
     return scWidgetReadyPromise;
 }
 
+function buildSoundCloudWidgetEmbedSrc(permalinkUrl: string): string {
+    const url = encodeURIComponent(permalinkUrl);
+    // Use the same query params we pass to widget.load() so the initial iframe render
+    // does not crash the widget (empty `url=` now 404s and throws inside widget JS).
+    return `https://w.soundcloud.com/player/?url=${url}&auto_play=false&show_artwork=false&single_active=false&hide_related=true&show_comments=false&show_user=false&show_reposts=false&visual=false`;
+}
+
 /**
  * PlayerTransport implementation backed by the official SoundCloud HTML5
  * widget, embedded in a hidden iframe. This avoids dealing with raw HLS
@@ -89,8 +96,30 @@ export class SoundCloudTransport implements PlayerTransport {
     private awaitingReadyResolve: (() => void) | null = null;
     private lastKnownPlaying: boolean = false;
     private desiredPlaying: boolean = false;
+    private primed: boolean = false;
 
     constructor(private readonly onRemoteState?: PlaybackStateListener) {}
+
+    /**
+     * Best-effort "warm up" to avoid Safari losing user activation on first play:
+     * - create hidden iframe
+     * - start loading SC.Widget api.js
+     * - create widget instance + bind events
+     *
+     * Safe to call multiple times.
+     */
+    prime(): void {
+        if (this.primed) return;
+        this.primed = true;
+        try {
+            // Only preload the widget API script. Do NOT create the iframe/widget yet:
+            // creating an iframe with an empty `url=` embed crashes the widget in Safari,
+            // and we don't need the iframe until we have a real track URL.
+            void loadSoundCloudWidgetApi();
+        } catch {
+            // ignore
+        }
+    }
 
     private getSource(track: Track | null): TrackSource {
         return (track?.source ?? 'spotify') as TrackSource;
@@ -112,7 +141,15 @@ export class SoundCloudTransport implements PlayerTransport {
         // If no iframe/container are present (which is now the default), create them lazily.
         if (!iframe) {
             container = container ?? document.createElement('div');
-            container.style.display = 'none';
+            // IMPORTANT (iOS Safari): Avoid display:none for media iframes.
+            // Keeping it offscreen is more reliable than fully non-rendered.
+            container.style.position = 'fixed';
+            container.style.left = '-9999px';
+            container.style.top = '0';
+            container.style.width = '1px';
+            container.style.height = '1px';
+            container.style.opacity = '0.001';
+            container.style.pointerEvents = 'none';
             container.setAttribute('data-wa-sc-widget-container', 'true');
 
             iframe = document.createElement('iframe');
@@ -124,8 +161,9 @@ export class SoundCloudTransport implements PlayerTransport {
             // Allow autoplay so the widget can advance within the same media element
             // when the user has already interacted with the page (important on iOS/Safari).
             iframe.allow = 'autoplay';
-            // Initial src is a stub; real configuration is provided via widget.load().
-            iframe.src = 'https://w.soundcloud.com/player/?url=&auto_play=false&show_artwork=false&single_active=false';
+            // Initial src must be a valid embed; empty `url=` now 404s and can crash the widget JS.
+            // This is just a placeholder; real configuration is provided via widget.load().
+            iframe.src = buildSoundCloudWidgetEmbedSrc('https://soundcloud.com/forss/flickermood');
 
             container.appendChild(iframe);
             // Attach near the end of body; location is irrelevant since the iframe is hidden.
@@ -136,21 +174,13 @@ export class SoundCloudTransport implements PlayerTransport {
         return iframe;
     }
 
-    private async ensureWidget(): Promise<any> {
+    private createWidgetFromExistingIframe(): any {
         if (this.widget) return this.widget;
-
-        const iframe = this.getIframe();
-        if (!iframe) {
-            throw new Error('SoundCloud widget iframe not found.');
-        }
-
-        await loadSoundCloudWidgetApi();
-
         const w = window as any;
         if (!w.SC || !w.SC.Widget) {
             throw new Error('SoundCloud widget API is not available.');
         }
-
+        const iframe = this.getIframe();
         const widget = w.SC.Widget(iframe);
         this.widget = widget;
 
@@ -172,6 +202,9 @@ export class SoundCloudTransport implements PlayerTransport {
         };
 
         widget.bind(Events.ERROR, (e: any) => {
+            // Some Safari/iOS runs emit a null-ish ERROR early (e.g. placeholder embed).
+            // Don't surface that as a user-visible dialog.
+            if (!this.currentTrack) return;
             const err = widgetErrorToError(e);
             void showErrorDialog(formatErrorMessage(err), 'Music Service Error');
         });
@@ -189,36 +222,22 @@ export class SoundCloudTransport implements PlayerTransport {
         });
 
         widget.bind(Events.LOAD_PROGRESS, (_e: any) => {
-            // We don't currently surface load progress, but binding it helps document
-            // supported widget events and makes future buffering UI straightforward.
+            // noop
         });
 
         widget.bind(Events.PLAY_PROGRESS, (e: any) => {
-            // IMPORTANT: The widget can emit late PLAY_PROGRESS events during track changes.
-            // If we record those, we can accidentally seek the *next* track to the previous
-            // track's ending timestamp. Only accept progress once the current session has
-            // actually started playing.
             if (!this.sessionStarted) return;
             const posMs = typeof e?.currentPosition === 'number' ? e.currentPosition : 0;
             const nextPosSec = Math.max(0, posMs / 1000);
 
-            // During a fresh track load we expect the first real progress tick to be
-            // very close to the session's starting position (0 for WebAmp). If we see
-            // a large jump away from that, it's almost always a late event for the
-            // previous track and should be ignored to avoid carrying over its timestamp.
             if (this.awaitingInitialProgress) {
                 const deltaFromStart = Math.abs(nextPosSec - this.sessionStartPositionSec);
-                if (deltaFromStart > 2) {
-                    // Treat as stale; wait for a progress event near the session start instead.
-                    return;
-                }
+                if (deltaFromStart > 2) return;
                 this.awaitingInitialProgress = false;
             }
 
             this.lastPositionSec = nextPosSec;
 
-            // Keep PlayerStore's remote clock aligned to real playback so queue auto-advance
-            // happens near the actual end-of-track (and doesn't drift if the tab stalls).
             if (this.currentTrack && this.sessionStarted) {
                 const now = performance.now();
                 if (now - this.lastProgressEmitMs >= 500) {
@@ -254,8 +273,6 @@ export class SoundCloudTransport implements PlayerTransport {
         });
 
         widget.bind(Events.SEEK, (e: any) => {
-            // SEEK can also arrive during transitions; avoid letting it poison the next load.
-            // If the track hasn't started yet, keep the explicit seek target we set in play().
             if (!this.sessionStarted) return;
             const posMs = typeof e?.currentPosition === 'number' ? e.currentPosition : 0;
             this.lastPositionSec = Math.max(0, posMs / 1000);
@@ -275,8 +292,6 @@ export class SoundCloudTransport implements PlayerTransport {
                 positionSec: duration
             });
 
-            // Explicitly notify the app layer to advance the queue.
-            // We guard by track id so a late FINISH event can't advance a newer track.
             try {
                 queueMicrotask(() => {
                     if (this.currentTrack?.id !== finishedId) return;
@@ -288,6 +303,19 @@ export class SoundCloudTransport implements PlayerTransport {
         });
 
         return widget;
+    }
+
+    private async ensureWidget(): Promise<any> {
+        if (this.widget) return this.widget;
+
+        const w = window as any;
+        if (w.SC && w.SC.Widget) {
+            // Script already present: create/bind synchronously (avoids user-activation loss).
+            return this.createWidgetFromExistingIframe();
+        }
+
+        await loadSoundCloudWidgetApi();
+        return this.createWidgetFromExistingIframe();
     }
 
     private async callWidgetGetter<T>(
@@ -401,6 +429,13 @@ export class SoundCloudTransport implements PlayerTransport {
             ? opts.autoplay
             : this.lastKnownPlaying;
         this.desiredPlaying = autoplay;
+        const userGestureActive = (() => {
+            try {
+                return !!(navigator as any)?.userActivation?.isActive;
+            } catch {
+                return false;
+            }
+        })();
 
         // New playback session: reset progress tracking so we don't leak previous track position.
         this.sessionId++;
@@ -415,10 +450,21 @@ export class SoundCloudTransport implements PlayerTransport {
         this.awaitingInitialProgress = true;
 
         try {
-            const widget = await this.ensureWidget();
+            // iOS Safari is extremely sensitive to user-gesture boundaries for cross-origin media.
+            // If the widget already exists, DO NOT `await` before calling widget.load(), otherwise
+            // we may lose the activation and Safari will "load then pause".
+            let widget = this.widget;
+            if (!widget) {
+                widget = await this.ensureWidget();
+            }
             const sessionAtStart = this.sessionId;
 
-            const trackUrl = `https://api.soundcloud.com/tracks/${encodeURIComponent(track.id)}`;
+            // Prefer SoundCloud permalinks when available; the widget is most reliable with them.
+            // Fallback to API track URL (some tracks may require a client_id when using API urls).
+            const trackUrl =
+                (typeof (track as any)?.permalinkUrl === 'string' && (track as any).permalinkUrl.trim().length)
+                    ? (track as any).permalinkUrl.trim()
+                    : `https://api.soundcloud.com/tracks/${encodeURIComponent(track.id)}`;
 
             if (autoplay) {
                 try {
@@ -435,7 +481,7 @@ export class SoundCloudTransport implements PlayerTransport {
                 this.awaitingReadyResolve = resolve;
             });
 
-            await new Promise<void>((resolve, reject) => {
+            const loadCallback = new Promise<void>((resolve, reject) => {
                 try {
                     // Use the documented widget.load(url, options) API.
                     // Per docs, existing event listeners remain active across loads.
@@ -463,10 +509,23 @@ export class SoundCloudTransport implements PlayerTransport {
                             resolve();
                         }
                     });
+
+                    // Safari/iOS: if this play() call was triggered by a real user gesture
+                    // (tap/click), issue a best-effort play() immediately in the same task.
+                    // This keeps us within the activation window without waiting for READY.
+                    if (autoplay && this.desiredPlaying && userGestureActive) {
+                        try {
+                            widget.play();
+                        } catch {
+                            // ignore
+                        }
+                    }
                 } catch (err) {
                     reject(err);
                 }
             });
+
+            await loadCallback;
 
             // If another track started while we were loading, abort.
             if (this.sessionId !== sessionAtStart) return;
@@ -506,17 +565,39 @@ export class SoundCloudTransport implements PlayerTransport {
             await this.waitForCurrentSoundId(widget, track.id, 1800);
             if (this.sessionId !== sessionAtStart) return;
 
-            // Now safe to seek. Always seek (even to 0) to prevent "carry over" positions.
+            // Now safe to seek.
             try {
-                widget.seekTo(this.lastPositionSec * 1000);
+                const desiredPosSec = Math.max(0, this.lastPositionSec || 0);
+                if (desiredPosSec > 0.01) {
+                    // Resume playback at the requested timestamp.
+                    widget.seekTo(desiredPosSec * 1000);
+                } else {
+                    // Track changes sometimes "carry over" the previous track's timestamp inside the widget.
+                    // Don't blindly call seekTo(0) (Safari can be finicky); instead, only reset if we
+                    // detect the widget actually started at a non-zero position.
+                    try {
+                        const currentPosMs = await this.getPositionMs(widget, 450);
+                        if (currentPosMs > 1200) {
+                            widget.seekTo(0);
+                        }
+                    } catch {
+                        // If we can't read position, do not force seekTo(0).
+                    }
+                }
             } catch {
                 // ignore
             }
 
-            // Only attempt to play if caller says we should be playing (e.g., we were previously playing).
+            // If autoplay was requested but Safari leaves us paused, try a single "kick" play()
+            // after READY. This is important for:
+            // - next/prev taps when state drifted to paused
+            // - auto-advance between tracks (no direct user gesture at that moment)
             if (autoplay && this.desiredPlaying) {
                 try {
-                    widget.play();
+                    const paused = await this.getIsPaused(widget);
+                    if (paused) {
+                        try { widget.play(); } catch { /* ignore */ }
+                    }
                 } catch {
                     // ignore
                 }
@@ -567,7 +648,9 @@ export class SoundCloudTransport implements PlayerTransport {
             }
         }
         try {
-            const widget = await this.ensureWidget();
+            // Same iOS/Safari user-gesture rule: if the widget already exists, do not `await`
+            // before issuing play/pause.
+            const widget = this.widget ?? (await this.ensureWidget());
             // Explicit play/pause is more deterministic than widget.toggle().
             this.desiredPlaying = !previouslyPlaying;
             if (previouslyPlaying) widget.pause();
@@ -597,7 +680,8 @@ export class SoundCloudTransport implements PlayerTransport {
         if (!this.currentTrack) return;
 
         try {
-            const widget = await this.ensureWidget();
+            // If we already have the widget, avoid an async boundary before seek.
+            const widget = this.widget ?? (await this.ensureWidget());
             const nextPos = Math.max(0, positionSec || 0);
             const ms = nextPos * 1000;
 

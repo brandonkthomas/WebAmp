@@ -24,6 +24,14 @@ export class HybridTransport implements PlayerTransport {
         this.soundcloud = new SoundCloudTransport((s) => this.opts.onRemoteState(s));
     }
 
+    /**
+     * Best-effort warm up for Safari autoplay policies.
+     * Safe to call even if SoundCloud is never used.
+     */
+    primeSoundCloud(): void {
+        this.soundcloud.prime();
+    }
+
     private getSource(track: Track | null): TrackSource | null {
         if (!track) return null;
         return (track.source ?? 'spotify') as TrackSource;

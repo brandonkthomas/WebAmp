@@ -20,6 +20,12 @@ export interface Track {
     title: string;
     artist: string;
     /**
+     * External/provider URL for the track.
+     * - SoundCloud: `permalink_url` (preferred for widget.load)
+     * - Spotify: (unused)
+     */
+    permalinkUrl?: string;
+    /**
      * Album id for navigation (Spotify-specific when populated)
      */
     albumId?: string;
