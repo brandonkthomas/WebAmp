@@ -481,6 +481,8 @@ export class SoundCloudTransport implements PlayerTransport {
                 this.awaitingReadyResolve = resolve;
             });
 
+            const desiredPosMs = Math.max(0, (this.lastPositionSec || 0) * 1000);
+
             const loadCallback = new Promise<void>((resolve, reject) => {
                 try {
                     // Use the documented widget.load(url, options) API.
@@ -505,6 +507,15 @@ export class SoundCloudTransport implements PlayerTransport {
                         callback: () => {
                             // Callback indicates the widget is ready to accept external calls,
                             // but we also await the READY event (more reliable on iOS/Safari).
+                            // IMPORTANT: Always seek here (even to 0) to prevent position carry-over.
+                            // This tends to be more reliable than waiting for getCurrentSound() on Safari.
+                            try {
+                                if (this.sessionId === sessionAtStart) {
+                                    widget.seekTo(desiredPosMs);
+                                }
+                            } catch {
+                                // ignore
+                            }
                             this.emitRemote({ track, isPlaying: false, positionSec: this.lastPositionSec });
                             resolve();
                         }
@@ -562,30 +573,24 @@ export class SoundCloudTransport implements PlayerTransport {
             // Ensure the widget has actually switched to the new sound before we seek.
             // Otherwise seekTo() can apply to the previous track and the new track will start
             // at the old timestamp (and only reset to 0 if the new track is shorter).
-            await this.waitForCurrentSoundId(widget, track.id, 1800);
+            const soundOk = await this.waitForCurrentSoundId(widget, track.id, 1800);
             if (this.sessionId !== sessionAtStart) return;
 
-            // Now safe to seek.
+            // Now safe to seek. Always seek (even to 0) to prevent "carry over" positions.
+            // This is required so selecting a new track while another is playing starts at 0.
             try {
-                const desiredPosSec = Math.max(0, this.lastPositionSec || 0);
-                if (desiredPosSec > 0.01) {
-                    // Resume playback at the requested timestamp.
-                    widget.seekTo(desiredPosSec * 1000);
-                } else {
-                    // Track changes sometimes "carry over" the previous track's timestamp inside the widget.
-                    // Don't blindly call seekTo(0) (Safari can be finicky); instead, only reset if we
-                    // detect the widget actually started at a non-zero position.
-                    try {
-                        const currentPosMs = await this.getPositionMs(widget, 450);
-                        if (currentPosMs > 1200) {
-                            widget.seekTo(0);
-                        }
-                    } catch {
-                        // If we can't read position, do not force seekTo(0).
-                    }
-                }
+                widget.seekTo(desiredPosMs);
             } catch {
                 // ignore
+            }
+
+            // Safari fallback: if we couldn't confirm the current sound id, schedule one extra seek.
+            // This is defensive against widget state lag during rapid track changes.
+            if (!soundOk) {
+                setTimeout(() => {
+                    if (this.sessionId !== sessionAtStart) return;
+                    try { widget.seekTo(desiredPosMs); } catch { /* ignore */ }
+                }, 220);
             }
 
             // If autoplay was requested but Safari leaves us paused, try a single "kick" play()
