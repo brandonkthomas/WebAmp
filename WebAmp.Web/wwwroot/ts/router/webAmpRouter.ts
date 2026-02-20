@@ -366,17 +366,25 @@ export class WebAmpRouter {
         this.dom.appRoot.dataset.waSource = src;
 
         // Rename "Liked Songs" to "Likes" when SoundCloud is the sole source.
-        const likedHeading = document.querySelector<HTMLElement>('[data-wa-liked-heading]');
+        const likedHeadings = Array.from(document.querySelectorAll<HTMLElement>('[data-wa-liked-heading]'));
         const likedList = document.querySelector<HTMLElement>('[data-wa-liked]');
-        const likedRootHeading = document.querySelector<HTMLElement>('[data-wa-liked-heading-root]');
-        if (likedHeading || likedRootHeading || likedList) {
+        const likedRootHeadings = Array.from(document.querySelectorAll<HTMLElement>('[data-wa-liked-heading-root]'));
+        if (likedHeadings.length || likedRootHeadings.length || likedList) {
             if (src === 'soundcloud') {
-                if (likedHeading) likedHeading.textContent = 'Likes';
-                if (likedRootHeading) likedRootHeading.textContent = 'Likes';
+                likedHeadings.forEach((el) => {
+                    el.textContent = 'Likes';
+                });
+                likedRootHeadings.forEach((el) => {
+                    el.textContent = 'Likes';
+                });
                 if (likedList) likedList.setAttribute('aria-label', 'Likes');
             } else {
-                if (likedHeading) likedHeading.textContent = 'Liked Songs';
-                if (likedRootHeading) likedRootHeading.textContent = 'Liked Songs';
+                likedHeadings.forEach((el) => {
+                    el.textContent = 'Liked Songs';
+                });
+                likedRootHeadings.forEach((el) => {
+                    el.textContent = 'Liked Songs';
+                });
                 if (likedList) likedList.setAttribute('aria-label', 'Liked songs');
             }
         }

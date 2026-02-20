@@ -551,11 +551,6 @@ body[data-initial-state="ready"] .loading-overlay {
     display: none;
 }
 
-/* Home: hide the browse cards (Playlists/Albums/Artists) when SoundCloud is the sole source */
-.wa-app[data-wa-source="soundcloud"] .wa-view--home [data-wa-home-browse] {
-    display: none;
-}
-
 .wa-sidebar__footer {
     margin-top: auto;
     padding-top: 0.4rem;
@@ -809,6 +804,15 @@ body[data-initial-state="ready"] .loading-overlay {
     color: rgba(255, 255, 255, 0.86);
 }
 
+.wa-h2--link {
+    cursor: pointer;
+}
+
+.wa-h2--link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.12em;
+}
+
 .wa-h3 {
     margin: 0 0 0.35rem 0;
     font-size: 0.95rem;
@@ -927,6 +931,27 @@ body[data-initial-state="ready"] .loading-overlay {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.wa-grid--quick {
+    margin: 0.65rem 0 1rem 0;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.wa-homequick__title {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.wa-homequick__icon {
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+    display: block;
+    object-fit: contain;
+    filter: invert(1);
+    opacity: 0.9;
+}
+
 .wa-card {
     border-radius: var(--wa-radius-md);
     border: 1px solid rgba(255, 255, 255, 0.14);
@@ -935,8 +960,13 @@ body[data-initial-state="ready"] .loading-overlay {
     box-shadow: 0 10px 10px rgba(0, 0, 0, 0.15);
 }
 
-/* Cards with lists need extra bottom padding to accommodate infinite scroll throbber */
+/* Cards with lists use compact bottom padding by default. */
 .wa-card:has(.wa-list) {
+    padding: 0.5rem 1rem 1rem 1rem;
+}
+
+/* Only expand bottom padding while the infinite-scroll throbber is visible. */
+.wa-card:has(.wa-list + .wa-infinite-sentinel .wa-throbber) {
     padding: 0.5rem 1rem 2rem 1rem;
 }
 
@@ -1736,6 +1766,18 @@ body[data-initial-state="ready"] .loading-overlay {
     .wa-grid--3 {
         /* Avoid grid column expanding past viewport when children have large min-content width. */
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .wa-grid--quick {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .wa-card .wa-h3 {
+        margin: 0;
+    }
+
+    .wa-homequick__caption {
+        display: none;
     }
 
     .wa-topbar {
