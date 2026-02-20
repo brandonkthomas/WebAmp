@@ -369,10 +369,19 @@ export class WebAmpRouter {
         const likedHeadings = Array.from(document.querySelectorAll<HTMLElement>('[data-wa-liked-heading]'));
         const likedList = document.querySelector<HTMLElement>('[data-wa-liked]');
         const likedRootHeadings = Array.from(document.querySelectorAll<HTMLElement>('[data-wa-liked-heading-root]'));
+        const setLikedHeadingText = (el: HTMLElement, text: string) => {
+            const labelEl = el.querySelector<HTMLElement>('[data-wa-liked-heading-text]');
+            if (labelEl) {
+                labelEl.textContent = text;
+                return;
+            }
+            el.textContent = text;
+        };
+
         if (likedHeadings.length || likedRootHeadings.length || likedList) {
             if (src === 'soundcloud') {
                 likedHeadings.forEach((el) => {
-                    el.textContent = 'Likes';
+                    setLikedHeadingText(el, 'Likes');
                 });
                 likedRootHeadings.forEach((el) => {
                     el.textContent = 'Likes';
@@ -380,7 +389,7 @@ export class WebAmpRouter {
                 if (likedList) likedList.setAttribute('aria-label', 'Likes');
             } else {
                 likedHeadings.forEach((el) => {
-                    el.textContent = 'Liked Songs';
+                    setLikedHeadingText(el, 'Liked Songs');
                 });
                 likedRootHeadings.forEach((el) => {
                     el.textContent = 'Liked Songs';
