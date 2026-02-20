@@ -1,6 +1,6 @@
 import type { PlayerState, PlayerStore } from '../../state/playerStore';
 import { applyCachedArt } from '../../storage/clientCache';
-import { getShufflePref, setShufflePref } from '../../ui/queueActions';
+import { getShufflePref, setShuffleEnabled } from '../../ui/queueActions';
 
 function upgradeSoundCloudArtworkUrl(url: string): string {
     if (!url) return url;
@@ -137,12 +137,7 @@ export class NowPlayingMobile {
         if (this.shuffleInput) {
             this.shuffleInput.checked = getShufflePref();
             const onShuffle = () => {
-                const enabled = !!this.shuffleInput?.checked;
-                setShufflePref(enabled);
-                window.dispatchEvent(new CustomEvent('wa:shuffle:set', { detail: { enabled } }));
-                // Keep topbar checkbox in sync if present.
-                const topbarShuffle = this.topbarShuffleInput ?? document.querySelector<HTMLInputElement>('[data-wa-action="shuffle-toggle"]');
-                if (topbarShuffle) topbarShuffle.checked = enabled;
+                setShuffleEnabled(!!this.shuffleInput?.checked, { markDirty: true });
             };
             this.shuffleInput.addEventListener('change', onShuffle);
         }

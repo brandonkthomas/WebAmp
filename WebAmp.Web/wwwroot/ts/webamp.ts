@@ -21,7 +21,7 @@ import { SidebarController } from './components/sidebar/sidebar';
 import { HybridTransport } from './sources/hybridTransport';
 import { getDominantColor } from './ui/dominantColor';
 import { clearClientCacheAndReload } from './storage/clientCache';
-import { getShufflePref } from './ui/queueActions';
+import { getShufflePref, isShuffleDirty, setShuffleEnabled } from './ui/queueActions';
 
 // Injected at bundle time by esbuild (see WebAmp.Web.csproj).
 declare const __WEBAMP_APP_VERSION__: string;
@@ -294,9 +294,18 @@ function boot() {
     });
 
     window.addEventListener('wa:track:select', (e: Event) => {
-        const ev = e as CustomEvent<{ trackId?: string; tracks?: any[]; wrap?: boolean }>;
+        const ev = e as CustomEvent<{ trackId?: string; tracks?: any[]; wrap?: boolean; from?: string }>;
         const trackId = ev.detail?.trackId;
         if (!trackId) return;
+
+        const from = ev.detail?.from;
+        const isSpecificTrackTap = from !== 'queue-play';
+        if (isSpecificTrackTap && getShufflePref() && !isShuffleDirty()) {
+            // If user hasn't explicitly touched shuffle yet, a direct track tap
+            // should prefer deterministic playback order.
+            setShuffleEnabled(false);
+        }
+
         if (Array.isArray(ev.detail?.tracks)) {
             playerStore.setQueue(ev.detail.tracks as any, { wrap: ev.detail?.wrap ?? false });
         }

@@ -2,6 +2,7 @@ import type { Track } from '../state/playerStore';
 import { shuffleCopy } from '../utils';
 
 const LS_KEY = 'wa_shuffle_enabled';
+let shuffleDirty = false;
 
 /**
  * Reads shuffle toggle from localStorage
@@ -15,6 +16,31 @@ export function getShufflePref(): boolean {
  */
 export function setShufflePref(enabled: boolean) {
     window.localStorage.setItem(LS_KEY, enabled ? 'true' : 'false');
+}
+
+/**
+ * Returns whether the shuffle toggle has been manually changed this session.
+ */
+export function isShuffleDirty(): boolean {
+    return shuffleDirty;
+}
+
+/**
+ * Applies shuffle state across persisted pref, known UI toggles, and PlayerStore event.
+ */
+export function setShuffleEnabled(enabled: boolean, opts?: { markDirty?: boolean }) {
+    const next = !!enabled;
+    setShufflePref(next);
+    if (opts?.markDirty) {
+        shuffleDirty = true;
+    }
+
+    const topbar = document.querySelector<HTMLInputElement>('[data-wa-action="shuffle-toggle"]');
+    const nowPlaying = document.querySelector<HTMLInputElement>('[data-wa-nowplaying-shuffle]');
+    if (topbar) topbar.checked = next;
+    if (nowPlaying) nowPlaying.checked = next;
+
+    window.dispatchEvent(new CustomEvent('wa:shuffle:set', { detail: { enabled: next } }));
 }
 
 /**
@@ -89,10 +115,7 @@ export function bindQueueActions(opts: {
     syncVisible();
 
     const onShuffle = () => {
-        const enabled = !!shuffleInput.checked;
-        setShufflePref(enabled);
-        // Inform PlayerStore so shuffle affects playback order immediately.
-        window.dispatchEvent(new CustomEvent('wa:shuffle:set', { detail: { enabled } }));
+        setShuffleEnabled(!!shuffleInput.checked, { markDirty: true });
     };
 
     const onPlay = () => {
