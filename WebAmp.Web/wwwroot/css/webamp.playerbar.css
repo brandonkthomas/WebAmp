@@ -1,0 +1,187 @@
+/* Bottom player bar (sticky, responsive controls) */
+.wa-playerbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    padding: 0.65rem 1.1rem;
+    padding-bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));
+    /* Visual chrome (blur, border, background) is rendered by .wa-playerbar__bg so
+       that frequently updated controls live in a non-filtered layer above it. */
+}
+
+.wa-playerbar__bg {
+    position: absolute;
+    inset: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    background: transparent;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* player bar blur */
+@supports (
+    (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))
+) {
+    .wa-playerbar__bg {
+        backdrop-filter: blur(16px) saturate(1.25);
+        -webkit-backdrop-filter: blur(16px) saturate(1.25);
+    }
+}
+
+.wa-playerbar__inner {
+    max-width: none;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.wa-playerbar__media {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.wa-playerbar__art {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    overflow: hidden;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wa-playerbar__art-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+}
+
+.wa-playerbar__meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.wa-playerbar__title {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.94);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wa-playerbar__artist {
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Make the metadata feel interactive on larger screens (navigation targets) */
+@media (min-width: 821px) {
+    .wa-playerbar__title.wa-playerbar__link:hover,
+    .wa-playerbar__artist.wa-playerbar__link:hover {
+        cursor: pointer;
+        text-decoration: underline;
+        text-decoration-thickness: 0.06em;
+        text-underline-offset: 0.12em;
+    }
+}
+
+.wa-playerbar__controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.wa-playerbar__btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wa-playerbar__btn:hover {
+    border-color: rgba(255, 255, 255, 0.24);
+}
+
+.wa-playerbar__btn:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.9);
+    outline-offset: 2px;
+}
+
+/* Icon-only variant for play/pause/prev/next controls */
+.wa-playerbar__btn--icononly {
+    border: 0;
+    background: none;
+}
+
+.wa-playerbar__btn--icononly:hover {
+    border: 0;
+}
+
+.wa-playerbar__icon {
+    width: 20px;
+    height: 20px;
+    display: block;
+    filter: invert(1);
+    opacity: 0.95;
+}
+
+/* Mobile defaults: hide prev + scrubber */
+.wa-playerbar__btn--prev {
+    display: none;
+}
+
+.wa-playerbar__scrub {
+    display: none;
+}
+
+@media (min-width: 900px) {
+    :root {
+        --wa-playerbar-height: 64px; /* was 86px */
+    }
+
+    .wa-playerbar__inner {
+        /* Align to the desktop layout: sidebar column + content column */
+        grid-template-columns: 260px auto minmax(240px, 1fr);
+    }
+
+    .wa-playerbar__btn--prev {
+        display: inline-flex;
+    }
+
+    .wa-playerbar__scrub {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .wa-playerbar__time {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.66);
+        min-width: 44px;
+        text-align: center;
+    }
+
+    .wa-playerbar__range {
+        width: 100%;
+        accent-color: rgba(255, 255, 255, 0.9);
+    }
+}
