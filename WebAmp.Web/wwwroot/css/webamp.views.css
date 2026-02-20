@@ -605,24 +605,15 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2.5rem;
+    gap: 1rem;
     padding: 2rem 1rem;
-}
-
-.wa-landing__bg {
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-}
-
-.wa-landing__bg #gnc {
-    z-index: 0;
 }
 
 .wa-landing__brand,
 .wa-landing__signin-surface {
     position: relative;
     z-index: 1;
+    padding: 1rem;
 }
 
 .wa-landing__brand {
@@ -654,6 +645,9 @@
     font-size: clamp(2.1rem, 5vw, 3rem);
     font-weight: 700;
     letter-spacing: 0.02em;
+    font-family: "Funnel Display", sans-serif;
+    font-optical-sizing: auto;
+    font-style: normal;
 }
 
 .wa-landing__description {
@@ -682,29 +676,29 @@
 
 .wa-landing__signin button {
     height: 3rem;
-}
-
-.wa-landing__signin-label {
-    font-size: 0.95rem;
-    letter-spacing: 0.28em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.78);
-}
-
-.wa-landing__spotify {
     border: none;
     border-radius: 999px;
     padding: 0.85rem 1.35rem;
-    background: #1db954;
     color: white;
-    font-weight: 700;
     font-size: 1.05rem;
+    font-weight: 700;
     cursor: pointer;
     min-width: 190px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
+}
+
+.wa-landing__signin-label {
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
+    /* text-transform: uppercase; */
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.wa-landing__spotify {
+    background: #1db954;
 }
 
 .wa-landing__spotify:focus-visible {
@@ -713,19 +707,7 @@
 }
 
 .wa-landing__soundcloud {
-    border: none;
-    border-radius: 999px;
-    padding: 0.75rem 1.25rem;
     background: #ff5500;
-    color: white;
-    font-weight: 700;
-    font-size: 0.98rem;
-    cursor: pointer;
-    min-width: 190px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
 }
 
 .wa-landing__soundcloud:focus-visible {

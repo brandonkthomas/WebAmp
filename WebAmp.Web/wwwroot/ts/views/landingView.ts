@@ -3,12 +3,25 @@ import { createGradNoiseCanvas } from '../../../../../Portfolio/wwwroot/ts/compo
 
 let unsubscribeFromSource: (() => void) | null = null;
 let gradNoiseCanvas: { destroy: () => void } | null = null;
+let landingBgHost: HTMLElement | null = null;
+
+const LANDING_BG_ATTR = 'data-wa-landing-bg';
+const LANDING_BG_CANVAS_ID = 'wa-landing-gnc';
+
+function destroyLandingBackground() {
+    gradNoiseCanvas?.destroy();
+    gradNoiseCanvas = null;
+    (window as any).gradNoiseCanvasInstance = null;
+
+    landingBgHost?.remove();
+    landingBgHost = null;
+}
 
 export const landingView: WebAmpViewController = {
     id: 'landing',
     mount(ctx: WebAmpViewContext) {
         const root = ctx.rootEl;
-        const gradCanvasEl = root.querySelector<HTMLCanvasElement>('#gnc');
+        const appRoot = document.querySelector<HTMLElement>('[data-wa-app]');
         const statusEl = root.querySelector<HTMLElement>('[data-wa-landing-status]');
         const connectBtn = root.querySelector<HTMLButtonElement>('[data-wa-action="spotify-connect"]');
         const continueBtn = root.querySelector<HTMLButtonElement>('[data-wa-action="continue"]');
@@ -20,14 +33,27 @@ export const landingView: WebAmpViewController = {
 
         const spotifySource = ctx.services.musicSource;
         const soundCloudSource = ctx.services.soundCloudSource;
-        if (!connectBtn) return;
 
-        // Landing-only animated gradient backdrop.
-        // If this view is unmounted, we destroy the WebGL resources immediately.
-        gradNoiseCanvas?.destroy();
-        gradNoiseCanvas = null;
-        if (gradCanvasEl) {
-            gradNoiseCanvas = createGradNoiseCanvas(gradCanvasEl);
+        // Landing-only animated root backdrop. Keep it fully outside shell/content
+        // constraints and remove it entirely when landing unmounts.
+        destroyLandingBackground();
+        if (appRoot) {
+            const stale = appRoot.querySelector<HTMLElement>(`[${LANDING_BG_ATTR}]`);
+            stale?.remove();
+
+            const host = document.createElement('div');
+            host.className = 'gnc-container wa-app__landing-bg';
+            host.setAttribute(LANDING_BG_ATTR, 'true');
+            host.setAttribute('aria-hidden', 'true');
+
+            const canvas = document.createElement('canvas');
+            canvas.id = LANDING_BG_CANVAS_ID;
+            host.appendChild(canvas);
+
+            appRoot.prepend(host);
+            landingBgHost = host;
+
+            gradNoiseCanvas = createGradNoiseCanvas(canvas);
             (window as any).gradNoiseCanvasInstance = gradNoiseCanvas;
         }
 
@@ -49,6 +75,8 @@ export const landingView: WebAmpViewController = {
 
         // Initial status
         syncUi();
+
+        if (!connectBtn) return;
 
         unsubscribeFromSource?.();
         // Keep landing status in sync with Spotify connection; SoundCloud state is
@@ -91,8 +119,6 @@ export const landingView: WebAmpViewController = {
     unmount() {
         unsubscribeFromSource?.();
         unsubscribeFromSource = null;
-        gradNoiseCanvas?.destroy();
-        gradNoiseCanvas = null;
-        (window as any).gradNoiseCanvasInstance = null;
+        destroyLandingBackground();
     }
 };
