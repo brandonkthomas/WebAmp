@@ -1,11 +1,14 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
+import { createGradNoiseCanvas } from '../../../../../Portfolio/wwwroot/ts/components/gradNoiseCanvas';
 
 let unsubscribeFromSource: (() => void) | null = null;
+let gradNoiseCanvas: { destroy: () => void } | null = null;
 
 export const landingView: WebAmpViewController = {
     id: 'landing',
     mount(ctx: WebAmpViewContext) {
         const root = ctx.rootEl;
+        const gradCanvasEl = root.querySelector<HTMLCanvasElement>('#gnc');
         const statusEl = root.querySelector<HTMLElement>('[data-wa-landing-status]');
         const connectBtn = root.querySelector<HTMLButtonElement>('[data-wa-action="spotify-connect"]');
         const continueBtn = root.querySelector<HTMLButtonElement>('[data-wa-action="continue"]');
@@ -18,6 +21,15 @@ export const landingView: WebAmpViewController = {
         const spotifySource = ctx.services.musicSource;
         const soundCloudSource = ctx.services.soundCloudSource;
         if (!connectBtn) return;
+
+        // Landing-only animated gradient backdrop.
+        // If this view is unmounted, we destroy the WebGL resources immediately.
+        gradNoiseCanvas?.destroy();
+        gradNoiseCanvas = null;
+        if (gradCanvasEl) {
+            gradNoiseCanvas = createGradNoiseCanvas(gradCanvasEl);
+            (window as any).gradNoiseCanvasInstance = gradNoiseCanvas;
+        }
 
         const syncUi = () => {
             const spotifyConnected = spotifySource?.getState().isConnected ?? false;
@@ -79,5 +91,8 @@ export const landingView: WebAmpViewController = {
     unmount() {
         unsubscribeFromSource?.();
         unsubscribeFromSource = null;
+        gradNoiseCanvas?.destroy();
+        gradNoiseCanvas = null;
+        (window as any).gradNoiseCanvasInstance = null;
     }
 };
