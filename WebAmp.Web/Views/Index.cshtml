@@ -67,7 +67,7 @@
                     <main class="wa-main" aria-label="WebAmp content">
                         <div class="wa-view-host" data-wa-view-host></div>
 
-                        <!-- Server-rendered templates (cloned/mounted by TS). Keep markup in CSHTML partials. -->
+                        <!-- Server-rendered templates (cloned/mounted by TS) -- need to keep markup in CSHTML partials -->
                         <template id="wa-tpl-landing">
                             @await Html.PartialAsync("~/Views/Partials/_ViewLanding.cshtml")
                         </template>
