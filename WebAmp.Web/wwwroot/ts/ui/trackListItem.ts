@@ -1,6 +1,7 @@
 import type { Track } from '../state/playerStore';
 import { applyCachedArt } from '../storage/clientCache';
 import { escapeHtml } from '../utils';
+import { indiumSvg } from '../internal/paths';
 
 /**
  * Creates a clickable track row button
@@ -39,10 +40,10 @@ export function createTrackListItem(opts: {
 
     const indicatorHtml = `
         <span class="wa-trackitem__indicator" data-wa-track-toggle="${escapeHtml(track.id)}" aria-hidden="true">
-            <img class="wa-trackitem__indicator-icon wa-trackitem__indicator-icon--wave" src="/apps/webamp/assets/svg/waveform.svg" alt="" decoding="async" />
-            <img class="wa-trackitem__indicator-icon wa-trackitem__indicator-icon--wave-paused" src="/apps/webamp/assets/svg/waveform-paused.svg" alt="" decoding="async" />
-            <img class="wa-trackitem__indicator-icon wa-trackitem__indicator-icon--play" src="/apps/webamp/assets/svg/play-filled.svg" alt="" decoding="async" />
-            <img class="wa-trackitem__indicator-icon wa-trackitem__indicator-icon--pause" src="/apps/webamp/assets/svg/pause-filled.svg" alt="" decoding="async" />
+            <img class="wa-trackitem__indicator-icon wa-trackitem__indicator-icon--wave" src="${indiumSvg('waveform.svg')}" alt="" decoding="async" />
+            <img class="wa-trackitem__indicator-icon wa-trackitem__indicator-icon--wave-paused" src="${indiumSvg('waveform-paused.svg')}" alt="" decoding="async" />
+            <img class="wa-trackitem__indicator-icon wa-trackitem__indicator-icon--play" src="${indiumSvg('play-filled.svg')}" alt="" decoding="async" />
+            <img class="wa-trackitem__indicator-icon wa-trackitem__indicator-icon--pause" src="${indiumSvg('pause-filled.svg')}" alt="" decoding="async" />
         </span>
     `;
 

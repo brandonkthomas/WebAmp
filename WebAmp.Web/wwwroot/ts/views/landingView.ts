@@ -1,5 +1,6 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
-import { createGradNoiseCanvas } from '../../../../../Portfolio/wwwroot/ts/components/gradNoiseCanvas';
+import { routePath } from '../internal/paths';
+import { createGradNoiseCanvas } from '../internal/indiumApi';
 
 let unsubscribeFromSource: (() => void) | null = null;
 let gradNoiseCanvas: { destroy: () => void } | null = null;
@@ -100,7 +101,7 @@ export const landingView: WebAmpViewController = {
         });
 
         continueBtn?.addEventListener('click', () => {
-            ctx.router.navigate('/webamp/home');
+            ctx.router.navigate(routePath('home'));
         });
 
         // SoundCloud path: start Authorization Code + PKCE flow.

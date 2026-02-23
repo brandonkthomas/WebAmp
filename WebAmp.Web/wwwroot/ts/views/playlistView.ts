@@ -1,4 +1,5 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
+import { routePath } from '../internal/paths';
 import { WEBAMP_ROOT } from '../router/routes';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
 import { soundcloudUserApi } from '../sources/soundcloudUserApi';
@@ -7,7 +8,7 @@ import { applyCachedArt } from '../storage/clientCache';
 import { renderListSkeleton } from '../ui/skeleton';
 import { createTrackListItem } from '../ui/trackListItem';
 import { createPlaylistListItem } from '../ui/playlistListItem';
-import { attachInfiniteScroll } from '../ui/infiniteScroll';
+import { attachInfiniteScroll } from '../internal/indiumApi';
 import { bindQueueActions } from '../ui/queueActions';
 import { appendFragment } from '../utils';
 
@@ -97,7 +98,7 @@ export const playlistView: WebAmpViewController = {
                         if (!id) continue;
                         playlistsList.appendChild(createPlaylistListItem({
                             playlist: { id, title: name, owner, artUrlSmall },
-                            onClick: () => ctx.router.navigate(`/webamp/playlists/${id}`)
+                            onClick: () => ctx.router.navigate(routePath(`playlists/${id}`))
                         }));
                     }
 
@@ -138,7 +139,7 @@ export const playlistView: WebAmpViewController = {
                                     : undefined);
                         playlistsList.appendChild(createPlaylistListItem({
                             playlist: { id: String(id), title, owner, artUrlSmall },
-                            onClick: () => ctx.router.navigate(`/webamp/playlists/${id}`)
+                            onClick: () => ctx.router.navigate(routePath(`playlists/${id}`))
                         }));
                     }
 

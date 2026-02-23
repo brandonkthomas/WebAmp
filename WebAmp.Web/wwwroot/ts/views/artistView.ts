@@ -1,11 +1,12 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
+import { routePath } from '../internal/paths';
 import { WEBAMP_ROOT } from '../router/routes';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
 import type { Track } from '../state/playerStore';
 import { applyCachedArt } from '../storage/clientCache';
 import { renderListSkeleton } from '../ui/skeleton';
 import { createTrackListItem } from '../ui/trackListItem';
-import { attachInfiniteScroll } from '../ui/infiniteScroll';
+import { attachInfiniteScroll } from '../internal/indiumApi';
 import { createArtistListItem } from '../ui/artistListItem';
 import { createAlbumListItem } from '../ui/albumListItem';
 import { bindQueueActions } from '../ui/queueActions';
@@ -86,7 +87,7 @@ export const artistView: WebAmpViewController = {
                         if (!id) continue;
                         artistsList.appendChild(createArtistListItem({
                             artist: { id, name, artUrlSmall },
-                            onClick: () => ctx.router.navigate(`/webamp/artists/${id}`)
+                            onClick: () => ctx.router.navigate(routePath(`artists/${id}`))
                         }));
                     }
 
@@ -269,7 +270,7 @@ export const artistView: WebAmpViewController = {
                         const artUrlSmall = images?.[images.length - 1]?.url ?? images?.[0]?.url;
                         albumsList.appendChild(createAlbumListItem({
                             album: { id, title, artist, artUrlSmall },
-                            onClick: () => ctx.router.navigate(`/webamp/albums/${id}`)
+                            onClick: () => ctx.router.navigate(routePath(`albums/${id}`))
                         }));
                     }
 
@@ -282,7 +283,7 @@ export const artistView: WebAmpViewController = {
                         const artUrlSmall = images?.[images.length - 1]?.url ?? images?.[0]?.url;
                         singlesList.appendChild(createAlbumListItem({
                             album: { id, title, artist, artUrlSmall },
-                            onClick: () => ctx.router.navigate(`/webamp/albums/${id}`)
+                            onClick: () => ctx.router.navigate(routePath(`albums/${id}`))
                         }));
                     }
 

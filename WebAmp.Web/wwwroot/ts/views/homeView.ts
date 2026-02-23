@@ -1,4 +1,5 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
+import { routePath } from '../internal/paths';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
 import { soundcloudUserApi } from '../sources/soundcloudUserApi';
 import type { Track } from '../state/playerStore';
@@ -61,7 +62,7 @@ export const homeView: WebAmpViewController = {
                         if (!id) continue;
                         playlistsEl.appendChild(createPlaylistListItem({
                             playlist: { id, title: name, owner, artUrlSmall },
-                            onClick: () => ctx.router.navigate(`/webamp/playlists/${id}`)
+                            onClick: () => ctx.router.navigate(routePath(`playlists/${id}`))
                         }));
                     }
                     setPlaylistsStatus(items.length ? '' : 'No playlists found.');
@@ -95,7 +96,7 @@ export const homeView: WebAmpViewController = {
                                     : undefined);
                         playlistsEl.appendChild(createPlaylistListItem({
                             playlist: { id: String(id), title, owner, artUrlSmall },
-                            onClick: () => ctx.router.navigate(`/webamp/playlists/${id}`)
+                            onClick: () => ctx.router.navigate(routePath(`playlists/${id}`))
                         }));
                     }
                     setPlaylistsStatus(items.length ? '' : 'No playlists found.');

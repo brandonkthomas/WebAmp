@@ -344,7 +344,7 @@ export class WebAmpRouter {
 
     /**
      * Applies a scale/blur/opacity "enter" animation to the active view mount
-     * BT 2026-01-07: mirrored styling from Portfolio homepage views
+     * View mount transition tuning
      */
     private animateViewMount(el: HTMLElement) {
         el.classList.add('wa-view-mount--initial');

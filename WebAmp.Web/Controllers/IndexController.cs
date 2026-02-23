@@ -20,7 +20,7 @@ public class IndexController(IConfiguration configuration) : Controller
         ViewData["Title"] = "WebAmp";
         ViewData["CanPinchToZoom"] = true;
 
-        // Configure the host layout behavior via appsettings.json (Portfolio host)
+        // Configure host layout behavior via appsettings.json
         var section = configuration.GetSection("AppPages:WebAmp");
         if (section.Exists())
         {

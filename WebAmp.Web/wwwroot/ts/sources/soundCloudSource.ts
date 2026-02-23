@@ -1,6 +1,7 @@
 import type { MusicSource, MusicSourceListener, MusicSourceState } from './musicSource';
 import { soundcloudUserApi } from './soundcloudUserApi';
-import { logEvent } from '../../../../../Portfolio/wwwroot/ts/common';
+import { routePath } from '../internal/paths';
+import { logEvent } from '../internal/logging';
 
 /**
  * MusicSource implementation backed by SoundCloud user authentication
@@ -44,7 +45,7 @@ export class SoundCloudSource implements MusicSource {
      */
     async connect(): Promise<void> {
         const ru = window.location.pathname + window.location.search + window.location.hash;
-        window.location.assign(`/webamp/soundcloud/login?returnUrl=${encodeURIComponent(ru)}`);
+        window.location.assign(`${routePath("soundcloud/login")}?returnUrl=${encodeURIComponent(ru)}`);
         await new Promise(() => {});
     }
 
@@ -57,7 +58,7 @@ export class SoundCloudSource implements MusicSource {
         this.emit();
         // After logout, take the user back to landing so that views, routing,
         // and playback state are reset consistently (mirrors SpotifySource).
-        window.location.assign('/webamp');
+        window.location.assign(routePath('/'));
     }
 
     private emit() {

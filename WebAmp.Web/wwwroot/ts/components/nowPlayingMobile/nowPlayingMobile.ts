@@ -1,6 +1,7 @@
 import type { PlayerState, PlayerStore } from '../../state/playerStore';
 import { applyCachedArt } from '../../storage/clientCache';
 import { getShufflePref, setShuffleEnabled } from '../../ui/queueActions';
+import { indiumSvg } from '../../internal/paths';
 
 function upgradeSoundCloudArtworkUrl(url: string): string {
     if (!url) return url;
@@ -441,8 +442,8 @@ export class NowPlayingMobile {
 
         if (this.toggleIconEl) {
             const src = state.isPlaying
-                ? '/apps/webamp/assets/svg/pause-filled.svg'
-                : '/apps/webamp/assets/svg/play-filled.svg';
+                ? indiumSvg('pause-filled.svg')
+                : indiumSvg('play-filled.svg');
             if (this.toggleIconEl.getAttribute('src') !== src) {
                 this.toggleIconEl.setAttribute('src', src);
             }

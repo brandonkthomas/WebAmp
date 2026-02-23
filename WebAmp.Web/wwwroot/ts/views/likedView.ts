@@ -3,7 +3,7 @@ import { spotifyApi } from '../sources/spotify/spotifyApi';
 import { soundcloudUserApi } from '../sources/soundcloudUserApi';
 import type { Track } from '../state/playerStore';
 import { createTrackListItem } from '../ui/trackListItem';
-import { attachInfiniteScroll } from '../ui/infiniteScroll';
+import { attachInfiniteScroll } from '../internal/indiumApi';
 import { bindQueueActions } from '../ui/queueActions';
 import { renderListSkeleton } from '../ui/skeleton';
 import { appendFragment } from '../utils';

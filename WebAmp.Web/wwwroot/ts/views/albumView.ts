@@ -1,11 +1,12 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
 import { WEBAMP_ROOT } from '../router/routes';
+import { routePath } from '../internal/paths';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
 import type { Track } from '../state/playerStore';
 import { applyCachedArt } from '../storage/clientCache';
 import { renderListSkeleton } from '../ui/skeleton';
 import { createTrackListItem } from '../ui/trackListItem';
-import { attachInfiniteScroll } from '../ui/infiniteScroll';
+import { attachInfiniteScroll } from '../internal/indiumApi';
 import { createAlbumListItem } from '../ui/albumListItem';
 import { bindQueueActions } from '../ui/queueActions';
 import { appendFragment } from '../utils';
@@ -86,7 +87,7 @@ export const albumView: WebAmpViewController = {
                         if (!id) continue;
                         albumsList.appendChild(createAlbumListItem({
                             album: { id, title: name, artist, artUrlSmall },
-                            onClick: () => ctx.router.navigate(`/webamp/albums/${id}`)
+                            onClick: () => ctx.router.navigate(routePath(`albums/${id}`))
                         }));
                     }
 

@@ -1,168 +1,209 @@
-/* ============================================================================== */
-/* Mobile layout
-/* ============================================================================== */
+/*
+    webamp.extension.css
+    WebAmp-specific extension styles layered on top of Indium core styles.
+
+    Affected components/elements:
+    - Imports player bar extension rules from `webamp.playerbar.css`
+    - SoundCloud nav filtering:
+      `.wa-app[data-wa-source="soundcloud"] .wa-sidenav__link[data-wa-nav="album"|"artist"]`.
+    - Busy-state play controls:
+      `.wa-playerbar__btn--play[data-wa-busy="true"]`,
+      `.wa-nowplaying__btn--play[data-wa-busy="true"]`,
+      and their icon/`::after` spinner treatments.
+    - Landing module styles:
+      `.wa-landing*` blocks (brand, logo, sign-in surface/buttons,
+      provider icon/label, status text).
+    - Mobile extension layout (`@media (max-width: 820px)`):
+      `.wa-playerbar*`, fullscreen `.wa-nowplaying*`,
+      `.comp-toggle--nowplaying`, and
+      `body[data-wa-now-playing-open="true"]` state-driven visibility.
+    - Desktop/tablet fallback (`@media (min-width: 821px)`):
+      hides `.wa-nowplaying`.
+    - Landing-view shell/chrome overrides:
+      `.wa-app[data-wa-view="landing"]` and related
+      `.glass-surface*`, `.wa-sidebar`, `.wa-topbar`, `.wa-playerbar`,
+      `.wa-sidebar-overlay`, `.wa-layout`, `.wa-main`, and mobile landing
+      sign-in width/button adjustments.
+*/
+@import url('./webamp.playerbar.css');
+
+/* Hide Albums/Artists when SoundCloud is the sole source */
+.wa-app[data-wa-source="soundcloud"] .wa-sidenav__link[data-wa-nav="album"],
+.wa-app[data-wa-source="soundcloud"] .wa-sidenav__link[data-wa-nav="artist"] {
+    display: none;
+}
+
+/* Indeterminate "busy" ring for play buttons while switching tracks */
+.wa-playerbar__btn--play[data-wa-busy="true"],
+.wa-nowplaying__btn--play[data-wa-busy="true"] {
+    position: relative;
+}
+
+.wa-playerbar__btn--play[data-wa-busy="true"] .wa-playerbar__icon,
+.wa-nowplaying__btn--play[data-wa-busy="true"] .wa-nowplaying__icon--playpause {
+    opacity: 0;
+}
+
+.wa-playerbar__btn--play[data-wa-busy="true"]::after,
+.wa-nowplaying__btn--play[data-wa-busy="true"]::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    border: 2px solid rgba(255, 255, 255, 0.22);
+    border-top-color: rgba(255, 255, 255, 0.88);
+    animation: wa-spin 0.9s linear infinite;
+    pointer-events: none;
+}
+
+.wa-nowplaying__btn--play[data-wa-busy="true"]::after {
+    width: 26px;
+    height: 26px;
+    border-width: 3px;
+    border-color: rgba(10, 10, 12, 0.22);
+    border-top-color: rgba(10, 10, 12, 0.82);
+}
+
+/* Landing (fullscreen sign-in) */
+.wa-landing {
+    min-height: calc(100vh - 2.5rem);
+    min-height: calc(100dvh - var(--wa-content-pad-top) - 2.5rem);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 2rem 1rem;
+}
+
+.wa-landing__brand,
+.wa-landing__signin-surface {
+    position: relative;
+    z-index: 1;
+    padding: 1rem;
+}
+
+.wa-landing__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.wa-landing__logo {
+    width: 86px;
+    height: 86px;
+    border-radius: 22px;
+    border: 2px solid #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+}
+
+.wa-landing__logo-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 18px;
+    display: block;
+    object-fit: cover;
+}
+
+.wa-landing__name {
+    font-size: clamp(2.1rem, 5vw, 3rem);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    font-family: "Funnel Display", sans-serif;
+    font-optical-sizing: auto;
+    font-style: normal;
+}
+
+.wa-landing__description {
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.wa-landing__signin {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.9rem;
+}
+
+.wa-landing__signin-surface {
+    width: min(100%, 360px);
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    overflow: hidden;
+}
+
+.wa-landing__signin-surface-content {
+    padding: 1.05rem 1rem 1.1rem;
+}
+
+.wa-landing__signin button {
+    height: 3rem;
+    border: none;
+    border-radius: 999px;
+    padding: 0.85rem 1.35rem;
+    color: white;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    min-width: 190px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.wa-landing__signin-label {
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
+    /* text-transform: uppercase; */
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.wa-landing__spotify {
+    background: #1db954;
+}
+
+.wa-landing__spotify:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.9);
+    outline-offset: 3px;
+}
+
+.wa-landing__soundcloud {
+    background: #ff5500;
+}
+
+.wa-landing__soundcloud:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.9);
+    outline-offset: 3px;
+}
+
+.wa-landing__provider-icon img {
+    filter: invert(1);
+    width: 18px;
+    height: 18px;
+    display: block;
+}
+
+.wa-landing__provider-label {
+    white-space: nowrap;
+}
+
+.wa-landing__status {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.66);
+}
+
+/* Mobile extension behavior for detached player bar + fullscreen now playing */
 @media (max-width: 820px) {
-    /*
-        Mobile uses a fixed topbar AND reserves space for it via .wa-app padding-top.
-        If .wa-shell also insists on min-height: 100vh, the page becomes (top padding + 100vh)
-        and you get an extra vertical scroll even with minimal content.
-    */
-    .wa-shell {
-        min-height: calc(100vh - 3.5rem);
-        min-height: calc(100dvh - 3.5rem);
-    }
-
-    .wa-layout {
-        display: block;
-        min-height: auto;
-    }
-
-    .wa-content {
-        padding-top: 1.25rem;
-        overflow-x: hidden;
-    }
-
-    /* Reserve space under fixed top bar on mobile as well */
-    .wa-app {
-        padding-top: 3.5rem; /* match desktop top bar height + gap */
-    }
-
-    .wa-topbar__burger,
-    .wa-topbar__back {
-        display: inline-flex;
-    }
-
-    .wa-topbar__inner {
-        margin-left: 0;
-        padding: 0.65rem;
-    }
-
-    .wa-topbar__history {
-        display: none;
-    }
-
-    /* Breadcrumbs add noise on very small screens; hide them entirely. */
-    .wa-breadcrumbs {
-        display: none !important;
-    }
-
-    .wa-sidebar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        width: min(84vw, 320px);
-        z-index: 10001;
-        border-radius: 0;
-        transform: translateX(-102%);
-        transition: transform 0.18s ease;
-        /* On mobile the sidebar overlays content; make it much harder to read through. */
-        background: rgba(0, 0, 0, 0.78);
-        height: auto;
-        max-height: none;
-    }
-
-    .wa-sidebar__close {
-        display: inline-flex;
-    }
-
-    .wa-sidebar-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 10000;
-        background: rgba(0, 0, 0, 0.55);
-        display: block;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.18s ease;
-    }
-
-    [data-wa-sidebar-open="true"] .wa-sidebar {
-        transform: translateX(0);
-    }
-
-    [data-wa-sidebar-open="true"] .wa-sidebar-overlay {
-        opacity: 1;
-        pointer-events: auto;
-    }
-
-    @supports (
-        (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))
-    ) {
-        .wa-sidebar {
-            backdrop-filter: blur(20px) saturate(1.2) brightness(0.82);
-            -webkit-backdrop-filter: blur(20px) saturate(1.2) brightness(0.82);
-        }
-    }
-
-    .wa-grid--2 {
-        /* Avoid grid column expanding past viewport when children have large min-content width. */
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .wa-grid--3 {
-        /* Avoid grid column expanding past viewport when children have large min-content width. */
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .wa-grid--quick {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .wa-card .wa-h3 {
-        margin: 0;
-    }
-
-    .wa-homequick__caption {
-        display: none;
-    }
-
-    .wa-topbar {
-        padding-bottom: 0;
-    }
-
-    .wa-topbar__play {
-        /* Icon-style play button on mobile */
-        width: 40px;
-        height: 40px;
-        padding: 0;
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .wa-topbar__play-label {
-        display: none;
-    }
-
-    /* On small screens we rely on the top bar back button instead of the per-view header buttons. */
-    .wa-view__navbuttons {
-        display: none;
-    }
-
-    .wa-entityheader {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .wa-entityheader__art {
-        width: 100%;
-        max-width: 520px;
-        margin: 0 auto;
-    }
-
-    .wa-entityheader__text {
-        margin-top: 0.15rem;
-    }
-
-    .wa-entityheader__title,
-    .wa-entityheader__meta {
-        white-space: normal;
-    }
-
-    /* Mobile: detach player bar from screen edge and round it */
     .wa-playerbar {
         left: 0.75rem;
         right: 0.75rem;
@@ -437,9 +478,7 @@
     }
 }
 
-/* ============================================================================== */
-/* fullscreen landing + hide navigation/player chrome
-/* ============================================================================== */
+/* Fullscreen landing + hide navigation/player chrome */
 .wa-app[data-wa-view="landing"] {
     /* Landing hides the fixed topbar; don't reserve space for it on mobile. */
     padding-top: 0;
@@ -497,8 +536,3 @@
         width: 100%;
     }
 }
-
-/* ============================================================================== */
-/* Error dialog
-/* Uses Portfolio's UI kit dialog system (dialogs.css is included in _Layout.cshtml)
-/* ============================================================================== */

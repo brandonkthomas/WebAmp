@@ -1,4 +1,5 @@
-import { logEvent } from '../../../../../Portfolio/wwwroot/ts/common';
+import { logEvent } from '../internal/logging';
+import { indiumSvg } from '../internal/paths';
 import { shuffleCopy } from '../utils';
 
 /**
@@ -137,8 +138,8 @@ export class PlayerStore {
                 playLabel.textContent = isPlaying ? 'Pause' : 'Play';
                 playBtn.setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
                 const src = isPlaying
-                    ? '/apps/webamp/assets/svg/pause-filled.svg'
-                    : '/apps/webamp/assets/svg/play-filled.svg';
+                    ? indiumSvg('pause-filled.svg')
+                    : indiumSvg('play-filled.svg');
                 if (playIcon.getAttribute('src') !== src) {
                     playIcon.setAttribute('src', src);
                 }

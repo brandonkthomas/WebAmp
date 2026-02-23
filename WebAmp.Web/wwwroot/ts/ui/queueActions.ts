@@ -1,5 +1,6 @@
 import type { Track } from '../state/playerStore';
 import { shuffleCopy } from '../utils';
+import { indiumSvg } from '../internal/paths';
 
 const LS_KEY = 'wa_shuffle_enabled';
 let shuffleDirty = false;
@@ -76,8 +77,8 @@ export function bindQueueActions(opts: {
         if (playBtn) playBtn.setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
         if (playIcon) {
             const src = isPlaying
-                ? '/apps/webamp/assets/svg/pause-filled.svg'
-                : '/apps/webamp/assets/svg/play-filled.svg';
+                ? indiumSvg('pause-filled.svg')
+                : indiumSvg('play-filled.svg');
             if (playIcon.getAttribute('src') !== src) {
                 playIcon.setAttribute('src', src);
             }

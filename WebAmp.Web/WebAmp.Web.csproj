@@ -11,31 +11,34 @@
 
     <!-- Version injected by host build/push script (defaults to dev for local builds). -->
     <WebAmpAppVersion Condition="'$(WebAmpAppVersion)' == ''">dev</WebAmpAppVersion>
+
+    <!-- Preferred local canonical Indium repo path; fallback supports submodule layout. -->
+    <IndiumProjectPath Condition="'$(IndiumProjectPath)' == '' and Exists('$(MSBuildProjectDirectory)/../../../../Libraries/Indium/Indium.csproj')">$(MSBuildProjectDirectory)/../../../../Libraries/Indium/Indium.csproj</IndiumProjectPath>
+    <IndiumProjectPath Condition="'$(IndiumProjectPath)' == ''">$(MSBuildProjectDirectory)/../Submodules/Indium/Indium.csproj</IndiumProjectPath>
   </PropertyGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="$(IndiumProjectPath)" Condition="Exists('$(IndiumProjectPath)')" />
   </ItemGroup>
 
-  <!-- Build client JS from TS (do not commit generated JS) -->
-  <Target Name="BuildWebAmpClient" BeforeTargets="Build">
+  <!-- Build WebAmp extension JS from TS (do not commit generated JS). -->
+  <Target Name="BuildWebAmpExtension" BeforeTargets="Build">
     <PropertyGroup>
-      <_WebAmpClientTs>$(MSBuildProjectDirectory)/wwwroot/ts/webamp.ts</_WebAmpClientTs>
+      <_WebAmpEntryTs>$(MSBuildProjectDirectory)/wwwroot/ts/webamp.ts</_WebAmpEntryTs>
       <_WebAmpOutDir>$(MSBuildProjectDirectory)/wwwroot/dist/js</_WebAmpOutDir>
-      <_WebAmpOutFile>$(_WebAmpOutDir)/webamp.js</_WebAmpOutFile>
-      <!-- Candidate esbuild locations for local dev repo layout(s). -->
-      <_EsbuildCliPortfolio>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../Portfolio/node_modules/esbuild/bin/esbuild'))</_EsbuildCliPortfolio>
-      <_EsbuildCliDefault>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../../node_modules/esbuild/bin/esbuild'))</_EsbuildCliDefault>
+      <_WebAmpOutFile>$(_WebAmpOutDir)/webamp-extension.js</_WebAmpOutFile>
+      <_EsbuildCliLocal>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/node_modules/esbuild/bin/esbuild'))</_EsbuildCliLocal>
+      <EsbuildCli Condition="'$(EsbuildCli)' == '' and Exists('$(_EsbuildCliLocal)')">$(_EsbuildCliLocal)</EsbuildCli>
     </PropertyGroup>
+
+    <Error Condition="'$(EsbuildCli)' == ''" Text="Missing esbuild CLI. Pass EsbuildCli from host build or install local node_modules." />
 
     <MakeDir Directories="$(_WebAmpOutDir)" />
 
-    <PropertyGroup>
-      <_PortfolioTsPath Condition="'$(_PortfolioTsPath)' == ''">$(MSBuildProjectDirectory)/../../../Portfolio/wwwroot/ts</_PortfolioTsPath>
-    </PropertyGroup>
     <Exec
-      Condition="Exists('$(_WebAmpClientTs)')"
-      Command="ESBUILD=&quot;$(EsbuildCli)&quot;; if [ -z &quot;$ESBUILD&quot; ]; then if [ -x &quot;$(_EsbuildCliPortfolio)&quot; ]; then ESBUILD=&quot;$(_EsbuildCliPortfolio)&quot;; else ESBUILD=&quot;$(_EsbuildCliDefault)&quot;; fi; fi; &quot;$ESBUILD&quot; &quot;$(_WebAmpClientTs)&quot; --bundle --format=esm --outfile=&quot;$(_WebAmpOutFile)&quot; --log-level=warning --resolve-extensions=.ts,.js --define:__WEBAMP_APP_VERSION__=&quot;\&quot;$(WebAmpAppVersion)\&quot;&quot;" />
+      Condition="Exists('$(_WebAmpEntryTs)')"
+      Command="&quot;$(EsbuildCli)&quot; &quot;$(_WebAmpEntryTs)&quot; --bundle --format=esm --outfile=&quot;$(_WebAmpOutFile)&quot; --log-level=warning --resolve-extensions=.ts,.js --external:/apps/indium/dist/indium.js --define:__WEBAMP_APP_VERSION__=&quot;'$(WebAmpAppVersion)'&quot;" />
   </Target>
 
 </Project>

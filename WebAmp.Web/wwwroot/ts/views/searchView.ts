@@ -1,4 +1,5 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
+import { routePath } from '../internal/paths';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
 import { soundcloudApi } from '../sources/soundcloud/soundcloudApi';
 import type { Track } from '../state/playerStore';
@@ -226,7 +227,7 @@ export const searchView: WebAmpViewController = {
                                 const a = topHit.payload as { id: string; title: string; artist: string; artUrlSmall?: string };
                                 topHitSec.list.appendChild(createAlbumListItem({
                                     album: a,
-                                    onClick: () => ctx.router.navigate(`/webamp/albums/${a.id}`)
+                                    onClick: () => ctx.router.navigate(routePath(`albums/${a.id}`))
                                 }));
                                 break;
                             }
@@ -234,7 +235,7 @@ export const searchView: WebAmpViewController = {
                                 const a = topHit.payload as { id: string; name: string; artUrlSmall?: string };
                                 topHitSec.list.appendChild(createArtistListItem({
                                     artist: a,
-                                    onClick: () => ctx.router.navigate(`/webamp/artists/${a.id}`)
+                                    onClick: () => ctx.router.navigate(routePath(`artists/${a.id}`))
                                 }));
                                 break;
                             }
@@ -242,7 +243,7 @@ export const searchView: WebAmpViewController = {
                                 const p = topHit.payload as { id: string; title: string; owner: string; artUrlSmall?: string };
                                 topHitSec.list.appendChild(createPlaylistListItem({
                                     playlist: p,
-                                    onClick: () => ctx.router.navigate(`/webamp/playlists/${p.id}`)
+                                    onClick: () => ctx.router.navigate(routePath(`playlists/${p.id}`))
                                 }));
                                 break;
                             }
@@ -266,7 +267,7 @@ export const searchView: WebAmpViewController = {
                         const artUrlSmall = images?.[images.length - 1]?.url ?? images?.[0]?.url;
                         albumsSec.list.appendChild(createAlbumListItem({
                             album: { id, title, artist, artUrlSmall },
-                            onClick: () => ctx.router.navigate(`/webamp/albums/${id}`)
+                            onClick: () => ctx.router.navigate(routePath(`albums/${id}`))
                         }));
                     }
 
@@ -278,7 +279,7 @@ export const searchView: WebAmpViewController = {
                         const artUrlSmall = images?.[images.length - 1]?.url ?? images?.[0]?.url;
                         artistsSec.list.appendChild(createArtistListItem({
                             artist: { id, name, artUrlSmall },
-                            onClick: () => ctx.router.navigate(`/webamp/artists/${id}`)
+                            onClick: () => ctx.router.navigate(routePath(`artists/${id}`))
                         }));
                     }
 
@@ -291,7 +292,7 @@ export const searchView: WebAmpViewController = {
                         const artUrlSmall = images?.[images.length - 1]?.url ?? images?.[0]?.url;
                         playlistsSec.list.appendChild(createPlaylistListItem({
                             playlist: { id, title, owner, artUrlSmall },
-                            onClick: () => ctx.router.navigate(`/webamp/playlists/${id}`)
+                            onClick: () => ctx.router.navigate(routePath(`playlists/${id}`))
                         }));
                     }
 
@@ -424,7 +425,7 @@ export const searchView: WebAmpViewController = {
                     for (const p of scPlaylists) {
                         playlistsSec.list.appendChild(createPlaylistListItem({
                             playlist: p,
-                            onClick: () => ctx.router.navigate(`/webamp/playlists/${p.id}`)
+                            onClick: () => ctx.router.navigate(routePath(`playlists/${p.id}`))
                         }));
                     }
 

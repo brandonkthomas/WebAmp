@@ -1,4 +1,4 @@
-import { logEvent } from '../../../../../Portfolio/wwwroot/ts/common';
+import { logEvent } from '../internal/logging';
 
 const DB_NAME = 'webamp-client-cache';
 const DB_VERSION = 1;

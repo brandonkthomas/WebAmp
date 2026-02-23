@@ -1,6 +1,7 @@
 import type { PlayerState } from '../../state/playerStore';
 import { applyCachedArt } from '../../storage/clientCache';
 import type { PlayerStore } from '../../state/playerStore';
+import { indiumSvg } from '../../internal/paths';
 
 /**
  * Formats seconds as `m:ss`
@@ -120,8 +121,8 @@ export class PlayerBar {
 
         if (this.toggleIconEl) {
             const src = state.isPlaying
-                ? '/apps/webamp/assets/svg/pause-filled.svg'
-                : '/apps/webamp/assets/svg/play-filled.svg';
+                ? indiumSvg('pause-filled.svg')
+                : indiumSvg('play-filled.svg');
 
             // only update if the src is different (we dont want to hit the server 4x/sec)
             if (this.toggleIconEl.getAttribute('src') !== src) {

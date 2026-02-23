@@ -17,7 +17,8 @@ import { PlayerBar } from './components/playerBar/playerBar';
 import { NowPlayingMobile } from './components/nowPlayingMobile/nowPlayingMobile';
 import { SpotifySource } from './sources/spotifySource';
 import { SoundCloudSource } from './sources/soundCloudSource';
-import { SidebarController } from './components/sidebar/sidebar';
+import { bootIndium, createSidebarController } from './internal/indiumApi';
+import { assetPath, routePath, webAmpBrandAsset } from './internal/paths';
 import { HybridTransport } from './sources/hybridTransport';
 import { getDominantColor } from './ui/dominantColor';
 import { clearClientCacheAndReload } from './storage/clientCache';
@@ -39,13 +40,18 @@ function boot() {
     const viewHost = document.querySelector<HTMLElement>('[data-wa-view-host]');
     const playerBarRoot = document.querySelector<HTMLElement>('[data-wa-playerbar]');
     const nowPlayingRoot = document.querySelector<HTMLElement>('[data-wa-nowplaying]');
-    const sidebar = document.querySelector<HTMLElement>('[data-wa-sidebar]');
-    const sidebarOverlay = document.querySelector<HTMLElement>('[data-wa-sidebar-overlay]');
-    const sidebarOpenBtn = document.querySelector<HTMLElement>('[data-wa-sidebar-toggle]');
-    const sidebarCloseBtn = document.querySelector<HTMLElement>('[data-wa-sidebar-close]');
     const versionEl = document.querySelector<HTMLElement>('[data-wa-version]');
 
     if (!appRoot || !viewHost) return;
+
+    const routeRoot = routePath('/');
+    const indiumBoot = bootIndium({
+        routeRoot: '/webamp',
+        apiBasePath: '/api/webamp',
+        assetBasePath: '/apps/indium',
+        brandLogoSrc: webAmpBrandAsset('icons/icon-WebAmp-full256.png'),
+        brandLogoAlt: 'WebAmp logo'
+    });
 
     if (versionEl) {
         const v = (typeof __WEBAMP_APP_VERSION__ === 'string' && __WEBAMP_APP_VERSION__.trim().length)
@@ -98,10 +104,9 @@ function boot() {
     const disconnectBtn = document.querySelector<HTMLButtonElement>('[data-wa-action="source-disconnect"]');
     const disconnectIcon = document.querySelector<HTMLImageElement>('[data-wa-disconnect-icon]');
     const disconnectLabel = document.querySelector<HTMLElement>('[data-wa-disconnect-label]');
-    const appRootEl = appRoot;
-    const DISCONNECT_ICON_WEBAMP = '/apps/webamp/assets/icons/icon-WebAmp-full256.png';
-    const DISCONNECT_ICON_SPOTIFY = '/apps/webamp/assets/svg/spotify.svg';
-    const DISCONNECT_ICON_SOUNDCLOUD = '/apps/webamp/assets/svg/soundcloud.svg';
+    const DISCONNECT_ICON_WEBAMP = webAmpBrandAsset('icons/icon-WebAmp-full256.png');
+    const DISCONNECT_ICON_SPOTIFY = assetPath('assets/svg/spotify.svg');
+    const DISCONNECT_ICON_SOUNDCLOUD = assetPath('assets/svg/soundcloud.svg');
 
     const updateSourceChrome = () => {
         const spotifyConnected = spotifySource.getState().isConnected;
@@ -153,7 +158,7 @@ function boot() {
 
     // Start the router immediately (do not block on network/Spotify/SC SDK).
     const router = new WebAmpRouter({
-        root: '/webamp',
+        root: routeRoot,
         dom: { appRoot, viewHost, templates },
         views: {
             landing: landingView,
@@ -241,16 +246,7 @@ function boot() {
             b: Math.round(a.b * k + b.b * (1 - k))
         };
     }
-
-    if (sidebar && sidebarOverlay) {
-        new SidebarController({
-            appRoot,
-            sidebar,
-            overlay: sidebarOverlay,
-            openBtn: sidebarOpenBtn,
-            closeBtn: sidebarCloseBtn
-        });
-    }
+    createSidebarController({ appRoot: indiumBoot.appRoot || appRoot });
 
     // Toggle play/pause from now-playing overlay (without restarting track).
     window.addEventListener('wa:track:toggle', (e: Event) => {
@@ -325,14 +321,14 @@ function boot() {
         const ev = e as CustomEvent<{ albumId?: string }>;
         const albumId = ev.detail?.albumId;
         if (!albumId) return;
-        router.navigate(`/webamp/albums/${albumId}`);
+        router.navigate(routePath(`albums/`));
     });
 
     window.addEventListener('wa:navigate:artist', (e: Event) => {
         const ev = e as CustomEvent<{ artistId?: string }>;
         const artistId = ev.detail?.artistId;
         if (!artistId) return;
-        router.navigate(`/webamp/artists/${artistId}`);
+        router.navigate(routePath(`artists/`));
     });
 
     router.start();
@@ -357,7 +353,7 @@ function boot() {
             }
         });
         playerStore.setTransport(transport);
-``
+
         // Preload the SoundCloud widget early so first track-tap autoplay can stay
         // within Safari's user-activation window (avoids awaiting api.js on first play).
         try {
@@ -408,9 +404,9 @@ function boot() {
         // jump to the desired route.
         if (authed && currentView === 'landing') {
             const desired =
-                initialPath && initialPath.startsWith('/webamp/')
+                initialPath && initialPath.startsWith(`${routeRoot}/`)
                     ? initialPath
-                    : '/webamp/home';
+                    : routePath('home');
             router.navigate(desired);
         }
 

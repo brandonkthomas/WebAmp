@@ -1,6 +1,7 @@
 import { cachedJsonFetch } from '../../storage/clientCache';
 import { showErrorDialog, formatErrorMessage } from '../../ui/errorDialog';
-import { logEvent } from '../../../../../../Portfolio/wwwroot/ts/common';
+import { logEvent } from '../../internal/logging';
+import { apiPath } from '../../internal/paths';
 
 export interface SoundCloudStatus {
     isConfigured: boolean;
@@ -13,6 +14,10 @@ export interface SoundCloudStreamInfo {
     preset?: string | null;
     permalinkUrl?: string | null;
     kind?: string | null;
+}
+
+function soundCloudApiPath(path: string): string {
+    return apiPath(`soundcloud/${path.replace(/^\/+/, '')}`);
 }
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
@@ -64,7 +69,7 @@ async function cachedGet<T>(key: string, url: string): Promise<T> {
 export const soundcloudApi = {
     /** Checks if SoundCloud is configured and the server can obtain a token. */
     async status(): Promise<SoundCloudStatus> {
-        return await jsonFetch<SoundCloudStatus>('/api/webamp/soundcloud/status');
+        return await jsonFetch<SoundCloudStatus>(soundCloudApiPath('status'));
     },
 
     /** Searches public, playable SoundCloud tracks via server proxy. */
@@ -73,7 +78,7 @@ export const soundcloudApi = {
         params.set('q', q);
         params.set('limit', String(limit));
         if (cursor) params.set('cursor', cursor);
-        const url = `/api/webamp/soundcloud/searchtracks?${params.toString()}`;
+        const url = `${soundCloudApiPath('searchtracks')}?${params.toString()}`;
         return await cachedGet<any>(`soundcloud:${url}`, url);
     },
 
@@ -83,7 +88,7 @@ export const soundcloudApi = {
         params.set('q', q);
         params.set('limit', String(limit));
         if (cursor) params.set('cursor', cursor);
-        const url = `/api/webamp/soundcloud/searchplaylists?${params.toString()}`;
+        const url = `${soundCloudApiPath('searchplaylists')}?${params.toString()}`;
         return await cachedGet<any>(`soundcloud:${url}`, url);
     },
 
@@ -93,23 +98,22 @@ export const soundcloudApi = {
         params.set('q', q);
         params.set('limit', String(limit));
         if (cursor) params.set('cursor', cursor);
-        const url = `/api/webamp/soundcloud/searchusers?${params.toString()}`;
+        const url = `${soundCloudApiPath('searchusers')}?${params.toString()}`;
         return await cachedGet<any>(`soundcloud:${url}`, url);
     },
 
     /** Fetches raw SoundCloud track metadata for a given id. */
     async track(id: string): Promise<any> {
-        const url = `/api/webamp/soundcloud/track?id=${encodeURIComponent(id)}`;
+        const url = `${soundCloudApiPath('track')}?id=${encodeURIComponent(id)}`;
         return await cachedGet<any>(`soundcloud:${url}`, url);
     },
 
     /**
      * Resolves a direct stream URL (or descriptor) for a SoundCloud track id.
-     * Frontend should feed the returned `url` into an &lt;audio&gt; element.
+     * Frontend should feed the returned `url` into an <audio> element.
      */
     async stream(id: string): Promise<SoundCloudStreamInfo> {
-        const url = `/api/webamp/soundcloud/stream?id=${encodeURIComponent(id)}`;
+        const url = `${soundCloudApiPath('stream')}?id=${encodeURIComponent(id)}`;
         return await jsonFetch<SoundCloudStreamInfo>(url);
     }
 };
-

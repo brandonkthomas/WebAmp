@@ -1,6 +1,7 @@
 import type { MusicSource, MusicSourceListener, MusicSourceState } from './musicSource';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
-import { logEvent } from '../../../../../Portfolio/wwwroot/ts/common';
+import { routePath } from '../internal/paths';
+import { logEvent } from '../internal/logging';
 
 /**
  * Real Spotify-backed MusicSource using server-side auth endpoints
@@ -55,7 +56,7 @@ export class SpotifySource implements MusicSource {
         this.state = { isConnected: false };
         this.emit();
         // After logout, take the user back to landing.
-        window.location.assign('/webamp');
+        window.location.assign(routePath('/'));
     }
 
     private emit() {

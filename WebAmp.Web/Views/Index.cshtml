@@ -8,26 +8,26 @@
             <div class="wa-topbar__left">
                 <button type="button" class="wa-iconbtn wa-topbar__burger" data-wa-sidebar-toggle aria-label="Open menu">
                     <span aria-hidden="true">
-                        <img src="~/apps/webamp/assets/svg/burger-menu.svg" asp-append-version="true" alt="" />
+                        <img src="~/apps/indium/assets/svg/burger-menu.svg" asp-append-version="true" alt="" />
                     </span>
                 </button>
 
                 <div class="wa-topbar__history" aria-label="History navigation">
                     <button type="button" class="wa-btn wa-btn--icon" data-wa-nav-back aria-label="Back">
                         <span aria-hidden="true">
-                            <img src="~/apps/webamp/assets/svg/arrow-left.svg" asp-append-version="true" alt="" />
+                            <img src="~/apps/indium/assets/svg/arrow-left.svg" asp-append-version="true" alt="" />
                         </span>
                     </button>
                     <button type="button" class="wa-btn wa-btn--icon" data-wa-nav-forward aria-label="Forward">
                         <span aria-hidden="true">
-                            <img src="~/apps/webamp/assets/svg/arrow-right.svg" asp-append-version="true" alt="" />
+                            <img src="~/apps/indium/assets/svg/arrow-right.svg" asp-append-version="true" alt="" />
                         </span>
                     </button>
                 </div>
 
                 <button type="button" class="wa-iconbtn wa-topbar__back" data-wa-nav-back aria-label="Back">
                     <span aria-hidden="true">
-                        <img src="~/apps/webamp/assets/svg/arrow-left.svg" asp-append-version="true" alt="" />
+                        <img src="~/apps/indium/assets/svg/arrow-left.svg" asp-append-version="true" alt="" />
                     </span>
                 </button>
 
@@ -44,13 +44,13 @@
                     <input type="checkbox" class="comp-toggle-input" data-wa-action="shuffle-toggle" />
                     <span class="comp-toggle-track comp-toggle-large" aria-hidden="true">
                         <span class="comp-toggle-thumb">
-                            <img src="~/apps/webamp/assets/svg/shuffle-filled.svg" asp-append-version="true" alt="" aria-hidden="true" />
+                            <img src="~/apps/indium/assets/svg/shuffle-filled.svg" asp-append-version="true" alt="" aria-hidden="true" />
                         </span>
                     </span>
                 </label>
                 <button type="button" class="wa-btn wa-btn--icon wa-topbar__play" data-wa-action="queue-play" aria-label="Play">
                     <span class="wa-topbar__play-icon" aria-hidden="true">
-                        <img src="~/apps/webamp/assets/svg/play-filled.svg" asp-append-version="true" alt="" />
+                        <img src="~/apps/indium/assets/svg/play-filled.svg" asp-append-version="true" alt="" />
                     </span>
                     <span class="wa-topbar__play-label">Play</span>
                 </button>
@@ -107,14 +107,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300..800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="~/css/components/glassSurface.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/components/dialogs.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/components/gradNoiseCanvas.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/components/toggleSwitch.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/apps/webamp/css/webamp.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/apps/indium/dist/indium.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/apps/webamp/css/webamp.extension.css" asp-append-version="true" />
 }
 
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="~/apps/webamp/dist/js/webamp.js" type="module" asp-append-version="true"></script>
+    <script src="~/apps/webamp/dist/js/webamp-extension.js" type="module" asp-append-version="true"></script>
 }
