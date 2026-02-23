@@ -62,6 +62,20 @@ function closestAttrEl(start: Element | null, attr: string): HTMLElement | null 
     return el instanceof HTMLElement ? el : null;
 }
 
+/** Path for landing (root) and home – the only pair the guard redirects between. */
+const LANDING_PATH = WEBAMP_ROOT;
+const HOME_PATH = `${WEBAMP_ROOT}/home`;
+
+function isGuardPairPath(path: string): boolean {
+    const p = path.replace(/\/$/, '') || WEBAMP_ROOT;
+    return p === LANDING_PATH || p === HOME_PATH;
+}
+
+/** True when both paths are in the landing/home pair (guard redirect pair). */
+function isGuardRedirectPair(pathA: string, pathB: string): boolean {
+    return isGuardPairPath(pathA) && isGuardPairPath(pathB);
+}
+
 interface WebAmpBreadcrumb {
     label: string;
     path?: string;
@@ -115,6 +129,7 @@ export class WebAmpRouter {
 
             const fwdBtn = closestAttrEl(target, 'data-wa-nav-forward');
             if (fwdBtn) {
+                e.preventDefault();
                 e.stopPropagation(); // disallow bubbling up to parent elements
                 this.goForward();
                 return;
