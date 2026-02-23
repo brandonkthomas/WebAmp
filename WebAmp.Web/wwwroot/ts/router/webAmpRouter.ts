@@ -108,13 +108,14 @@ export class WebAmpRouter {
             const backBtn = closestAttrEl(target, 'data-wa-nav-back');
             if (backBtn) {
                 e.preventDefault();
+                e.stopPropagation(); // disallow bubbling up to parent elements
                 this.goBack();
                 return;
             }
 
             const fwdBtn = closestAttrEl(target, 'data-wa-nav-forward');
             if (fwdBtn) {
-                e.preventDefault();
+                e.stopPropagation(); // disallow bubbling up to parent elements
                 this.goForward();
                 return;
             }
@@ -139,27 +140,41 @@ export class WebAmpRouter {
             }
         });
 
-        // Back/forward (keep internal stack in sync so we can toggle header buttons)
+        // Back/forward: only react to our own history entries. If the user (or iframe) triggered
+        // browser back to an external URL (e.g. w.soundcloud.com), re-push to stay in the app
         window.addEventListener('popstate', (e) => {
             const state = (e.state ?? {}) as any;
+            const pathname = window.location.pathname;
+            const isOurState = state?.wa === true && typeof state.waIndex === 'number';
+            const isOurPath = pathname === this.root || pathname.startsWith(this.root + '/');
 
-            if (state?.wa === true && typeof state.waIndex === 'number') {
+            if (isOurState && isOurPath) {
                 this.historyIndex = state.waIndex;
-                const path = state.path ?? window.location.pathname;
+                const path = state.path ?? pathname;
                 if (!this.historyStack.length) {
                     this.historyStack = [path];
                 } else {
                     this.historyStack[this.historyIndex] = path;
                 }
-            } else {
-                const path = window.location.pathname;
-                const idx = this.historyStack.lastIndexOf(path);
-                if (idx >= 0) {
-                    this.historyIndex = idx;
-                }
+                this.syncToLocation(/* pushHistory */ false);
+                return;
             }
 
-            this.syncToLocation(/* pushHistory */ false);
+            // External or unknown state (e.g. iframe navigated, OAuth redirect in history)
+            // Cancel the back by replacing current entry with our in-app state so we stay on the same view
+            if (this.historyStack.length && this.historyIndex >= 0) {
+                const currentPath = this.historyStack[this.historyIndex];
+                const match = this.resolveGuard(matchWebAmpRoute(currentPath));
+                const search = window.location.search || '';
+                const url = `${match.canonicalPath}${search}`;
+                history.replaceState(
+                    { wa: true, path: match.canonicalPath, waIndex: this.historyIndex },
+                    '',
+                    url
+                );
+                this.render(match);
+                this.updateHistoryButtons();
+            }
         });
     }
 
@@ -194,21 +209,34 @@ export class WebAmpRouter {
     }
 
     /**
-     * Navigates within the WebAmp app and renders the matched view
+     * Navigates within the WebAmp app and renders the matched view.
+     * Avoids pushing a new history entry when the only transition is the guard
+     * redirect (landing ↔ home), e.g. after reload when auth state settles.
      */
     navigate(path: string) {
         const match = this.resolveGuard(matchWebAmpRoute(path));
-        // Update in-memory history for back/forward button disabling.
+        const search = window.location.search || '';
+        const url = `${match.canonicalPath}${search}`;
+
         if (!this.historyStack.length) {
             this.historyStack = [match.canonicalPath];
             this.historyIndex = 0;
-            history.replaceState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', match.canonicalPath);
+            history.replaceState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', url);
+        } else if (
+            this.historyStack.length === 1 &&
+            this.historyIndex === 0 &&
+            isGuardRedirectPair(this.historyStack[0], match.canonicalPath)
+        ) {
+            // Single entry and we're "navigating" within the guard pair (landing ↔ home).
+            // Replace so we don't add a useless entry after reload + auth redirect.
+            this.historyStack[0] = match.canonicalPath;
+            history.replaceState({ wa: true, path: match.canonicalPath, waIndex: 0 }, '', url);
         } else {
             // Navigating forward from the middle of the stack should drop any "future" entries.
             this.historyStack = this.historyStack.slice(0, this.historyIndex + 1);
             this.historyStack.push(match.canonicalPath);
             this.historyIndex = this.historyStack.length - 1;
-            history.pushState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', match.canonicalPath);
+            history.pushState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', url);
         }
         this.render(match);
         this.updateHistoryButtons();
