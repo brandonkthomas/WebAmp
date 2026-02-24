@@ -27,14 +27,19 @@
     <PropertyGroup>
       <_WebAmpEntryTs>$(MSBuildProjectDirectory)/wwwroot/ts/webamp.ts</_WebAmpEntryTs>
       <_WebAmpOutDir>$(MSBuildProjectDirectory)/wwwroot/dist/js</_WebAmpOutDir>
-      <_WebAmpOutFile>$(_WebAmpOutDir)/webamp-extension.js</_WebAmpOutFile>
+      <_WebAmpOutFile>$(_WebAmpOutDir)/webamp.js</_WebAmpOutFile>
       <_EsbuildCliLocal>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/node_modules/esbuild/bin/esbuild'))</_EsbuildCliLocal>
       <EsbuildCli Condition="'$(EsbuildCli)' == '' and Exists('$(_EsbuildCliLocal)')">$(_EsbuildCliLocal)</EsbuildCli>
     </PropertyGroup>
 
+    <ItemGroup>
+      <_WebAmpLegacyOutputs Include="$(_WebAmpOutDir)/webamp-*.js" />
+    </ItemGroup>
+
     <Error Condition="'$(EsbuildCli)' == ''" Text="Missing esbuild CLI. Pass EsbuildCli from host build or install local node_modules." />
 
     <MakeDir Directories="$(_WebAmpOutDir)" />
+    <Delete Files="@(_WebAmpLegacyOutputs)" Condition="'@(_WebAmpLegacyOutputs)' != ''" />
 
     <Exec
       Condition="Exists('$(_WebAmpEntryTs)')"

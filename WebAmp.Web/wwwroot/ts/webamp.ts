@@ -321,14 +321,14 @@ function boot() {
         const ev = e as CustomEvent<{ albumId?: string }>;
         const albumId = ev.detail?.albumId;
         if (!albumId) return;
-        router.navigate(routePath(`albums/`));
+        router.navigate(routePath(`albums/${albumId}`));
     });
 
     window.addEventListener('wa:navigate:artist', (e: Event) => {
         const ev = e as CustomEvent<{ artistId?: string }>;
         const artistId = ev.detail?.artistId;
         if (!artistId) return;
-        router.navigate(routePath(`artists/`));
+        router.navigate(routePath(`artists/${artistId}`));
     });
 
     router.start();
