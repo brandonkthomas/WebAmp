@@ -2,4 +2,5 @@
 
 WebAmp.Web/bin
 WebAmp.Web/obj
+WebAmp.Web/node_modules
 WebAmp.Web/wwwroot/dist/js/webamp.js
