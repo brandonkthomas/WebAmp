@@ -22,6 +22,17 @@
     <ProjectReference Include="$(IndiumProjectPath)" Condition="Exists('$(IndiumProjectPath)')" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="package.json;package-lock.json;tsconfig.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
+    <Content Update="package.json;package-lock.json;tsconfig.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
   <!-- Build WebAmp extension JS from TS (do not commit generated JS). -->
   <Target Name="BuildWebAmpExtension" BeforeTargets="Build">
     <PropertyGroup>
