@@ -1,4 +1,11 @@
 /* Bottom player bar (sticky, responsive controls) */
+:root {
+    --wa-playerbar-height: 48px;
+    --wa-playerbar-offset: calc(
+        var(--wa-playerbar-height) + env(safe-area-inset-bottom, 0px)
+    );
+}
+
 .wa-playerbar {
     position: fixed;
     left: 0;
