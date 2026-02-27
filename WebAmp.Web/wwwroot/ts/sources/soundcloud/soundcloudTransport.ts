@@ -97,8 +97,35 @@ export class SoundCloudTransport implements PlayerTransport {
     private lastKnownPlaying: boolean = false;
     private desiredPlaying: boolean = false;
     private primed: boolean = false;
+    private readonly autoplayLogPrefix: string = '[WA_SC_AUTOPLAY]';
+    private readonly forceSyncWidgetPath: boolean = true;
+    private readonly isLikelySafari = (() => {
+        try {
+            const nav = navigator as Navigator & { vendor?: string };
+            const ua = nav.userAgent ?? '';
+            const vendor = nav.vendor ?? '';
+            const isSafariToken = /Safari/i.test(ua);
+            const isOtherBrowserToken = /Chrome|CriOS|Edg|FxiOS|OPR|OPiOS|SamsungBrowser|DuckDuckGo|UCBrowser|YaBrowser|Vivaldi/i
+                .test(ua);
+            return /Apple/i.test(vendor) && isSafariToken && !isOtherBrowserToken;
+        } catch {
+            return false;
+        }
+        })();
 
     constructor(private readonly onRemoteState?: PlaybackStateListener) {}
+
+    private logAutoplay(message: string, data?: Record<string, unknown>): void {
+        try {
+            if (data) {
+                console.debug(`${this.autoplayLogPrefix} ${message}`, data);
+                return;
+            }
+            console.debug(`${this.autoplayLogPrefix} ${message}`);
+        } catch {
+            // ignore
+        }
+    }
 
     /**
      * Best-effort "warm up" to avoid Safari losing user activation on first play:
@@ -255,6 +282,11 @@ export class SoundCloudTransport implements PlayerTransport {
             if (!this.currentTrack) return;
             this.sessionStarted = true;
             this.lastKnownPlaying = true;
+            this.logAutoplay('event:PLAY', {
+                sessionId: this.sessionId,
+                trackId: this.currentTrack.id,
+                positionSec: this.lastPositionSec
+            });
             this.emitRemote({
                 track: this.currentTrack,
                 isPlaying: true,
@@ -265,6 +297,11 @@ export class SoundCloudTransport implements PlayerTransport {
         widget.bind(Events.PAUSE, () => {
             if (!this.currentTrack) return;
             this.lastKnownPlaying = false;
+            this.logAutoplay('event:PAUSE', {
+                sessionId: this.sessionId,
+                trackId: this.currentTrack.id,
+                positionSec: this.lastPositionSec
+            });
             this.emitRemote({
                 track: this.currentTrack,
                 isPlaying: false,
@@ -316,6 +353,45 @@ export class SoundCloudTransport implements PlayerTransport {
 
         await loadSoundCloudWidgetApi();
         return this.createWidgetFromExistingIframe();
+    }
+
+    /**
+     * Attempts to create/reuse the widget without crossing an async boundary.
+     * This is important for iOS Safari user-activation-sensitive play calls.
+     */
+    private tryEnsureWidgetSync(): any | null {
+        if (this.widget) return this.widget;
+        try {
+            const w = window as any;
+            if (w.SC && w.SC.Widget) {
+                return this.createWidgetFromExistingIframe();
+            }
+        } catch {
+            // ignore
+        }
+        return null;
+    }
+
+    private getWidgetForPlaybackAction(action: 'play' | 'togglePlay' | 'seek'): any {
+        const widget = this.widget ?? this.tryEnsureWidgetSync();
+        if (widget) {
+            return widget;
+        }
+
+        if (this.forceSyncWidgetPath) {
+            // Kick the loader so the next user action can succeed without async await in this call stack.
+            try {
+                void loadSoundCloudWidgetApi();
+            } catch {
+                // ignore
+            }
+            this.logAutoplay(`${action}:widget-not-ready-sync-only`, {
+                safari: this.isLikelySafari
+            });
+            throw new Error('SoundCloud player is still initializing. Please tap play again.');
+        }
+
+        return null;
     }
 
     private async callWidgetGetter<T>(
@@ -387,9 +463,90 @@ export class SoundCloudTransport implements PlayerTransport {
         });
     }
 
-    private async getIsPaused(widget: any): Promise<boolean> {
+    private async getIsPaused(widget: any, timeoutMs: number = 800): Promise<boolean> {
         // If the widget can't report pause state or is unresponsive, assume paused to avoid lying to UI.
-        return await this.callWidgetGetter<boolean>((cb) => widget.isPaused(cb), 800, true);
+        return await this.callWidgetGetter<boolean>((cb) => widget.isPaused(cb), timeoutMs, true);
+    }
+
+    /**
+     * Safari-only recovery path: when autoplay is desired, issue a few delayed play
+     * "kicks" and verify paused state. This addresses intermittent iOS widget stalls
+     * during track switches and auto-advance.
+     */
+    private async ensurePlayingWithRetries(widget: any, sessionAtStart: number): Promise<void> {
+        if (!this.isLikelySafari) return;
+
+        const maxAttempts = 3;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            if (this.sessionId !== sessionAtStart || !this.desiredPlaying) return;
+            this.logAutoplay('retry:play-attempt', { attempt: attempt + 1, trackId: this.currentTrack?.id ?? null });
+            try {
+                widget.play();
+            } catch {
+                // ignore
+            }
+
+            await new Promise<void>((r) => setTimeout(r, 120 + (attempt * 90)));
+            if (this.sessionId !== sessionAtStart || !this.desiredPlaying) return;
+
+            try {
+                const paused = await this.getIsPaused(widget, 450);
+                this.logAutoplay('retry:play-state', {
+                    attempt: attempt + 1,
+                    paused
+                });
+                if (!paused) return;
+            } catch {
+                // ignore and retry
+            }
+        }
+        this.logAutoplay('retry:exhausted', { trackId: this.currentTrack?.id ?? null });
+    }
+
+    /**
+     * iOS Safari can report !paused even while media is effectively stalled.
+     * Confirm playback by observing forward position movement.
+     */
+    private async waitForProgressAdvance(
+        widget: any,
+        sessionAtStart: number,
+        baselinePosSec: number,
+        opts?: {
+            timeoutMs?: number;
+            minDeltaSec?: number;
+            pollMs?: number;
+        }
+    ): Promise<{ advanced: boolean; lastPosSec: number }> {
+        const timeoutMs = opts?.timeoutMs ?? 1200;
+        const minDeltaSec = opts?.minDeltaSec ?? 0.2;
+        const pollMs = opts?.pollMs ?? 130;
+        const deadline = Date.now() + timeoutMs;
+        let lastPosSec = Math.max(0, baselinePosSec);
+
+        while (Date.now() < deadline) {
+            if (this.sessionId !== sessionAtStart) {
+                return { advanced: false, lastPosSec };
+            }
+            await new Promise<void>((r) => setTimeout(r, pollMs));
+            if (this.sessionId !== sessionAtStart) {
+                return { advanced: false, lastPosSec };
+            }
+            try {
+                const posMs = await this.getPositionMs(widget, 450);
+                const posSec = Math.max(0, posMs / 1000);
+                if (Number.isFinite(posSec)) {
+                    lastPosSec = posSec;
+                    this.lastPositionSec = posSec;
+                    if ((posSec - baselinePosSec) >= minDeltaSec) {
+                        return { advanced: true, lastPosSec };
+                    }
+                }
+            } catch {
+                // ignore and keep polling
+            }
+        }
+
+        return { advanced: false, lastPosSec };
     }
 
     private async emitActualPlaybackState(widget: any): Promise<void> {
@@ -436,6 +593,14 @@ export class SoundCloudTransport implements PlayerTransport {
                 return false;
             }
         })();
+        this.logAutoplay('play:start', {
+            trackId: track.id,
+            autoplay,
+            userGestureActive,
+            safari: this.isLikelySafari,
+            forceSyncWidgetPath: this.forceSyncWidgetPath,
+            nextSessionId: this.sessionId + 1
+        });
 
         // New playback session: reset progress tracking so we don't leak previous track position.
         this.sessionId++;
@@ -453,9 +618,12 @@ export class SoundCloudTransport implements PlayerTransport {
             // iOS Safari is extremely sensitive to user-gesture boundaries for cross-origin media.
             // If the widget already exists, DO NOT `await` before calling widget.load(), otherwise
             // we may lose the activation and Safari will "load then pause".
-            let widget = this.widget;
+            let widget = this.getWidgetForPlaybackAction('play');
             if (!widget) {
                 widget = await this.ensureWidget();
+                this.logAutoplay('play:widget-ready-async-fallback');
+            } else {
+                this.logAutoplay('play:widget-ready-sync');
             }
             const sessionAtStart = this.sessionId;
 
@@ -527,6 +695,7 @@ export class SoundCloudTransport implements PlayerTransport {
                     if (autoplay && this.desiredPlaying && userGestureActive) {
                         try {
                             widget.play();
+                            this.logAutoplay('play:immediate-gesture-play');
                         } catch {
                             // ignore
                         }
@@ -546,6 +715,7 @@ export class SoundCloudTransport implements PlayerTransport {
                 readyAfterLoad.then(() => true),
                 new Promise<boolean>((r) => setTimeout(() => r(false), 1500))
             ]);
+            this.logAutoplay('play:ready-race', { readyWon, trackId: track.id });
             if (this.sessionId !== sessionAtStart) return;
 
             if (!readyWon) {
@@ -574,6 +744,7 @@ export class SoundCloudTransport implements PlayerTransport {
             // Otherwise seekTo() can apply to the previous track and the new track will start
             // at the old timestamp (and only reset to 0 if the new track is shorter).
             const soundOk = await this.waitForCurrentSoundId(widget, track.id, 1800);
+            this.logAutoplay('play:sound-id-check', { soundOk, trackId: track.id });
             if (this.sessionId !== sessionAtStart) return;
 
             // Now safe to seek. Always seek (even to 0) to prevent "carry over" positions.
@@ -600,11 +771,45 @@ export class SoundCloudTransport implements PlayerTransport {
             if (autoplay && this.desiredPlaying) {
                 try {
                     const paused = await this.getIsPaused(widget);
+                    this.logAutoplay('play:post-load-paused-check', { paused, trackId: track.id });
                     if (paused) {
                         try { widget.play(); } catch { /* ignore */ }
                     }
                 } catch {
                     // ignore
+                }
+                await this.ensurePlayingWithRetries(widget, sessionAtStart);
+
+                // Final gate: only treat autoplay as successful if progress is advancing.
+                const baseline = this.lastPositionSec;
+                const progressCheck1 = await this.waitForProgressAdvance(widget, sessionAtStart, baseline, {
+                    timeoutMs: 1300,
+                    minDeltaSec: 0.18
+                });
+                this.logAutoplay('play:progress-check-1', {
+                    trackId: track.id,
+                    baselinePosSec: baseline,
+                    advanced: progressCheck1.advanced,
+                    lastPosSec: progressCheck1.lastPosSec,
+                    sessionId: sessionAtStart
+                });
+
+                if (!progressCheck1.advanced && this.sessionId === sessionAtStart && this.desiredPlaying) {
+                    try { widget.play(); } catch { /* ignore */ }
+                    await this.ensurePlayingWithRetries(widget, sessionAtStart);
+
+                    const baseline2 = this.lastPositionSec;
+                    const progressCheck2 = await this.waitForProgressAdvance(widget, sessionAtStart, baseline2, {
+                        timeoutMs: 1500,
+                        minDeltaSec: 0.18
+                    });
+                    this.logAutoplay('play:progress-check-2', {
+                        trackId: track.id,
+                        baselinePosSec: baseline2,
+                        advanced: progressCheck2.advanced,
+                        lastPosSec: progressCheck2.lastPosSec,
+                        sessionId: sessionAtStart
+                    });
                 }
             }
 
@@ -645,6 +850,13 @@ export class SoundCloudTransport implements PlayerTransport {
     async togglePlay(previouslyPlaying: boolean): Promise<void> {
         if (!this.currentTrack) return;
         const startingPlayback = !previouslyPlaying;
+        this.logAutoplay('toggle:start', {
+            trackId: this.currentTrack.id,
+            previouslyPlaying,
+            startingPlayback,
+            safari: this.isLikelySafari,
+            forceSyncWidgetPath: this.forceSyncWidgetPath
+        });
         if (startingPlayback) {
             try {
                 window.dispatchEvent(new CustomEvent('wa:transport:busy', { detail: { busy: true } }));
@@ -655,7 +867,7 @@ export class SoundCloudTransport implements PlayerTransport {
         try {
             // Same iOS/Safari user-gesture rule: if the widget already exists, do not `await`
             // before issuing play/pause.
-            const widget = this.widget ?? (await this.ensureWidget());
+            const widget = this.getWidgetForPlaybackAction('togglePlay');
             // Explicit play/pause is more deterministic than widget.toggle().
             this.desiredPlaying = !previouslyPlaying;
             if (previouslyPlaying) widget.pause();
@@ -686,7 +898,7 @@ export class SoundCloudTransport implements PlayerTransport {
 
         try {
             // If we already have the widget, avoid an async boundary before seek.
-            const widget = this.widget ?? (await this.ensureWidget());
+            const widget = this.getWidgetForPlaybackAction('seek');
             const nextPos = Math.max(0, positionSec || 0);
             const ms = nextPos * 1000;
 
