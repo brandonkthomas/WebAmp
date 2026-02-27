@@ -339,13 +339,9 @@
     }
 
     .wa-nowplaying__art {
-        /*
-         * Always keep album art perfectly square, and if the full-width square
-         * would be too tall for the viewport, shrink based on max-height which
-         * naturally introduces left/right padding.
-         */
-        width: min(100%, 720px);
-        max-height: min(52dvh, 720px);
+        /* Always keep album art perfectly square */
+        width: min(78vw, 46vh);
+        max-height: min(78vw, 46vh);
         aspect-ratio: 1 / 1;
         margin: 0 auto;
         border-radius: 18px;
