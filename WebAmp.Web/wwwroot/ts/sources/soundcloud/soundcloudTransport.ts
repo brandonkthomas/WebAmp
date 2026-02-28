@@ -79,7 +79,15 @@ export class SoundCloudTransport implements PlayerTransport {
         if (this.primed) return;
         this.primed = true;
         try {
-            void loadSoundCloudWidgetApi();
+            // Pre-create the hidden iframe early so first user play does not pay DOM setup cost.
+            this.getIframe();
+            void loadSoundCloudWidgetApi().then(() => {
+                try {
+                    this.createWidgetFromExistingIframe();
+                } catch {
+                    // ignore
+                }
+            });
         } catch {
             // ignore
         }
@@ -289,6 +297,13 @@ export class SoundCloudTransport implements PlayerTransport {
         const autoplay = (typeof opts?.autoplay === 'boolean')
             ? opts.autoplay
             : this.lastKnownPlaying;
+        const userGestureActive = (() => {
+            try {
+                return !!(navigator as any)?.userActivation?.isActive;
+            } catch {
+                return false;
+            }
+        })();
 
         this.desiredPlaying = autoplay;
         this.currentTrack = track;
@@ -324,24 +339,33 @@ export class SoundCloudTransport implements PlayerTransport {
                         single_active: false,
                         visual: false,
                         callback: () => {
-                            // Keep starting position deterministic on each track load.
-                            try { widget.seekTo(desiredPosMs); } catch { /* ignore */ }
+                            // Avoid seekTo(0) after autoplay has already started; that causes
+                            // audible "start then snap back to 0" behavior.
+                            if (desiredPosMs > 0) {
+                                try { widget.seekTo(desiredPosMs); } catch { /* ignore */ }
+                            }
                             resolve();
                         }
                     });
+
+                    // Keep this inside the user-activation task when available.
+                    if (autoplay && userGestureActive) {
+                        try { widget.play(); } catch { /* ignore */ }
+                    }
                 } catch (err) {
                     reject(err);
                 }
             });
 
             if (autoplay && this.desiredPlaying) {
-                try { widget.play(); } catch { /* ignore */ }
-
-                // Single soft retry if widget reports paused right after load.
-                const paused = await this.getIsPaused(widget, 700);
-                if (paused && this.desiredPlaying) {
-                    await new Promise<void>((r) => setTimeout(r, 120));
+                // For non-user-gesture transitions (auto-next), do one best-effort play.
+                if (!userGestureActive) {
                     try { widget.play(); } catch { /* ignore */ }
+                    const paused = await this.getIsPaused(widget, 700);
+                    if (paused && this.desiredPlaying) {
+                        await new Promise<void>((r) => setTimeout(r, 120));
+                        try { widget.play(); } catch { /* ignore */ }
+                    }
                 }
             }
 

@@ -137,7 +137,6 @@ export function bindQueueActions(opts: {
         window.dispatchEvent(new CustomEvent('wa:queue:set', { detail: { tracks: queue, wrap: false } }));
         window.dispatchEvent(new CustomEvent('wa:track:select', { detail: { trackId: queue[0]?.id, from: 'queue-play', tracks: queue } }));
         syncVisible();
-        syncPlayButton(true);
     };
 
     shuffleInput.addEventListener('change', onShuffle);
