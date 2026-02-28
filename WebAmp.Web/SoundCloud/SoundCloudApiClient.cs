@@ -24,6 +24,42 @@ public sealed class SoundCloudApiClient
 
     // ============================================================================================
     /// <summary>
+    /// Issues an authenticated GET and returns lightweight metadata about the response.
+    /// This avoids reading large non-JSON payload bodies (e.g. redirected audio streams).
+    /// </summary>
+    public async Task<(HttpStatusCode status, JsonDocument? json, Uri? finalUri, string? mediaType)> GetMetaAsync(
+        string pathOrUrl,
+        CancellationToken cancellationToken = default)
+    {
+        var token = await _auth.GetAccessTokenAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(token)) return (HttpStatusCode.Unauthorized, null, null, null);
+
+        var client = _httpClientFactory.CreateClient();
+        var uri = BuildUri(pathOrUrl);
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, uri);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        req.Headers.Accept.ParseAdd("application/json; charset=utf-8");
+
+        using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        var mediaType = resp.Content.Headers.ContentType?.MediaType;
+        JsonDocument? json = null;
+
+        if (!string.IsNullOrWhiteSpace(mediaType) &&
+            mediaType.Contains("json", StringComparison.OrdinalIgnoreCase))
+        {
+            var body = await resp.Content.ReadAsStringAsync(cancellationToken);
+            if (!string.IsNullOrWhiteSpace(body))
+            {
+                json = TryParseJson(body);
+            }
+        }
+
+        return (resp.StatusCode, json, resp.RequestMessage?.RequestUri, mediaType);
+    }
+
+    // ============================================================================================
+    /// <summary>
     /// Issues an authenticated GET request to SoundCloud.
     /// </summary>
     /// <param name="pathOrUrl">

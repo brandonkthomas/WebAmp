@@ -155,8 +155,8 @@ export class WebAmpRouter {
             }
         });
 
-        // Back/forward: only react to our own history entries. If the user (or iframe) triggered
-        // browser back to an external URL (e.g. w.soundcloud.com), re-push to stay in the app
+        // Back/forward: only react to our own history entries. If browser history
+        // points outside the app, re-push to stay in-app.
         window.addEventListener('popstate', (e) => {
             const state = (e.state ?? {}) as any;
             const pathname = window.location.pathname;

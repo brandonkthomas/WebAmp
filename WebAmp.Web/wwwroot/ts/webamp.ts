@@ -354,17 +354,15 @@ function boot() {
         });
         playerStore.setTransport(transport);
 
-        // Preload the SoundCloud widget early so first track-tap autoplay can stay
-        // within Safari's user-activation window (avoids awaiting api.js on first play).
+        // Prewarm SoundCloud transport (audio element + stream resolver cache path)
+        // so first play does less work on the interaction-critical path.
         try {
             transport.primeSoundCloud();
         } catch {
             // ignore
         }
 
-        // Safari (especially iOS) is sensitive to the first-play user activation boundary.
-        // Prime the SoundCloud widget on the earliest user interaction so that when a track
-        // is selected, widget.load() can be called without waiting for api.js.
+        // Prime again on earliest user interaction to maximize first-play reliability.
         const primeOnce = () => {
             try {
                 transport.primeSoundCloud();
