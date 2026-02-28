@@ -227,17 +227,9 @@ function boot() {
             if (t === null || Number.isNaN(t)) return;
             playerStore.seek(t);
         });
-        setMediaActionHandler('seekbackward', (details) => {
-            const st = playerStore.getState();
-            const step = typeof details?.seekOffset === 'number' ? details.seekOffset : 10;
-            playerStore.seek(Math.max(0, st.positionSec - step));
-        });
-        setMediaActionHandler('seekforward', (details) => {
-            const st = playerStore.getState();
-            const step = typeof details?.seekOffset === 'number' ? details.seekOffset : 10;
-            const duration = st.track?.durationSec ?? 0;
-            playerStore.seek(duration > 0 ? Math.min(duration, st.positionSec + step) : st.positionSec + step);
-        });
+        // Prefer track navigation controls over podcast-style +/-10s controls in media session
+        // setMediaActionHandler('seekbackward', null);
+        // setMediaActionHandler('seekforward', null);
     }
 
     playerStore.subscribe((state) => {

@@ -61,6 +61,12 @@ export class SoundCloudTransport implements PlayerTransport {
             if (this.switchingTrack) return;
             if (!this.currentTrack) return;
             this.lastKnownPlaying = true;
+        });
+
+        audio.addEventListener('playing', () => {
+            if (this.switchingTrack) return;
+            if (!this.currentTrack) return;
+            this.lastKnownPlaying = true;
             this.emitRemote({
                 track: this.currentTrack,
                 isPlaying: true,
@@ -185,7 +191,10 @@ export class SoundCloudTransport implements PlayerTransport {
         });
     }
 
-    private async resolveStreamUrl(trackId: string): Promise<string> {
+    private async resolveStreamUrl(trackId: string, opts?: { forceRefresh?: boolean }): Promise<string> {
+        if (opts?.forceRefresh) {
+            this.streamUrlCache.delete(trackId);
+        }
         const cached = this.streamUrlCache.get(trackId);
         if (cached) return cached;
 
@@ -206,6 +215,46 @@ export class SoundCloudTransport implements PlayerTransport {
             // One short retry handles transient iOS stalls after src swaps.
             await new Promise<void>((r) => setTimeout(r, 120));
             await audio.play();
+        }
+    }
+
+    private async waitForPlaybackProgress(
+        audio: HTMLAudioElement,
+        baselinePosSec: number,
+        timeoutMs: number = 1400
+    ): Promise<boolean> {
+        const start = performance.now();
+        while (performance.now() - start < timeoutMs) {
+            if (audio.paused) return false;
+            const nextPos = Math.max(0, audio.currentTime || 0);
+            if (nextPos > baselinePosSec + 0.12) return true;
+            await new Promise<void>((resolve) => setTimeout(resolve, 120));
+        }
+        return false;
+    }
+
+    private async recoverStalledPlayback(track: Track, resumePosSec: number): Promise<boolean> {
+        const audio = this.ensureAudio();
+        try {
+            const streamUrl = await this.resolveStreamUrl(track.id, { forceRefresh: true });
+            audio.src = streamUrl;
+            audio.load();
+            await this.waitForLoadedMetadata(audio, 3500);
+
+            const resumeAt = Math.max(0, resumePosSec || 0);
+            if (resumeAt > 0) {
+                try {
+                    audio.currentTime = resumeAt;
+                } catch {
+                    // ignore
+                }
+            }
+
+            const baseline = Math.max(0, audio.currentTime || resumeAt);
+            await this.safePlay(audio);
+            return await this.waitForPlaybackProgress(audio, baseline, 1800);
+        } catch {
+            return false;
         }
     }
 
@@ -279,7 +328,12 @@ export class SoundCloudTransport implements PlayerTransport {
                 return;
             }
 
+            const baseline = Math.max(0, audio.currentTime || targetPos);
             await this.safePlay(audio);
+            const started = await this.waitForPlaybackProgress(audio, baseline);
+            if (!started) {
+                await this.recoverStalledPlayback(track, baseline);
+            }
         } catch (error) {
             this.lastKnownPlaying = false;
             this.currentTrack = track;
@@ -314,7 +368,12 @@ export class SoundCloudTransport implements PlayerTransport {
 
         this.setBusy(true);
         try {
+            const baseline = Math.max(0, audio.currentTime || 0);
             await this.safePlay(audio);
+            const resumed = await this.waitForPlaybackProgress(audio, baseline);
+            if (!resumed && this.currentTrack) {
+                await this.recoverStalledPlayback(this.currentTrack, baseline);
+            }
         } catch (error) {
             this.lastKnownPlaying = false;
             this.emitRemote({
