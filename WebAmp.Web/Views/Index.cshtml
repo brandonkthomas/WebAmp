@@ -111,7 +111,25 @@
     <link rel="stylesheet" href="~/apps/webamp/css/webamp.extension.css" asp-append-version="true" />
 }
 
+@section Head {
+    <link rel="manifest" href="~/webamp.webmanifest" asp-append-version="true" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="~/apps/webamp/assets/icons/icon-WebAmp-full512.png" asp-append-version="true" />
+}
+
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="~/apps/webamp/dist/js/webamp.js" type="module" asp-append-version="true"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker
+                    .register('/webamp-sw.js', { scope: '/webamp/' })
+                    .catch((error) => {
+                        console.warn('[WebAmp PWA] service worker registration failed.', error);
+                    });
+            });
+        }
+    </script>
 }

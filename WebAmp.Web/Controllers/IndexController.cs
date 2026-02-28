@@ -19,6 +19,8 @@ public class IndexController(IConfiguration configuration) : Controller
     {
         ViewData["Title"] = "WebAmp";
         ViewData["CanPinchToZoom"] = true;
+        ViewData["ThemeColor"] = "#121317";
+        ViewData["AppleMobileWebAppTitle"] = "WebAmp";
 
         // Configure host layout behavior via appsettings.json
         var section = configuration.GetSection("AppPages:WebAmp");
