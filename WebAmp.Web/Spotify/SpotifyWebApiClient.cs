@@ -61,7 +61,10 @@ public sealed class SpotifyWebApiClient
     /// <param name="pathAndQuery">The path and query to send the request to.</param>
     /// <param name="payload">The payload to send with the request.</param>
     /// <returns>The status code and JSON response.</returns>
-    public async Task<(HttpStatusCode status, JsonDocument? json)> PutJsonAsync(HttpContext ctx, string pathAndQuery, object? payload)
+    public async Task<(HttpStatusCode status, JsonDocument? json)> PutJsonAsync(
+        HttpContext ctx, 
+        string pathAndQuery, 
+        object? payload = null)
     {
         var token = await _auth.GetValidAccessTokenAsync(ctx);
         if (string.IsNullOrWhiteSpace(token)) return (HttpStatusCode.Unauthorized, null);
@@ -89,7 +92,8 @@ public sealed class SpotifyWebApiClient
     /// <param name="payload">The payload to send with the request.</param>
     /// <returns>The status code and JSON response.</returns>
     public async Task<(HttpStatusCode status, JsonDocument? json)> PostJsonAsync(
-        HttpContext ctx, string pathAndQuery,
+        HttpContext ctx, 
+        string pathAndQuery,
         object? payload)
     {
         var token = await _auth.GetValidAccessTokenAsync(ctx);
