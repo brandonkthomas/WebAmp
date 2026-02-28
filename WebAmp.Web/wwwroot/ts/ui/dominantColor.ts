@@ -31,11 +31,12 @@ export async function getDominantColor(imageUrl: string): Promise<Rgb | null> {
 
 function canSampleCrossOriginImage(url: string): boolean {
     try {
-        const parsed = new URL(url, location.href);
-        // SoundCloud CDN images are not consistently CORS-readable for canvas usage.
-        return !parsed.hostname.toLowerCase().endsWith('sndcdn.com');
+        const normalized = String(url).trim();
+        const parsed = new URL(normalized, location.href);
+        // Canvas sampling should be same-origin only to avoid CORS errors/noise.
+        return parsed.origin === location.origin;
     } catch {
-        return true;
+        return false;
     }
 }
 

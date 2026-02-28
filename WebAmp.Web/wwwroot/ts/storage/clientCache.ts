@@ -161,13 +161,15 @@ async function responseToObjectUrl(res: Response): Promise<string | null> {
 
 function shouldBypassArtCaching(url: string): boolean {
     try {
-        const parsed = new URL(url, location.href);
-        const host = parsed.hostname.toLowerCase();
-        // SoundCloud CDN artwork can intermittently fail CORS preconditions on direct fetch.
-        // Using the raw URL in <img src> avoids noisy failures and still renders artwork.
-        return host.endsWith('sndcdn.com');
+        const normalized = String(url).trim();
+        const parsed = new URL(normalized, location.href);
+        // Only cache same-origin artwork via fetch/caches APIs.
+        // Cross-origin image URLs should be used directly in <img src>, which avoids CORS
+        // preflight/response issues from third-party CDNs (including SoundCloud artwork).
+        return parsed.origin !== location.origin;
     } catch {
-        return false;
+        // Fail open to bypass: if URL parsing is odd, avoid client fetch attempts.
+        return true;
     }
 }
 
