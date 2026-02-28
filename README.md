@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://github.com/brandonkthomas/WebAmp">
-    <img src="WebAmp.Web/wwwroot/assets/icons/icon-WebAmp-full256.png" alt="WebAmp Logo" width="200" height="200">
+    <img src="WebAmp.Web/wwwroot/assets/branding/icon-WebAmp-full256.png" alt="WebAmp Logo" width="200" height="200">
   </a>
 
   <h3 align="center">WebAmp</h3>

@@ -50,7 +50,7 @@ function boot() {
         routeRoot: '/webamp',
         apiBasePath: '/api/webamp',
         assetBasePath: '/apps/indium',
-        brandLogoSrc: webAmpBrandAsset('icons/icon-WebAmp-full256.png'),
+        brandLogoSrc: webAmpBrandAsset('branding/icon-WebAmp-full256.png'),
         brandLogoAlt: 'WebAmp logo'
     });
 
@@ -105,7 +105,7 @@ function boot() {
     const disconnectBtn = document.querySelector<HTMLButtonElement>('[data-wa-action="source-disconnect"]');
     const disconnectIcon = document.querySelector<HTMLImageElement>('[data-wa-disconnect-icon]');
     const disconnectLabel = document.querySelector<HTMLElement>('[data-wa-disconnect-label]');
-    const DISCONNECT_ICON_WEBAMP = webAmpBrandAsset('icons/icon-WebAmp-full256.png');
+    const DISCONNECT_ICON_WEBAMP = webAmpBrandAsset('branding/icon-WebAmp-full256.png');
     const DISCONNECT_ICON_SPOTIFY = assetPath('assets/svg/spotify.svg');
     const DISCONNECT_ICON_SOUNDCLOUD = assetPath('assets/svg/soundcloud.svg');
 
@@ -187,6 +187,59 @@ function boot() {
     const base = { r: 14, g: 14, b: 18 };
     let lastArtKey: string | null = null;
     let lastNowPlayingId: string | null = null;
+    let lastMediaMetaKey: string | null = null;
+    let lastMediaPosSec: number | null = null;
+
+    const mediaSession = (typeof navigator !== 'undefined' && 'mediaSession' in navigator)
+        ? navigator.mediaSession
+        : null;
+
+    const setMediaActionHandler = (
+        action: MediaSessionAction,
+        handler: MediaSessionActionHandler | null
+    ) => {
+        if (!mediaSession) return;
+        try {
+            mediaSession.setActionHandler(action, handler);
+        } catch {
+            // Some browsers expose mediaSession but not all action handlers.
+        }
+    };
+
+    if (mediaSession) {
+        setMediaActionHandler('play', () => {
+            const st = playerStore.getState();
+            if (!st.track) return;
+            if (!st.isPlaying) playerStore.togglePlay();
+        });
+        setMediaActionHandler('pause', () => {
+            const st = playerStore.getState();
+            if (st.isPlaying) playerStore.togglePlay();
+        });
+        setMediaActionHandler('previoustrack', () => {
+            playerStore.prev({ autoplay: true });
+        });
+        setMediaActionHandler('nexttrack', () => {
+            playerStore.next({ autoplay: true });
+        });
+        setMediaActionHandler('seekto', (details) => {
+            const t = typeof details?.seekTime === 'number' ? details.seekTime : null;
+            if (t === null || Number.isNaN(t)) return;
+            playerStore.seek(t);
+        });
+        setMediaActionHandler('seekbackward', (details) => {
+            const st = playerStore.getState();
+            const step = typeof details?.seekOffset === 'number' ? details.seekOffset : 10;
+            playerStore.seek(Math.max(0, st.positionSec - step));
+        });
+        setMediaActionHandler('seekforward', (details) => {
+            const st = playerStore.getState();
+            const step = typeof details?.seekOffset === 'number' ? details.seekOffset : 10;
+            const duration = st.track?.durationSec ?? 0;
+            playerStore.seek(duration > 0 ? Math.min(duration, st.positionSec + step) : st.positionSec + step);
+        });
+    }
+
     playerStore.subscribe((state) => {
         // Now-playing indicator on track list items
         const nowId = state.track?.id ?? null;
@@ -212,6 +265,65 @@ function boot() {
         // the frequently-updated player controls.
         if (typeof document !== 'undefined' && document.body) {
             document.body.dataset.waPlaying = state.isPlaying ? 'true' : 'false';
+        }
+
+        if (mediaSession) {
+            const t = state.track;
+            if (!t) {
+                lastMediaMetaKey = null;
+                lastMediaPosSec = null;
+                try { mediaSession.metadata = null; } catch { /* ignore */ }
+                try { mediaSession.playbackState = 'none'; } catch { /* ignore */ }
+            } else {
+                const title = t.title?.trim() || 'WebAmp';
+                const artist = t.artist?.trim() || '';
+                const album = t.album?.trim() || '';
+                const artCandidates = [t.artUrlLarge, t.artUrl, t.artUrlSmall]
+                    .filter((u): u is string => !!u && typeof u === 'string');
+                const artwork = Array.from(new Set(artCandidates)).map((src) => ({
+                    src,
+                    sizes: '512x512'
+                }));
+                const metaKey = [title, artist, album, artwork.map((a) => a.src).join('|')].join('::');
+                if (metaKey !== lastMediaMetaKey) {
+                    lastMediaMetaKey = metaKey;
+                    try {
+                        mediaSession.metadata = new MediaMetadata({
+                            title,
+                            artist,
+                            album,
+                            artwork
+                        });
+                    } catch {
+                        // ignore metadata update errors
+                    }
+                }
+                try {
+                    mediaSession.playbackState = state.isPlaying ? 'playing' : 'paused';
+                } catch {
+                    // ignore
+                }
+
+                const duration = t.durationSec ?? 0;
+                const position = Math.max(0, state.positionSec ?? 0);
+                // Keep lockscreen scrubber aligned, but avoid spamming updates.
+                if (
+                    Number.isFinite(duration)
+                    && duration > 0
+                    && (lastMediaPosSec === null || Math.abs(position - lastMediaPosSec) >= 0.8 || !state.isPlaying)
+                ) {
+                    lastMediaPosSec = position;
+                    try {
+                        mediaSession.setPositionState({
+                            duration,
+                            playbackRate: 1,
+                            position: Math.min(duration, position)
+                        });
+                    } catch {
+                        // ignore
+                    }
+                }
+            }
         }
 
         const art = state.track?.artUrlSmall ?? state.track?.artUrl ?? null;
