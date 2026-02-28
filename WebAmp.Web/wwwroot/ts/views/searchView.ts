@@ -12,6 +12,7 @@ import { createAlbumListItem } from "../ui/albumListItem";
 import { createArtistListItem } from "../ui/artistListItem";
 import { createPlaylistListItem } from "../ui/playlistListItem";
 import { bindQueueActions } from "../ui/queueActions";
+import { isSoundCloudTrackPlayable } from "../utils";
 
 function mapSpotifyTrack(it: any): Track {
     const images = it?.album?.images ?? [];
@@ -525,6 +526,7 @@ export const searchView: WebAmpViewController = {
                                 source: "soundcloud",
                                 title,
                                 artist,
+                                isPlayable: isSoundCloudTrackPlayable(it),
                                 durationSec: Math.round(durationMs / 1000),
                                 artUrl,
                                 artUrlSmall: artUrl,

@@ -5,6 +5,10 @@ import { indiumSvg } from '../internal/paths';
 const LS_KEY = 'wa_shuffle_enabled';
 let shuffleDirty = false;
 
+function playableTracks(tracks: Track[]): Track[] {
+    return tracks.filter((t) => t?.isPlayable !== false);
+}
+
 /**
  * Reads shuffle toggle from localStorage
  */
@@ -68,7 +72,7 @@ export function bindQueueActions(opts: {
     let isViewQueueActive = false;
 
     const syncVisible = () => {
-        const hasTracks = opts.getTracks().length > 0;
+        const hasTracks = playableTracks(opts.getTracks()).length > 0;
         actions.style.display = hasTracks ? 'flex' : 'none';
     };
 
@@ -88,8 +92,9 @@ export function bindQueueActions(opts: {
     const computeKey = (tracks: Track[]): string =>
         tracks.map((t) => t.id).join('|');
 
-    const updateViewQueueActive = (globalTracks: Track[]) => {
-        const viewTracks = opts.getTracks();
+    const updateViewQueueActive = (globalTracksRaw: Track[]) => {
+        const viewTracks = playableTracks(opts.getTracks());
+        const globalTracks = playableTracks(globalTracksRaw);
         if (!viewTracks.length || !globalTracks.length) {
             isViewQueueActive = false;
             return;
@@ -120,7 +125,7 @@ export function bindQueueActions(opts: {
     };
 
     const onPlay = () => {
-        const tracks = opts.getTracks();
+        const tracks = playableTracks(opts.getTracks());
         if (!tracks.length) return;
 
         // If this view already owns the active queue, treat the button as a

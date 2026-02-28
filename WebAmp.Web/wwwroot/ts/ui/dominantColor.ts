@@ -14,6 +14,7 @@ const colorCache = new Map<string, Rgb>();
  */
 export async function getDominantColor(imageUrl: string): Promise<Rgb | null> {
     if (!imageUrl) return null;
+    if (!canSampleCrossOriginImage(imageUrl)) return null;
     const cached = colorCache.get(imageUrl);
     if (cached) return cached;
 
@@ -25,6 +26,16 @@ export async function getDominantColor(imageUrl: string): Promise<Rgb | null> {
         return rgb;
     } catch {
         return null;
+    }
+}
+
+function canSampleCrossOriginImage(url: string): boolean {
+    try {
+        const parsed = new URL(url, location.href);
+        // SoundCloud CDN images are not consistently CORS-readable for canvas usage.
+        return !parsed.hostname.toLowerCase().endsWith('sndcdn.com');
+    } catch {
+        return true;
     }
 }
 

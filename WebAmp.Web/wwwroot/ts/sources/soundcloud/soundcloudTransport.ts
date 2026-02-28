@@ -16,6 +16,7 @@ export class SoundCloudTransport implements PlayerTransport {
     private lastProgressEmitMs = 0;
     private primed = false;
     private playRequestId = 0;
+    private switchingTrack = false;
 
     private readonly streamUrlCache = new Map<string, string>();
 
@@ -57,6 +58,7 @@ export class SoundCloudTransport implements PlayerTransport {
 
     private bindAudioEvents(audio: HTMLAudioElement): void {
         audio.addEventListener('play', () => {
+            if (this.switchingTrack) return;
             if (!this.currentTrack) return;
             this.lastKnownPlaying = true;
             this.emitRemote({
@@ -67,6 +69,7 @@ export class SoundCloudTransport implements PlayerTransport {
         });
 
         audio.addEventListener('pause', () => {
+            if (this.switchingTrack) return;
             if (!this.currentTrack) return;
             this.lastKnownPlaying = false;
             this.emitRemote({
@@ -77,6 +80,7 @@ export class SoundCloudTransport implements PlayerTransport {
         });
 
         audio.addEventListener('timeupdate', () => {
+            if (this.switchingTrack) return;
             if (!this.currentTrack) return;
             const now = performance.now();
             if (now - this.lastProgressEmitMs < 300) return;
@@ -89,6 +93,7 @@ export class SoundCloudTransport implements PlayerTransport {
         });
 
         audio.addEventListener('ended', () => {
+            if (this.switchingTrack) return;
             if (!this.currentTrack) return;
             this.lastKnownPlaying = false;
             const finishedId = this.currentTrack.id;
@@ -215,7 +220,8 @@ export class SoundCloudTransport implements PlayerTransport {
             ? opts.autoplay
             : this.lastKnownPlaying;
 
-        this.currentTrack = track;
+        this.currentTrack = null;
+        this.switchingTrack = true;
         this.desiredPlaying = autoplay;
         this.lastProgressEmitMs = 0;
 
@@ -225,6 +231,16 @@ export class SoundCloudTransport implements PlayerTransport {
         this.setBusy(true);
         try {
             const audio = this.ensureAudio();
+
+            if (!audio.paused) {
+                audio.pause();
+            }
+            try {
+                audio.currentTime = 0;
+            } catch {
+                // ignore
+            }
+
             const streamUrl = await this.resolveStreamUrl(track.id);
             if (reqId !== this.playRequestId) return;
 
@@ -246,6 +262,13 @@ export class SoundCloudTransport implements PlayerTransport {
                 }
             }
 
+            this.currentTrack = track;
+            this.emitRemote({
+                track: this.currentTrack,
+                isPlaying: false,
+                positionSec: Math.max(0, audio.currentTime || 0)
+            });
+
             if (!autoplay) {
                 audio.pause();
                 this.emitRemote({
@@ -259,6 +282,7 @@ export class SoundCloudTransport implements PlayerTransport {
             await this.safePlay(audio);
         } catch (error) {
             this.lastKnownPlaying = false;
+            this.currentTrack = track;
             this.emitRemote({
                 track: this.currentTrack,
                 isPlaying: false,
@@ -268,6 +292,7 @@ export class SoundCloudTransport implements PlayerTransport {
             throw error;
         } finally {
             if (reqId === this.playRequestId) {
+                this.switchingTrack = false;
                 this.setBusy(false);
             }
         }

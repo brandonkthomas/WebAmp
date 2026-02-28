@@ -7,6 +7,7 @@ import { renderListSkeleton } from '../ui/skeleton';
 import { createTrackListItem } from '../ui/trackListItem';
 import { createPlaylistListItem } from '../ui/playlistListItem';
 import { bindQueueActions } from '../ui/queueActions';
+import { isSoundCloudTrackPlayable } from '../utils';
 
 export const homeView: WebAmpViewController = {
     id: 'home',
@@ -198,6 +199,7 @@ export const homeView: WebAmpViewController = {
                                 source: 'soundcloud',
                                 title,
                                 artist,
+                                isPlayable: isSoundCloudTrackPlayable(t),
                                 durationSec: Math.round(durationMs / 1000),
                                 artUrl,
                                 artUrlSmall: artUrl
@@ -257,6 +259,7 @@ export const homeView: WebAmpViewController = {
                                 source: 'soundcloud',
                                 title,
                                 artist,
+                                isPlayable: isSoundCloudTrackPlayable(origin),
                                 durationSec: typeof origin.duration === 'number' ? Math.round(origin.duration / 1000) : 0,
                                 permalinkUrl: typeof origin?.permalink_url === 'string' ? origin.permalink_url : undefined,
                                 artUrl: typeof origin.artwork_url === 'string'

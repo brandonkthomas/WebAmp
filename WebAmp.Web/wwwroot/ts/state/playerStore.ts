@@ -22,6 +22,11 @@ export interface Track {
     title: string;
     artist: string;
     /**
+     * Whether the provider reports this track as playable.
+     * Defaults to playable when omitted.
+     */
+    isPlayable?: boolean;
+    /**
      * External/provider URL for the track.
      * - SoundCloud: `permalink_url` (preferred for widget.load)
      * - Spotify: (unused)
@@ -211,8 +216,9 @@ export class PlayerStore {
      * Replaces the current queue
      */
     setQueue(queue: Track[], opts?: { wrap?: boolean }) {
-        this.baseQueue = queue.slice();
-        this.queue = queue.slice();
+        const filtered = queue.filter((t) => t?.isPlayable !== false);
+        this.baseQueue = filtered.slice();
+        this.queue = filtered.slice();
         this.queueWrap = opts?.wrap ?? false;
         if (this.shuffleEnabled) {
             this.applyQueueTransform();
@@ -220,6 +226,7 @@ export class PlayerStore {
         const size = this.queue.length;
         logEvent('WebAmp', 'queue:set', {
             size,
+            filteredOut: Math.max(0, queue.length - size),
             wrap: this.queueWrap,
             firstId: this.queue[0]?.id ?? null,
             source: this.queue[0]?.source ?? null

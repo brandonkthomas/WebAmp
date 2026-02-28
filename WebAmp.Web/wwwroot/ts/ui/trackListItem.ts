@@ -2,6 +2,7 @@ import type { Track } from '../state/playerStore';
 import { applyCachedArt } from '../storage/clientCache';
 import { escapeHtml } from '../utils';
 import { indiumSvg } from '../internal/paths';
+import { showAlert } from '../internal/indiumApi';
 
 /**
  * Creates a clickable track row button
@@ -21,11 +22,16 @@ export function createTrackListItem(opts: {
     variant?: 'default' | 'artistTop';
 }): HTMLButtonElement {
     const { track, onClick } = opts;
+    const isPlayable = track.isPlayable !== false;
 
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'wa-listitem wa-trackitem';
     btn.setAttribute('data-wa-track', track.id);
+    if (!isPlayable) {
+        btn.classList.add('wa-listitem--disabled', 'wa-trackitem--disabled');
+        btn.setAttribute('aria-disabled', 'true');
+    }
 
     const art = track.artUrlSmall ?? track.artUrl ?? '';
     const leading = opts.leading ?? 'art';
@@ -38,14 +44,21 @@ export function createTrackListItem(opts: {
     // Default meta combines artist + album (used by most views).
     const defaultMeta = `${track.artist}${track.album ? ` — ${track.album}` : ''}`;
 
-    const indicatorHtml = `
+    const indicatorHtml = isPlayable ? `
         <span class="wa-trackitem__indicator" data-wa-track-toggle="${escapeHtml(track.id)}" aria-hidden="true">
             <img class="wa-trackitem__indicator-icon wa-trackitem__indicator-icon--wave" src="${indiumSvg('waveform.svg')}" alt="" decoding="async" />
             <img class="wa-trackitem__indicator-icon wa-trackitem__indicator-icon--wave-paused" src="${indiumSvg('waveform-paused.svg')}" alt="" decoding="async" />
             <img class="wa-trackitem__indicator-icon wa-trackitem__indicator-icon--play" src="${indiumSvg('play-filled.svg')}" alt="" decoding="async" />
             <img class="wa-trackitem__indicator-icon wa-trackitem__indicator-icon--pause" src="${indiumSvg('pause-filled.svg')}" alt="" decoding="async" />
         </span>
-    `;
+    ` : '';
+    const blockedHtml = !isPlayable
+        ? `
+        <span class="wa-trackitem__blocked" aria-hidden="true">
+            <img class="wa-trackitem__blocked-icon" src="${indiumSvg('no.svg')}" alt="" decoding="async" />
+        </span>
+        `
+        : '';
 
     if (variant === 'artistTop') {
         // Artist "Top Tracks" layout:
@@ -73,6 +86,7 @@ export function createTrackListItem(opts: {
             <span class="wa-trackitem__title">${escapeHtml(track.title)}</span>
             ${albumLabel ? `<span class="wa-trackitem__meta">${escapeHtml(albumLabel)}</span>` : ''}
         </span>
+        ${blockedHtml}
         `;
     } else {
         const leadingHtml = leading === 'index'
@@ -97,6 +111,7 @@ export function createTrackListItem(opts: {
             <span class="wa-trackitem__title">${escapeHtml(track.title)}</span>
             ${showMeta ? `<span class="wa-trackitem__meta">${escapeHtml(defaultMeta)}</span>` : ''}
         </span>
+        ${blockedHtml}
         `;
     }
 
@@ -107,15 +122,27 @@ export function createTrackListItem(opts: {
     }
 
     // Allow clicking the now-playing overlay without triggering the row click (which would restart the track).
-    const toggle = btn.querySelector<HTMLElement>('[data-wa-track-toggle]');
-    toggle?.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        window.dispatchEvent(new CustomEvent('wa:track:toggle', { detail: { trackId: track.id } }));
-    });
+    if (isPlayable) {
+        const toggle = btn.querySelector<HTMLElement>('[data-wa-track-toggle]');
+        toggle?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.dispatchEvent(new CustomEvent('wa:track:toggle', { detail: { trackId: track.id } }));
+        });
+    }
 
-    btn.addEventListener('click', onClick);
+    btn.addEventListener('click', (e) => {
+        if (!isPlayable) {
+            e.preventDefault();
+            e.stopPropagation();
+            void showAlert({
+                title: 'Track Unavailable',
+                message: 'SoundCloud does not allow this song to be streamed by external apps.',
+                variant: 'danger'
+            });
+            return;
+        }
+        onClick();
+    });
     return btn;
 }
-
-

@@ -13,6 +13,7 @@ import { playlistView } from './views/playlistView';
 import { albumView } from './views/albumView';
 import { artistView } from './views/artistView';
 import { PlayerStore } from './state/playerStore';
+import type { Track } from './state/playerStore';
 import { PlayerBar } from './components/playerBar/playerBar';
 import { NowPlayingMobile } from './components/nowPlayingMobile/nowPlayingMobile';
 import { SpotifySource } from './sources/spotifySource';
@@ -291,7 +292,7 @@ function boot() {
 
     window.addEventListener('wa:track:select', (e: Event) => {
         const ev = e as CustomEvent<{ trackId?: string; tracks?: any[]; wrap?: boolean; from?: string }>;
-        const trackId = ev.detail?.trackId;
+        let trackId = ev.detail?.trackId;
         if (!trackId) return;
 
         const from = ev.detail?.from;
@@ -303,7 +304,12 @@ function boot() {
         }
 
         if (Array.isArray(ev.detail?.tracks)) {
-            playerStore.setQueue(ev.detail.tracks as any, { wrap: ev.detail?.wrap ?? false });
+            const queue = (ev.detail.tracks as Track[]).filter((t) => t?.isPlayable !== false);
+            if (!queue.length) return;
+            playerStore.setQueue(queue as any, { wrap: ev.detail?.wrap ?? false });
+            if (!queue.some((t) => t.id === trackId)) {
+                trackId = queue[0]?.id;
+            }
         }
         playerStore.selectTrackById(trackId, true);
     });
@@ -313,7 +319,8 @@ function boot() {
         const ev = e as CustomEvent<{ tracks?: any[]; wrap?: boolean }>;
         const tracks = ev.detail?.tracks;
         if (!Array.isArray(tracks)) return;
-        playerStore.setQueue(tracks as any, { wrap: ev.detail?.wrap ?? false });
+        const queue = (tracks as Track[]).filter((t) => t?.isPlayable !== false);
+        playerStore.setQueue(queue as any, { wrap: ev.detail?.wrap ?? false });
     });
 
     // Deep-link helpers from the global player bar
