@@ -228,8 +228,8 @@ function boot() {
             playerStore.seek(t);
         });
         // Prefer track navigation controls over podcast-style +/-10s controls in media session
-        // setMediaActionHandler('seekbackward', null);
-        // setMediaActionHandler('seekforward', null);
+        setMediaActionHandler('seekbackward', null);
+        setMediaActionHandler('seekforward', null);
     }
 
     playerStore.subscribe((state) => {
