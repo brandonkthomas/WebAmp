@@ -10,7 +10,7 @@ import { createTrackListItem } from '../ui/trackListItem';
 import { createPlaylistListItem } from '../ui/playlistListItem';
 import { attachInfiniteScroll } from '../internal/indiumApi';
 import { bindQueueActions } from '../ui/queueActions';
-import { appendFragment } from '../utils';
+import { appendFragment, isSoundCloudTrackPlayable } from '../utils';
 
 export const playlistView: WebAmpViewController = {
     id: 'playlist',
@@ -381,6 +381,7 @@ export const playlistView: WebAmpViewController = {
                                         source: 'soundcloud',
                                         title,
                                         artist,
+                                        isPlayable: isSoundCloudTrackPlayable(t),
                                         durationSec: Math.round(durationMs / 1000),
                                         artUrl,
                                         artUrlSmall: artUrl,

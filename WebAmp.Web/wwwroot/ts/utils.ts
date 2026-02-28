@@ -50,3 +50,15 @@ export function upgradeSoundCloudArtworkUrl(url: string): string {
         .replace('-large.', '-t500x500.')
         .replace('-t300x300.', '-t500x500.');
 }
+
+/**
+ * SoundCloud API exposes `access` on tracks (e.g. "playable", "blocked").
+ * Treat missing values as playable for backwards compatibility.
+ */
+export function isSoundCloudTrackPlayable(track: any): boolean {
+    const access = typeof track?.access === 'string'
+        ? track.access.trim().toLowerCase()
+        : '';
+    if (!access) return true;
+    return access === 'playable';
+}

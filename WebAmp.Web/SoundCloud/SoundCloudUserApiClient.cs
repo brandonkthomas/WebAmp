@@ -22,13 +22,13 @@ public sealed class SoundCloudUserApiClient
         _auth = auth;
     }
 
-        public async Task<(HttpStatusCode status, JsonDocument? json)> GetAsync(HttpContext ctx, string pathAndQuery)
+    public async Task<(HttpStatusCode status, JsonDocument? json)> GetAsync(HttpContext ctx, string pathAndQuery)
     {
         var token = await _auth.GetValidAccessTokenAsync(ctx);
         if (string.IsNullOrWhiteSpace(token)) return (HttpStatusCode.Unauthorized, null);
 
         var client = _httpClientFactory.CreateClient();
-            var uri = BuildUri(pathAndQuery);
+        var uri = BuildUri(pathAndQuery);
 
         using var req = new HttpRequestMessage(HttpMethod.Get, uri);
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -48,14 +48,46 @@ public sealed class SoundCloudUserApiClient
         }
     }
 
-        private static Uri BuildUri(string pathOrUrl)
-        {
-            if (Uri.TryCreate(pathOrUrl, UriKind.Absolute, out var absolute))
-            {
-                return absolute;
-            }
+    public async Task<(HttpStatusCode status, JsonDocument? json, Uri? finalUri, string? mediaType)> GetMetaAsync(
+        HttpContext ctx,
+        string pathOrUrl,
+        CancellationToken cancellationToken = default)
+    {
+        var token = await _auth.GetValidAccessTokenAsync(ctx);
+        if (string.IsNullOrWhiteSpace(token)) return (HttpStatusCode.Unauthorized, null, null, null);
 
-            var trimmed = pathOrUrl.TrimStart('/');
-            return new Uri(BaseUri, trimmed);
+        var client = _httpClientFactory.CreateClient();
+        var uri = BuildUri(pathOrUrl);
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, uri);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        req.Headers.Accept.ParseAdd("application/json; charset=utf-8");
+
+        using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        var mediaType = resp.Content.Headers.ContentType?.MediaType;
+        JsonDocument? json = null;
+        if (!string.IsNullOrWhiteSpace(mediaType) &&
+            mediaType.Contains("json", StringComparison.OrdinalIgnoreCase))
+        {
+            var body = await resp.Content.ReadAsStringAsync(cancellationToken);
+            if (!string.IsNullOrWhiteSpace(body))
+            {
+                try { json = JsonDocument.Parse(body); }
+                catch (JsonException) { json = null; }
+            }
         }
+
+        return (resp.StatusCode, json, resp.RequestMessage?.RequestUri, mediaType);
+    }
+
+    private static Uri BuildUri(string pathOrUrl)
+    {
+        if (Uri.TryCreate(pathOrUrl, UriKind.Absolute, out var absolute))
+        {
+            return absolute;
+        }
+
+        var trimmed = pathOrUrl.TrimStart('/');
+        return new Uri(BaseUri, trimmed);
+    }
 }

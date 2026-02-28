@@ -238,43 +238,35 @@ public sealed class SoundCloudApiController(
         {
             var streamsRoot = streamsJson.RootElement;
 
-            // Prefer modern AAC-based HLS streams when available, as recommended
-            // by the SoundCloud streaming guidelines:
-            // https://developers.soundcloud.com/blog/api-streaming-urls
-            if (streamsRoot.TryGetProperty("hls_aac_160_url", out var hls160Prop) &&
-                hls160Prop.ValueKind == JsonValueKind.String &&
-                !string.IsNullOrWhiteSpace(hls160Prop.GetString()))
-            {
-                chosenUrl = hls160Prop.GetString();
-                chosenKind = "hls_aac_160";
-            }
-            else if (streamsRoot.TryGetProperty("hls_aac_96_url", out var hls96Prop) &&
-                     hls96Prop.ValueKind == JsonValueKind.String &&
-                     !string.IsNullOrWhiteSpace(hls96Prop.GetString()))
-            {
-                chosenUrl = hls96Prop.GetString();
-                chosenKind = "hls_aac_96";
-            }
-            else
-            {
-                // Legacy or preview fields (kept for compatibility while rollout completes).
-                string? TryString(string name)
-                    => streamsRoot.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String
-                        ? p.GetString()
-                        : null;
+            // For HTMLAudioElement playback across browsers, prefer progressive MP3 first.
+            // Then fall back to HLS variants and preview streams.
+            string? TryString(string name)
+                => streamsRoot.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String
+                    ? p.GetString()
+                    : null;
 
-                chosenUrl = TryString("http_mp3_128_url")
-                            ?? TryString("hls_mp3_128_url")
-                            ?? TryString("hls_opus_64_url")
-                            ?? TryString("preview_mp3_128_url");
+            var httpMp3 = TryString("http_mp3_128_url");
+            var hlsAac160 = TryString("hls_aac_160_url");
+            var hlsAac96 = TryString("hls_aac_96_url");
+            var hlsMp3 = TryString("hls_mp3_128_url");
+            var hlsOpus = TryString("hls_opus_64_url");
+            var previewMp3 = TryString("preview_mp3_128_url");
 
-                if (!string.IsNullOrWhiteSpace(chosenUrl))
-                {
-                    if (!string.IsNullOrWhiteSpace(TryString("http_mp3_128_url"))) chosenKind = "http_mp3_128";
-                    else if (!string.IsNullOrWhiteSpace(TryString("hls_mp3_128_url"))) chosenKind = "hls_mp3_128";
-                    else if (!string.IsNullOrWhiteSpace(TryString("hls_opus_64_url"))) chosenKind = "hls_opus_64";
-                    else chosenKind = "preview_mp3_128";
-                }
+            chosenUrl = httpMp3
+                        ?? hlsAac160
+                        ?? hlsAac96
+                        ?? hlsMp3
+                        ?? hlsOpus
+                        ?? previewMp3;
+
+            if (!string.IsNullOrWhiteSpace(chosenUrl))
+            {
+                if (!string.IsNullOrWhiteSpace(httpMp3)) chosenKind = "http_mp3_128";
+                else if (!string.IsNullOrWhiteSpace(hlsAac160)) chosenKind = "hls_aac_160";
+                else if (!string.IsNullOrWhiteSpace(hlsAac96)) chosenKind = "hls_aac_96";
+                else if (!string.IsNullOrWhiteSpace(hlsMp3)) chosenKind = "hls_mp3_128";
+                else if (!string.IsNullOrWhiteSpace(hlsOpus)) chosenKind = "hls_opus_64";
+                else chosenKind = "preview_mp3_128";
             }
         }
 
@@ -294,7 +286,8 @@ public sealed class SoundCloudApiController(
         if (Uri.TryCreate(chosenUrl, UriKind.Absolute, out var parsed) &&
             string.Equals(parsed.Host, "api.soundcloud.com", StringComparison.OrdinalIgnoreCase))
         {
-            var (resolveStatus, resolveJson) = await GetWithUserOrAppAsync(chosenUrl, cancellationToken);
+            var (resolveStatus, resolveJson, resolveFinalUri, _resolveMediaType) =
+                await GetMetaWithUserOrAppAsync(chosenUrl, cancellationToken);
             if (resolveStatus == HttpStatusCode.Unauthorized)
             {
                 // Same reasoning as above – if we cannot resolve the HLS URL
@@ -306,18 +299,38 @@ public sealed class SoundCloudApiController(
 
             if (resolveStatus != HttpStatusCode.OK || resolveJson is null)
             {
-                return ProxyJson(resolveStatus, resolveJson);
+                if (resolveStatus == HttpStatusCode.OK && resolveJson is null)
+                {
+                    // Some /streams URLs can resolve directly (via redirect) to a final media URL
+                    // without returning JSON. In that case use the final URL when available.
+                    if (resolveFinalUri is not null &&
+                        !string.Equals(resolveFinalUri.Host, "api.soundcloud.com", StringComparison.OrdinalIgnoreCase))
+                    {
+                        resolvedUrl = resolveFinalUri.ToString();
+                    }
+                    else
+                    {
+                        // Best effort fallback: return the original resolved endpoint URL.
+                        resolvedUrl = chosenUrl;
+                    }
+                }
+                else
+                {
+                    return ProxyJson(resolveStatus, resolveJson);
+                }
             }
-
-            var resolveRoot = resolveJson.RootElement;
-            if (!resolveRoot.TryGetProperty("url", out var urlProp) ||
-                urlProp.ValueKind != JsonValueKind.String ||
-                string.IsNullOrWhiteSpace(urlProp.GetString()))
+            else
             {
-                return StatusCode(StatusCodes.Status502BadGateway, new { error = "stream_resolution_failed" });
-            }
+                var resolveRoot = resolveJson.RootElement;
+                if (!resolveRoot.TryGetProperty("url", out var urlProp) ||
+                    urlProp.ValueKind != JsonValueKind.String ||
+                    string.IsNullOrWhiteSpace(urlProp.GetString()))
+                {
+                    return StatusCode(StatusCodes.Status502BadGateway, new { error = "stream_resolution_failed" });
+                }
 
-            resolvedUrl = urlProp.GetString()!;
+                resolvedUrl = urlProp.GetString()!;
+            }
         }
 
         var permalinkUrl = root.TryGetProperty("permalink_url", out var permalinkProp) && permalinkProp.ValueKind == JsonValueKind.String
@@ -355,6 +368,19 @@ public sealed class SoundCloudApiController(
         // If there is no valid user session, fall back to app-level auth,
         // which is sufficient for public, playable content.
         return await api.GetAsync(pathOrUrl, cancellationToken);
+    }
+
+    private async Task<(HttpStatusCode status, JsonDocument? json, Uri? finalUri, string? mediaType)> GetMetaWithUserOrAppAsync(
+        string pathOrUrl,
+        CancellationToken cancellationToken)
+    {
+        var (status, json, finalUri, mediaType) = await userApi.GetMetaAsync(HttpContext, pathOrUrl, cancellationToken);
+        if (status != HttpStatusCode.Unauthorized)
+        {
+            return (status, json, finalUri, mediaType);
+        }
+
+        return await api.GetMetaAsync(pathOrUrl, cancellationToken);
     }
 
     private IActionResult ProxyJson(HttpStatusCode status, JsonDocument? json)

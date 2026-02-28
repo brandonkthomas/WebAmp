@@ -6,7 +6,7 @@ import { createTrackListItem } from '../ui/trackListItem';
 import { attachInfiniteScroll } from '../internal/indiumApi';
 import { bindQueueActions } from '../ui/queueActions';
 import { renderListSkeleton } from '../ui/skeleton';
-import { appendFragment } from '../utils';
+import { appendFragment, isSoundCloudTrackPlayable } from '../utils';
 
 function mapSpotifyTrack(t: any): Track {
     const images = t?.album?.images ?? [];
@@ -143,6 +143,7 @@ export const likedView: WebAmpViewController = {
                             source: 'soundcloud',
                             title,
                             artist,
+                            isPlayable: isSoundCloudTrackPlayable(t),
                             durationSec: Math.round(durationMs / 1000),
                             artUrl,
                             artUrlSmall: artUrl,
@@ -225,5 +226,4 @@ export const likedView: WebAmpViewController = {
         (likedView as any)._cleanup = null;
     }
 };
-
 

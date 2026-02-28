@@ -22,6 +22,11 @@ export interface Track {
     title: string;
     artist: string;
     /**
+     * Whether the provider reports this track as playable.
+     * Defaults to playable when omitted.
+     */
+    isPlayable?: boolean;
+    /**
      * External/provider URL for the track.
      * - SoundCloud: `permalink_url` (preferred for widget.load)
      * - Spotify: (unused)
@@ -211,8 +216,9 @@ export class PlayerStore {
      * Replaces the current queue
      */
     setQueue(queue: Track[], opts?: { wrap?: boolean }) {
-        this.baseQueue = queue.slice();
-        this.queue = queue.slice();
+        const filtered = queue.filter((t) => t?.isPlayable !== false);
+        this.baseQueue = filtered.slice();
+        this.queue = filtered.slice();
         this.queueWrap = opts?.wrap ?? false;
         if (this.shuffleEnabled) {
             this.applyQueueTransform();
@@ -220,6 +226,7 @@ export class PlayerStore {
         const size = this.queue.length;
         logEvent('WebAmp', 'queue:set', {
             size,
+            filteredOut: Math.max(0, queue.length - size),
             wrap: this.queueWrap,
             firstId: this.queue[0]?.id ?? null,
             source: this.queue[0]?.source ?? null
@@ -247,24 +254,20 @@ export class PlayerStore {
     selectTrackById(trackId: string, autoplay: boolean = true) {
         const track = this.queue.find((t) => t.id === trackId) ?? null;
         if (!track) return;
+        const optimisticPlaying = this.transport ? false : !!autoplay;
 
         this.state = {
             track,
-            isPlaying: !!autoplay,
+            isPlaying: optimisticPlaying,
             isBusy: this.transport ? !!autoplay : false,
             positionSec: 0
         };
 
         this.emit();
         if (this.transport) {
-            if (autoplay) {
-            // Start local progress immediately; remote state updates may arrive later.
-            this.remoteBaseMs = performance.now();
-            this.remoteBasePosSec = 0;
-            this.startRemoteTicker();
-            } else {
-                this.stopRemoteTicker();
-            }
+            // Baseline behavior: do not synthesize remote progress before the
+            // transport confirms playback state.
+            this.stopRemoteTicker();
             void this.transport.play(track, 0, { autoplay });
             return;
         }
@@ -284,11 +287,13 @@ export class PlayerStore {
         if (this.transport) {
             const next = !this.state.isPlaying;
             // Any user toggle should cancel "busy" UI immediately.
-            this.state = { ...this.state, isPlaying: next, isBusy: false };
+            this.state = next
+                ? { ...this.state, isPlaying: false, isBusy: true }
+                : { ...this.state, isPlaying: false, isBusy: false };
             this.emit();
             void this.transport.togglePlay(!next /* previous */);
-            if (next) this.startRemoteTicker();
-            else this.stopRemoteTicker();
+            // Let transport remote updates control ticker start/stop.
+            this.stopRemoteTicker();
             return;
         }
 
