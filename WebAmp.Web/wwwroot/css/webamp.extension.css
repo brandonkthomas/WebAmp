@@ -361,7 +361,7 @@
 }
 
 .wa-landing__name {
-    color: var(--wa-color-text-dim);
+    color: rgba(255, 255, 255, 0.78); /* hardcoded */
     font-size: clamp(2.1rem, 5vw, 3rem);
     font-weight: 700;
     letter-spacing: 0.02em;
@@ -373,7 +373,7 @@
 .wa-landing__description {
     font-size: 0.95rem;
     letter-spacing: 0.02em;
-    color: var(--wa-color-text-dim);
+    color: rgba(255, 255, 255, 0.78); /* hardcoded */
 }
 
 .wa-landing__signin {
@@ -421,6 +421,10 @@
     background: #1db954;
 }
 
+.wa-landing__spotify:not(:disabled):hover {
+    background: #15863d;
+}
+
 .wa-landing__spotify:focus-visible {
     outline: 2px solid var(--wa-color-focus-ring);
     outline-offset: 3px;
@@ -428,6 +432,10 @@
 
 .wa-landing__soundcloud {
     background: #ff5500;
+}
+
+.wa-landing__soundcloud:not(:disabled):hover {
+    background: #b53d01;
 }
 
 .wa-landing__soundcloud:focus-visible {
@@ -444,6 +452,7 @@
 
 .wa-landing__provider-label {
     white-space: nowrap;
+    color: #fff; /* hardcoded */
 }
 
 .wa-landing__status {
