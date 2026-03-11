@@ -150,6 +150,15 @@ export class PlayerBar {
         if (this.btnToggle) {
             if (state.isBusy) this.btnToggle.setAttribute('data-wa-busy', 'true');
             else this.btnToggle.removeAttribute('data-wa-busy');
+            this.btnToggle.disabled = !track;
+        }
+
+        if (this.btnPrev) {
+            this.btnPrev.disabled = !track;
+        }
+
+        if (this.btnNext) {
+            this.btnNext.disabled = !track;
         }
 
         if (this.btnShare) {
@@ -162,6 +171,7 @@ export class PlayerBar {
         if (this.scrubber) {
             const ratio = duration ? (position / duration) : 0;
             this.scrubber.value = String(Math.max(0, Math.min(100, ratio * 100)));
+            this.scrubber.disabled = !track || !duration;
         }
 
         if (this.artImg) {
