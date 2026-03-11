@@ -192,6 +192,19 @@ public sealed class SpotifyApiController(SpotifyAuthService auth, SpotifyWebApiC
 
     // ============================================================================================
     /// <summary>
+    /// Returns the details of a track.
+    /// </summary>
+    /// <param name="id">The ID of the track.</param>
+    [HttpGet]
+    public async Task<IActionResult> Track([FromQuery] string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "missing_id" });
+        var (status, json) = await api.GetAsync(HttpContext, $"tracks/{Uri.EscapeDataString(id)}");
+        return ProxyJson(status, json);
+    }
+
+    // ============================================================================================
+    /// <summary>
     /// Returns the user's followed artists.
     /// </summary>
     /// <param name="limit">The maximum number of results to return (1-50).</param>

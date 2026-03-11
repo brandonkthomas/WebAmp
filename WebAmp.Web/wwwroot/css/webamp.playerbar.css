@@ -152,6 +152,7 @@
 }
 
 /* Mobile defaults: hide prev + scrubber */
+.wa-playerbar__btn--share,
 .wa-playerbar__btn--prev {
     display: none;
 }
@@ -167,7 +168,11 @@
 
     .wa-playerbar__inner {
         /* Align to the desktop layout: sidebar column + content column */
-        grid-template-columns: 260px auto minmax(240px, 1fr);
+        grid-template-columns: 260px auto minmax(0, 1fr);
+    }
+
+    .wa-playerbar__btn--share {
+        display: inline-flex;
     }
 
     .wa-playerbar__btn--prev {
@@ -178,6 +183,7 @@
         display: flex;
         align-items: center;
         gap: 0.6rem;
+        min-width: 0;
     }
 
     .wa-playerbar__time {
@@ -191,4 +197,9 @@
         width: 100%;
         accent-color: var(--wa-color-focus-ring);
     }
+}
+
+.wa-playerbar__btn:disabled {
+    cursor: default;
+    opacity: 0.45;
 }

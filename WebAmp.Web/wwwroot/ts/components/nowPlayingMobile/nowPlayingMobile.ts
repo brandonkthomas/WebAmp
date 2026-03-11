@@ -2,6 +2,7 @@ import type { PlayerState, PlayerStore } from '../../state/playerStore';
 import { applyCachedArt } from '../../storage/clientCache';
 import { getShufflePref, setShuffleEnabled } from '../../ui/queueActions';
 import { indiumSvg } from '../../internal/paths';
+import { shareCurrentTrack } from '../../share/currentTrackShare';
 
 function upgradeSoundCloudArtworkUrl(url: string): string {
     if (!url) return url;
@@ -46,6 +47,7 @@ export class NowPlayingMobile {
     private btnPrev: HTMLButtonElement | null;
     private btnNext: HTMLButtonElement | null;
     private btnToggle: HTMLButtonElement | null;
+    private btnShare: HTMLButtonElement | null;
     private timeCurrentEl: HTMLElement | null;
     private timeDurationEl: HTMLElement | null;
     private scrubber: HTMLInputElement | null;
@@ -54,6 +56,7 @@ export class NowPlayingMobile {
     private onTopbarShuffleChange: (() => void) | null = null;
 
     private lastArtUrl: string | null = null;
+    private shareBusy = false;
     private scrollLockY: number | null = null;
     private scrollLockBodyStyle: Partial<CSSStyleDeclaration> | null = null;
 
@@ -94,6 +97,7 @@ export class NowPlayingMobile {
         this.btnPrev = this.root.querySelector<HTMLButtonElement>('[data-wa-nowplaying-prev]');
         this.btnNext = this.root.querySelector<HTMLButtonElement>('[data-wa-nowplaying-next]');
         this.btnToggle = this.root.querySelector<HTMLButtonElement>('[data-wa-nowplaying-toggle]');
+        this.btnShare = this.root.querySelector<HTMLButtonElement>('[data-wa-nowplaying-share]');
 
         this.timeCurrentEl = this.root.querySelector<HTMLElement>('[data-wa-nowplaying-time-current]');
         this.timeDurationEl = this.root.querySelector<HTMLElement>('[data-wa-nowplaying-time-duration]');
@@ -125,6 +129,18 @@ export class NowPlayingMobile {
         this.btnPrev?.addEventListener('click', () => this.store.prev({ autoplay: true }));
         this.btnNext?.addEventListener('click', () => this.store.next({ autoplay: true }));
         this.btnToggle?.addEventListener('click', () => this.store.togglePlay());
+        this.btnShare?.addEventListener('click', async () => {
+            const track = this.store.getState().track;
+            if (!track || this.shareBusy) return;
+            this.shareBusy = true;
+            this.render(this.store.getState());
+            try {
+                await shareCurrentTrack(track);
+            } finally {
+                this.shareBusy = false;
+                this.render(this.store.getState());
+            }
+        });
 
         this.scrubber?.addEventListener('input', () => {
             const state = this.store.getState();
@@ -452,6 +468,10 @@ export class NowPlayingMobile {
         if (this.btnToggle) {
             if (state.isBusy) this.btnToggle.setAttribute('data-wa-busy', 'true');
             else this.btnToggle.removeAttribute('data-wa-busy');
+        }
+
+        if (this.btnShare) {
+            this.btnShare.disabled = !track || this.shareBusy;
         }
 
         if (this.timeCurrentEl) this.timeCurrentEl.textContent = formatTime(position);

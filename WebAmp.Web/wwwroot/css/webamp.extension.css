@@ -688,11 +688,18 @@
     }
 
     .wa-nowplaying__controls {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        margin-top: 0;
+    }
+
+    .wa-nowplaying__transport {
+        grid-column: 2;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 1.1rem;
-        margin-top: 0;
     }
 
     .wa-nowplaying__btn {
@@ -714,9 +721,19 @@
         background: var(--wa-color-text-inverse);
     }
 
+    .wa-nowplaying__btn--share {
+        justify-self: end;
+        margin-right: 1.1rem;
+    }
+
     .wa-nowplaying__btn:focus-visible {
         outline: 2px solid var(--wa-color-focus-ring);
         outline-offset: 3px;
+    }
+
+    .wa-nowplaying__btn:disabled {
+        cursor: default;
+        opacity: 0.45;
     }
 
     .wa-nowplaying__icon {

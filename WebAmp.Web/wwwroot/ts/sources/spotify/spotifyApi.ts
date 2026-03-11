@@ -132,6 +132,12 @@ export const spotifyApi = {
         return await cachedGet<any>(`spotify:${url}`, url);
     },
 
+    /** Fetches track metadata */
+    async track(id: string): Promise<any> {
+        const url = `${spotifyApiPath('track')}?id=${encodeURIComponent(id)}`;
+        return await cachedGet<any>(`spotify:${url}`, url);
+    },
+
     /** Fetches artist top tracks for a market */
     async artistTopTracks(id: string, market: string = 'US'): Promise<any> {
         const url = `${spotifyApiPath('artisttoptracks')}?id=${encodeURIComponent(id)}&market=${encodeURIComponent(market)}`;
