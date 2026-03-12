@@ -490,7 +490,7 @@
 
     @supports (bottom: env(safe-area-inset-bottom)) {
         .wa-playerbar {
-            bottom: calc(env(safe-area-inset-bottom) + 0.9rem);
+            bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
         }
     }
 
