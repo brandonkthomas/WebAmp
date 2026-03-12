@@ -12,7 +12,7 @@
     right: 0;
     bottom: 0;
     z-index: 9999;
-    padding: 0.65rem 1.1rem;
+    padding: 0.65rem;
     /* Visual chrome (blur, border, background) is rendered by .wa-playerbar__bg so
        that frequently updated controls live in a non-filtered layer above it. */
 }
