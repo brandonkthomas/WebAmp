@@ -24,7 +24,7 @@
     top: 0rem;
     bottom: 0rem;
     border-top: 1px solid var(--wa-color-border-soft);
-    background: transparent;
+    background: var(--wa-color-surface-topbar-blur);
     z-index: -1;
     pointer-events: none;
 }
@@ -34,8 +34,8 @@
     (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))
 ) {
     .wa-playerbar__bg {
-        backdrop-filter: blur(16px) saturate(1.25);
-        -webkit-backdrop-filter: blur(16px) saturate(1.25);
+        backdrop-filter: blur(10px) saturate(0.8);
+        -webkit-backdrop-filter: blur(10px) saturate(0.8);
     }
 }
 
