@@ -14,7 +14,6 @@ const colorCache = new Map<string, Rgb>();
  */
 export async function getDominantColor(imageUrl: string): Promise<Rgb | null> {
     if (!imageUrl) return null;
-    if (!canSampleCrossOriginImage(imageUrl)) return null;
     const cached = colorCache.get(imageUrl);
     if (cached) return cached;
 
@@ -26,17 +25,6 @@ export async function getDominantColor(imageUrl: string): Promise<Rgb | null> {
         return rgb;
     } catch {
         return null;
-    }
-}
-
-function canSampleCrossOriginImage(url: string): boolean {
-    try {
-        const normalized = String(url).trim();
-        const parsed = new URL(normalized, location.href);
-        // Canvas sampling should be same-origin only to avoid CORS errors/noise.
-        return parsed.origin === location.origin;
-    } catch {
-        return false;
     }
 }
 

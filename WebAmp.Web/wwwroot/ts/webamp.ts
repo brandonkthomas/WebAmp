@@ -24,6 +24,7 @@ import { HybridTransport } from './sources/hybridTransport';
 import { getDominantColor } from './ui/dominantColor';
 import { clearClientCacheAndReload } from './storage/clientCache';
 import { getShufflePref, isShuffleDirty, setShuffleEnabled } from './ui/queueActions';
+import { logEvent } from './internal/logging';
 
 // Injected at bundle time by esbuild (see WebAmp.Web.csproj).
 declare const __WEBAMP_APP_VERSION__: string;
@@ -184,11 +185,13 @@ function boot() {
     }
 
     // Background color wash based on the currently playing track's album art.
-    const base = { r: 14, g: 14, b: 18 };
     let lastArtKey: string | null = null;
     let lastNowPlayingId: string | null = null;
     let lastMediaMetaKey: string | null = null;
     let lastMediaPosSec: number | null = null;
+    const themeMedia = (typeof window !== 'undefined' && typeof window.matchMedia === 'function')
+        ? window.matchMedia('(prefers-color-scheme: dark)')
+        : null;
 
     const mediaSession = (typeof navigator !== 'undefined' && 'mediaSession' in navigator)
         ? navigator.mediaSession
@@ -318,9 +321,11 @@ function boot() {
             }
         }
 
+        const base = getIdleAccent();
         const art = state.track?.artUrlSmall ?? state.track?.artUrl ?? null;
         if (!art) {
             lastArtKey = null;
+            setAccentActive(false);
             setAccent(base);
             return;
         }
@@ -329,18 +334,77 @@ function boot() {
 
         void (async () => {
             const rgb = await getDominantColor(art);
-            if (!rgb) return;
+            if (!rgb) {
+                setAccentActive(false);
+                setAccent(base);
+                return;
+            }
             // Mix with base background so it stays subtle.
             const mixed = mixRgb(rgb, base, 0.62);
             setAccent(mixed);
+            setAccentActive(true);
         })();
     });
+
+    const syncIdleAccent = () => {
+        const target = document.body ?? document.documentElement;
+        if (target.dataset.waAccentActive === 'true') return;
+        setAccent(getIdleAccent());
+    };
+
+    if (typeof MutationObserver !== 'undefined') {
+        const observer = new MutationObserver(syncIdleAccent);
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['class', 'data-wa-theme', 'data-wa-theme-resolved']
+        });
+    }
+
+    if (themeMedia) {
+        const handleThemeChange = () => syncIdleAccent();
+        if (typeof themeMedia.addEventListener === 'function') {
+            themeMedia.addEventListener('change', handleThemeChange);
+        } else if (typeof themeMedia.addListener === 'function') {
+            themeMedia.addListener(handleThemeChange);
+        }
+    }
 
     function setAccent(rgb: { r: number; g: number; b: number }) {
         const target = document.body ?? document.documentElement;
         target.style.setProperty('--wa-accent-r', String(rgb.r));
         target.style.setProperty('--wa-accent-g', String(rgb.g));
         target.style.setProperty('--wa-accent-b', String(rgb.b));
+        logEvent('WebAmp', 'setAccent', rgb);
+    }
+
+    function setAccentActive(active: boolean) {
+        const target = document.body ?? document.documentElement;
+        target.dataset.waAccentActive = active ? 'true' : 'false';
+    }
+
+    function getIdleAccent() {
+        return isLightThemeResolved()
+            ? { r: 255, g: 255, b: 255 }
+            : { r: 0, g: 0, b: 0 };
+    }
+
+    function isLightThemeResolved() {
+        const root = document.documentElement;
+        if (
+            root.classList.contains('wa-theme-light')
+            || root.getAttribute('data-wa-theme') === 'light'
+            || root.getAttribute('data-wa-theme-resolved') === 'light'
+        ) {
+            return true;
+        }
+        if (
+            root.classList.contains('wa-theme-dark')
+            || root.getAttribute('data-wa-theme') === 'dark'
+            || root.getAttribute('data-wa-theme-resolved') === 'dark'
+        ) {
+            return false;
+        }
+        return !!themeMedia && !themeMedia.matches;
     }
 
     function mixRgb(a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }, t: number) {

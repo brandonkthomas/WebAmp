@@ -27,6 +27,66 @@
 */
 @import url('./webamp.playerbar.css');
 
+/* Keep the album-art body wash app-owned so it stays independent from
+   Indium's theme-selected body background. */
+body {
+    --wa-webamp-bg-visibility: 0;
+    --wa-webamp-bg-wash-opacity: 0.52;
+    --wa-webamp-bg-gradient-stop: 70%;
+    --wa-webamp-bg-gradient-end: var(--wa-color-bg-gradient-end);
+    --wa-webamp-body-bg-image: linear-gradient(
+        145deg,
+        rgba(
+            var(--wa-accent-r),
+            var(--wa-accent-g),
+            var(--wa-accent-b),
+            var(--wa-webamp-bg-wash-opacity)
+        ) 0%,
+        var(--wa-webamp-bg-gradient-end) var(--wa-webamp-bg-gradient-stop)
+    );
+    --wa-body-bg-image-app: none;
+}
+
+.wa-app::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    pointer-events: none;
+    z-index: -1;
+    background-image: var(--wa-webamp-body-bg-image);
+    background-repeat: no-repeat;
+    background-size: cover;
+    opacity: var(--wa-webamp-bg-visibility);
+    transition:
+        opacity 220ms ease,
+        --wa-accent-r 900ms ease,
+        --wa-accent-g 900ms ease,
+        --wa-accent-b 900ms ease;
+}
+
+body[data-wa-accent-active='true'] .wa-app::before {
+    opacity: 1;
+}
+
+html.wa-theme-light body,
+html[data-wa-theme='light'] body,
+html[data-wa-theme-resolved='light'] body {
+    --wa-webamp-bg-wash-opacity: 0.24;
+    --wa-webamp-bg-gradient-stop: 72%;
+    --wa-webamp-bg-gradient-end: rgba(244, 246, 250, 0.96);
+}
+
+@media (prefers-color-scheme: light) {
+    html:not(.wa-theme-dark):not([data-wa-theme='dark']) body {
+        --wa-webamp-bg-wash-opacity: 0.24;
+        --wa-webamp-bg-gradient-stop: 72%;
+        --wa-webamp-bg-gradient-end: rgba(244, 246, 250, 0.96);
+    }
+}
+
 /* Hide Albums/Artists when SoundCloud is the sole source */
 .wa-app[data-wa-source="soundcloud"] .wa-sidenav__link[data-wa-nav="album"],
 .wa-app[data-wa-source="soundcloud"] .wa-sidenav__link[data-wa-nav="artist"] {
