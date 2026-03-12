@@ -488,6 +488,12 @@
         bottom: 0.75rem;
     }
 
+    @supports (bottom: env(safe-area-inset-bottom)) {
+        .wa-playerbar {
+            bottom: calc(env(safe-area-inset-bottom) + 0.9rem);
+        }
+    }
+
     .wa-playerbar__bg {
         border-radius: 12px;
         border: 1px solid var(--wa-color-border-soft);
@@ -546,7 +552,8 @@
         background: var(--wa-color-surface-topbar);
         transform: translateY(102%);
         transition: transform 0.22s ease;
-        padding-bottom: env(safe-area-inset-bottom, 0px);
+        /* Let content handle safe-area padding so the sheet background
+           itself always fills edge-to-edge down to the home bar. */
         overflow: hidden;
         display: flex;
         flex-direction: column;

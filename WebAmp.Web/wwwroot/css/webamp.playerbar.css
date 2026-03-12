@@ -13,14 +13,16 @@
     bottom: 0;
     z-index: 9999;
     padding: 0.65rem 1.1rem;
-    padding-bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));
     /* Visual chrome (blur, border, background) is rendered by .wa-playerbar__bg so
        that frequently updated controls live in a non-filtered layer above it. */
 }
 
 .wa-playerbar__bg {
     position: absolute;
-    inset: 0;
+    left: 0;
+    right: 0;
+    top: 0rem;
+    bottom: 0rem;
     border-top: 1px solid var(--wa-color-border-soft);
     background: transparent;
     z-index: -1;
@@ -44,6 +46,26 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 0.75rem;
+}
+
+@media (max-width: 820px) {
+    .wa-playerbar {
+        left: 0.75rem;
+        right: 0.75rem;
+        bottom: 0.75rem;
+    }
+
+    @supports (bottom: max(0px)) and (bottom: env(safe-area-inset-bottom)) {
+        .wa-playerbar {
+            bottom: max(0.75rem, calc(env(safe-area-inset-bottom) + 0.75rem));
+        }
+    }
+
+    .wa-playerbar__bg {
+        border-radius: 16px 16px 12px 12px;
+        border: 1px solid var(--wa-color-border-soft);
+        box-shadow: var(--wa-shadow-soft);
+    }
 }
 
 .wa-playerbar__media {
