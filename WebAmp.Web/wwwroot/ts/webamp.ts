@@ -449,10 +449,10 @@ function boot() {
     });
 
     // Provider transports can explicitly signal "track finished" when they have
-    // authoritative end-of-track detection (e.g. SoundCloud widget FINISH).
+    // authoritative end-of-track detection (e.g. SoundCloud HTMLAudioElement end,
+    // or Spotify Web Playback SDK signaling a natural end-of-track).
     window.addEventListener('wa:transport:finish', (e: Event) => {
         const ev = e as CustomEvent<{ source?: string; trackId?: string }>;
-        if (ev.detail?.source !== 'soundcloud') return;
         const finishedId = ev.detail?.trackId;
         if (!finishedId) return;
         const st = playerStore.getState();
@@ -462,7 +462,7 @@ function boot() {
         playerStore.next({ autoplay: true });
     });
 
-    // Transport busy state (e.g. SoundCloud widget load/ready/seek) so UI can show
+    // Transport busy state (e.g. SoundCloud HTMLAudioElement load/ready/seek) so UI can show
     // an indeterminate throbber for play buttons while switching tracks.
     window.addEventListener('wa:transport:busy', (e: Event) => {
         const ev = e as CustomEvent<{ busy?: boolean }>;

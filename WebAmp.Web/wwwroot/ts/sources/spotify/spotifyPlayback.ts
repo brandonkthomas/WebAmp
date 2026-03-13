@@ -1,6 +1,7 @@
 import { spotifyApi } from './spotifyApi';
 import { logEvent } from '../../internal/logging';
 import type { Track } from '../../state/playerStore';
+import { dispatchTransportFinish } from '../transportEvents';
 
 declare global {
     /**
@@ -26,6 +27,12 @@ let readyPromise: Promise<SpotifyPlaybackReady> | null = null;
 let playerRef: any | null = null;
 let deviceIdRef: string | null = null;
 const stateListeners = new Set<PlaybackStateListener>();
+
+// Last emitted playback snapshot, used to infer natural end-of-track transitions
+// so we can mirror SoundCloud's explicit "finished" signaling.
+let lastTrackId: string | null = null;
+let lastIsPlaying: boolean | null = null;
+let lastPositionSec: number | null = null;
 
 /**
  * Loads Spotify Web Playback SDK script once and waits for ready callback
@@ -112,6 +119,33 @@ function emitState(state: any) {
         positionSec: payload.positionSec,
         durationSec: payload.track?.durationSec ?? null
     });
+
+    // If the Spotify SDK reports that playback has transitioned from playing
+    // to paused at (or extremely close to) the end of the track, treat this
+    // as a natural "track finished" signal. This mirrors the SoundCloud
+    // transport's explicit HTMLAudioElement `ended` handler so that queue
+    // auto-advance behavior is consistent across providers, including on
+    // platforms where background timers are aggressively throttled.
+    if (payload.track && typeof payload.positionSec === 'number') {
+        const duration = payload.track.durationSec ?? 0;
+        const epsilon = 2; // seconds tolerance near end-of-track
+        const atEnd = duration > 0 && payload.positionSec >= duration - epsilon;
+        const wasPlaying = lastIsPlaying === true;
+        const sameTrack = lastTrackId !== null && lastTrackId === payload.track.id;
+
+        if (wasPlaying && !payload.isPlaying && sameTrack && atEnd) {
+            try {
+                dispatchTransportFinish('spotify', payload.track.id);
+            } catch {
+                // ignore
+            }
+        }
+    }
+
+    lastTrackId = payload.track?.id ?? null;
+    lastIsPlaying = payload.isPlaying;
+    lastPositionSec = payload.positionSec;
+
     for (const l of stateListeners) l(payload);
 }
 

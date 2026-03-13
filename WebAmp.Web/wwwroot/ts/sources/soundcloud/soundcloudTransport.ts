@@ -1,6 +1,7 @@
 import type { PlayerTransport, Track, TrackSource } from '../../state/playerStore';
 import { showErrorDialog, formatErrorMessage } from '../../ui/errorDialog';
 import { soundcloudApi } from './soundcloudApi';
+import { dispatchTransportBusy, dispatchTransportFinish } from '../transportEvents';
 
 type PlaybackStateListener = (s: { track: Track | null; isPlaying: boolean; positionSec: number }) => void;
 
@@ -116,9 +117,7 @@ export class SoundCloudTransport implements PlayerTransport {
             try {
                 queueMicrotask(() => {
                     if (this.currentTrack?.id !== finishedId) return;
-                    window.dispatchEvent(new CustomEvent('wa:transport:finish', {
-                        detail: { source: 'soundcloud', trackId: finishedId }
-                    }));
+                    dispatchTransportFinish('soundcloud', finishedId);
                 });
             } catch {
                 // ignore
@@ -145,11 +144,7 @@ export class SoundCloudTransport implements PlayerTransport {
     }
 
     private setBusy(busy: boolean): void {
-        try {
-            window.dispatchEvent(new CustomEvent('wa:transport:busy', { detail: { busy } }));
-        } catch {
-            // ignore
-        }
+        dispatchTransportBusy(busy);
     }
 
     private async waitForLoadedMetadata(audio: HTMLAudioElement, timeoutMs: number = 3000): Promise<void> {
