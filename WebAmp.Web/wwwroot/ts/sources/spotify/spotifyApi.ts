@@ -174,6 +174,7 @@ export const spotifyApi = {
 
     /** Transfers playback to the Web Playback SDK device */
     async transfer(deviceId: string, play: boolean = true): Promise<void> {
+        logEvent('WebAmp', 'spotify:api:transfer', { deviceId, play });
         await jsonFetch(spotifyApiPath('transfer'), {
             method: 'POST',
             body: JSON.stringify({ deviceId, play })
@@ -182,6 +183,7 @@ export const spotifyApi = {
 
     /** Starts playback of a track URI on the given device */
     async playTrack(deviceId: string, trackUri: string, positionMs?: number): Promise<void> {
+        logEvent('WebAmp', 'spotify:api:play', { deviceId, trackUri, positionMs: positionMs ?? null });
         await jsonFetch(spotifyApiPath('play'), {
             method: 'POST',
             body: JSON.stringify({ deviceId, trackUri, positionMs })
@@ -190,26 +192,31 @@ export const spotifyApi = {
 
     /** Pauses playback */
     async pause(deviceId: string): Promise<void> {
+        logEvent('WebAmp', 'spotify:api:pause', { deviceId });
         await jsonFetch(spotifyApiPath('pause'), { method: 'POST', body: JSON.stringify({ deviceId }) });
     },
 
     /** Resumes playback */
     async resume(deviceId: string): Promise<void> {
+        logEvent('WebAmp', 'spotify:api:resume', { deviceId });
         await jsonFetch(spotifyApiPath('resume'), { method: 'POST', body: JSON.stringify({ deviceId }) });
     },
 
     /** Skips to next track */
     async next(deviceId: string): Promise<void> {
+        logEvent('WebAmp', 'spotify:api:next', { deviceId });
         await jsonFetch(spotifyApiPath('next'), { method: 'POST', body: JSON.stringify({ deviceId }) });
     },
 
     /** Skips to previous track */
     async previous(deviceId: string): Promise<void> {
+        logEvent('WebAmp', 'spotify:api:previous', { deviceId });
         await jsonFetch(spotifyApiPath('previous'), { method: 'POST', body: JSON.stringify({ deviceId }) });
     },
 
     /** Seeks playback position */
     async seek(deviceId: string, positionMs: number): Promise<void> {
+        logEvent('WebAmp', 'spotify:api:seek', { deviceId, positionMs });
         await jsonFetch(spotifyApiPath('seek'), {
             method: 'POST',
             body: JSON.stringify({ deviceId, positionMs })

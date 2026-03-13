@@ -1,4 +1,5 @@
 import { spotifyApi } from './spotifyApi';
+import { logEvent } from '../../internal/logging';
 import type { Track } from '../../state/playerStore';
 
 declare global {
@@ -33,6 +34,7 @@ function loadSdk(): Promise<void> {
     return new Promise((resolve, reject) => {
         // If already loaded, resolve.
         if (window.Spotify?.Player) {
+            logEvent('WebAmp', 'spotify:sdk:cached');
             resolve();
             return;
         }
@@ -40,17 +42,25 @@ function loadSdk(): Promise<void> {
         const existing = document.querySelector<HTMLScriptElement>('script[data-wa-spotify-sdk]');
         if (existing) {
             // SDK script is in-flight; wait for ready callback.
+            logEvent('WebAmp', 'spotify:sdk:inflight');
         } else {
             const script = document.createElement('script');
             script.src = 'https://sdk.scdn.co/spotify-player.js';
             script.async = true;
             script.defer = true;
             script.setAttribute('data-wa-spotify-sdk', 'true');
-            script.onerror = () => reject(new Error('Failed to load Spotify Web Playback SDK'));
+            script.onerror = () => {
+                logEvent('WebAmp', 'spotify:sdk:error', null, 'Failed to load Spotify Web Playback SDK', 'error');
+                reject(new Error('Failed to load Spotify Web Playback SDK'));
+            };
             document.head.appendChild(script);
+            logEvent('WebAmp', 'spotify:sdk:append', { src: script.src });
         }
 
-        window.onSpotifyWebPlaybackSDKReady = () => resolve();
+        window.onSpotifyWebPlaybackSDKReady = () => {
+            logEvent('WebAmp', 'spotify:sdk:ready');
+            resolve();
+        };
     });
 }
 
@@ -86,12 +96,22 @@ function mapPlayerStateToTrack(state: any): Track | null {
  * Broadcasts a normalized playback snapshot to all listeners
  */
 function emitState(state: any) {
-    if (!state) return;
+    if (!state) {
+        logEvent('WebAmp', 'spotify:sdk:state:null');
+        return;
+    }
     const payload = {
         track: mapPlayerStateToTrack(state),
         isPlaying: !state.paused,
         positionSec: Math.round((state.position ?? 0) / 1000)
     };
+    logEvent('WebAmp', 'spotify:sdk:state', {
+        deviceId: deviceIdRef,
+        trackId: payload.track?.id ?? null,
+        isPlaying: payload.isPlaying,
+        positionSec: payload.positionSec,
+        durationSec: payload.track?.durationSec ?? null
+    });
     for (const l of stateListeners) l(payload);
 }
 
@@ -103,13 +123,18 @@ export async function ensureSpotifyPlayback(onState?: PlaybackStateListener): Pr
     if (onState) stateListeners.add(onState);
 
     if (playerRef && deviceIdRef) {
+        logEvent('WebAmp', 'spotify:ensure:cached', { deviceId: deviceIdRef });
         return { deviceId: deviceIdRef, player: playerRef };
     }
 
-    if (readyPromise) return readyPromise;
+    if (readyPromise) {
+        logEvent('WebAmp', 'spotify:ensure:pending');
+        return readyPromise;
+    }
 
     readyPromise = (async () => {
         try {
+            logEvent('WebAmp', 'spotify:ensure:start');
             await loadSdk();
 
             const player = new window.Spotify.Player({
@@ -118,44 +143,78 @@ export async function ensureSpotifyPlayback(onState?: PlaybackStateListener): Pr
                 getOAuthToken: async (cb: (t: string) => void) => {
                     try {
                         const { accessToken } = await spotifyApi.accessToken();
+                        logEvent('WebAmp', 'spotify:token:ok', { length: accessToken?.length ?? 0 });
                         cb(accessToken);
-                    } catch {
+                    } catch (error) {
+                        const message = error instanceof Error ? error.message : 'Unknown error';
+                        logEvent('WebAmp', 'spotify:token:error', null, message, 'error');
                         cb('');
                     }
                 }
+            });
+            logEvent('WebAmp', 'spotify:player:created', {
+                hasActivateElement: typeof player?.activateElement === 'function',
+                userAgent: navigator.userAgent
             });
 
             const deviceIdPromise: Promise<string> = new Promise((resolve, reject) => {
                 const timeout = window.setTimeout(() => reject(new Error('Spotify player did not respond.')), 15000);
                 player.addListener('ready', ({ device_id }: any) => {
                     window.clearTimeout(timeout);
+                    logEvent('WebAmp', 'spotify:player:ready', { deviceId: device_id });
                     resolve(device_id);
                 });
-                player.addListener('not_ready', () => {
-                    // ignore
+                player.addListener('not_ready', ({ device_id }: any) => {
+                    logEvent('WebAmp', 'spotify:player:not_ready', { deviceId: device_id }, undefined, 'warn');
                 });
-                player.addListener('initialization_error', ({ message }: any) => reject(new Error(message)));
-                player.addListener('authentication_error', ({ message }: any) => reject(new Error(message)));
-                player.addListener('account_error', ({ message }: any) => reject(new Error(message)));
+                player.addListener('initialization_error', ({ message }: any) => {
+                    logEvent('WebAmp', 'spotify:player:init_error', null, message, 'error');
+                    reject(new Error(message));
+                });
+                player.addListener('authentication_error', ({ message }: any) => {
+                    logEvent('WebAmp', 'spotify:player:auth_error', null, message, 'error');
+                    reject(new Error(message));
+                });
+                player.addListener('account_error', ({ message }: any) => {
+                    logEvent('WebAmp', 'spotify:player:account_error', null, message, 'error');
+                    reject(new Error(message));
+                });
+                player.addListener('playback_error', ({ message }: any) => {
+                    logEvent('WebAmp', 'spotify:player:playback_error', null, message, 'error');
+                });
+                player.addListener('autoplay_failed', () => {
+                    logEvent('WebAmp', 'spotify:player:autoplay_failed', {
+                        deviceId: deviceIdRef,
+                        visibility: document.visibilityState,
+                        userAgent: navigator.userAgent
+                    }, undefined, 'warn');
+                });
             });
 
             player.addListener('player_state_changed', (state: any) => emitState(state));
 
             // IMPORTANT: connect must happen before the 'ready' event can fire.
+            logEvent('WebAmp', 'spotify:player:connect:start');
             const connected = await player.connect();
+            logEvent('WebAmp', 'spotify:player:connect:done', { connected });
             if (!connected) throw new Error('Spotify player failed to connect');
 
             const deviceId = await deviceIdPromise;
 
             // Make this browser player the active device.
+            logEvent('WebAmp', 'spotify:transfer:start', { deviceId, play: true });
             await spotifyApi.transfer(deviceId, true);
+            logEvent('WebAmp', 'spotify:transfer:done', { deviceId, play: true });
 
             playerRef = player;
             deviceIdRef = deviceId;
+            logEvent('WebAmp', 'spotify:ensure:done', { deviceId });
             return { deviceId, player };
         } catch (e) {
             // Allow retries on next user action.
             readyPromise = null;
+            const message = e instanceof Error ? e.message : 'Unknown error';
+            logEvent('WebAmp', 'spotify:ensure:error', null, message, 'error');
             throw e;
         }
     })();
