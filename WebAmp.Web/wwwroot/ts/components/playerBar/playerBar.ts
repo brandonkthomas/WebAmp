@@ -68,48 +68,83 @@ export class PlayerBar {
         this.btnNext?.addEventListener('click', () => this.store.next({ autoplay: true }));
         this.btnToggle?.addEventListener('click', () => this.store.togglePlay());
         this.btnMenu?.addEventListener('click', () => {
-            const track = this.store.getState().track;
+            const track = this.store.getState().track as any;
             if (!track || this.shareBusy || this.libraryBusy || !this.btnMenu) return;
             this.libraryBusy = true;
             this.render(this.store.getState());
             void (async () => {
                 try {
                     await ensureTrackLibraryState(track);
+                    const canShowAlbum: boolean = !!track?.albumId;
+                    const canShowArtist: boolean = !!track?.primaryArtistId;
+                    const items = [
+                        ...(canShowAlbum
+                            ? [{
+                                id: 'show-album',
+                                title: 'Show Album',
+                                iconSrc: indiumSvg('album.svg'),
+                                onSelect: () => {
+                                    const albumId: string | undefined = track?.albumId;
+                                    if (!albumId) return;
+                                    // Desktop-only deep-link; mobile uses the fullscreen sheet.
+                                    if (window.matchMedia('(max-width: 820px)').matches) return;
+                                    window.dispatchEvent(
+                                        new CustomEvent('wa:navigate:album', { detail: { albumId } })
+                                    );
+                                }
+                            }] as const
+                            : []),
+                        ...(canShowArtist
+                            ? [{
+                                id: 'show-artist',
+                                title: 'Show Artist',
+                                iconSrc: indiumSvg('artist.svg'),
+                                onSelect: () => {
+                                    const artistId: string | undefined = track?.primaryArtistId;
+                                    if (!artistId) return;
+                                    // Desktop-only deep-link; mobile uses the fullscreen sheet.
+                                    if (window.matchMedia('(max-width: 820px)').matches) return;
+                                    window.dispatchEvent(
+                                        new CustomEvent('wa:navigate:artist', { detail: { artistId } })
+                                    );
+                                }
+                            }] as const
+                            : []),
+                        {
+                            id: 'toggle-library',
+                            title: getTrackLibraryActionTitle(track),
+                            iconSrc: indiumSvg('heart-filled.svg'),
+                            onSelect: async () => {
+                                this.libraryBusy = true;
+                                this.render(this.store.getState());
+                                try {
+                                    await toggleTrackLibrary(track);
+                                } finally {
+                                    this.libraryBusy = false;
+                                    this.render(this.store.getState());
+                                }
+                            }
+                        },
+                        {
+                            id: 'share',
+                            title: 'Share',
+                            iconSrc: indiumSvg('share.svg'),
+                            onSelect: async () => {
+                                this.shareBusy = true;
+                                this.render(this.store.getState());
+                                try {
+                                    await shareCurrentTrack(track);
+                                } finally {
+                                    this.shareBusy = false;
+                                    this.render(this.store.getState());
+                                }
+                            }
+                        }
+                    ] as const;
                     openPopupMenu({
                         anchor: this.btnMenu!,
                         title: 'Track Actions',
-                        items: [
-                            {
-                                id: 'toggle-library',
-                                title: getTrackLibraryActionTitle(track),
-                                iconSrc: indiumSvg('heart-filled.svg'),
-                                onSelect: async () => {
-                                    this.libraryBusy = true;
-                                    this.render(this.store.getState());
-                                    try {
-                                        await toggleTrackLibrary(track);
-                                    } finally {
-                                        this.libraryBusy = false;
-                                        this.render(this.store.getState());
-                                    }
-                                }
-                            },
-                            {
-                                id: 'share',
-                                title: 'Share',
-                                iconSrc: indiumSvg('share.svg'),
-                                onSelect: async () => {
-                                    this.shareBusy = true;
-                                    this.render(this.store.getState());
-                                    try {
-                                        await shareCurrentTrack(track);
-                                    } finally {
-                                        this.shareBusy = false;
-                                        this.render(this.store.getState());
-                                    }
-                                }
-                            }
-                        ]
+                        items
                     });
                 } finally {
                     this.libraryBusy = false;
@@ -129,6 +164,9 @@ export class PlayerBar {
         // Desktop: clicking the title/artist in the bottom bar should navigate
         // to the corresponding album / artist detail view when we have IDs.
         this.titleEl?.addEventListener('click', () => {
+            // Only deep-link from the desktop player bar; on mobile, the bar
+            // opens the fullscreen Now Playing sheet instead.
+            if (window.matchMedia('(max-width: 820px)').matches) return;
             const track = this.store.getState().track as any;
             const albumId: string | undefined = track?.albumId;
             if (!albumId) return;
@@ -138,6 +176,7 @@ export class PlayerBar {
         });
 
         this.artistEl?.addEventListener('click', () => {
+            if (window.matchMedia('(max-width: 820px)').matches) return;
             const track = this.store.getState().track as any;
             const artistId: string | undefined = track?.primaryArtistId;
             if (!artistId) return;
