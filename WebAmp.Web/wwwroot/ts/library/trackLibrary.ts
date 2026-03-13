@@ -207,10 +207,10 @@ export async function toggleTrackLibrary(track: Track | null): Promise<boolean |
         rememberTrackLibraryState(track, nextInLibrary);
         invalidateLibraryCaches(track);
 
-        await showAlert({
-            title: nextInLibrary ? 'Add To Library' : 'Remove From Library',
-            message: getTrackLibrarySuccessMessage(track, nextInLibrary)
-        });
+        // await showAlert({
+        //     title: nextInLibrary ? 'Add To Library' : 'Remove From Library',
+        //     message: getTrackLibrarySuccessMessage(track, nextInLibrary)
+        // });
 
         logEvent('WebAmp', nextInLibrary ? 'track:add-to-library' : 'track:remove-from-library', {
             source: getTrackSource(track),

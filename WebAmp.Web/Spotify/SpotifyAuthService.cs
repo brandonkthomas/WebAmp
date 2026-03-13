@@ -88,6 +88,7 @@ public sealed class SpotifyAuthService
                 "user-modify-playback-state",
                 "user-read-currently-playing",
                 "user-library-read",
+                "user-library-modify",
                 "user-follow-read",
                 "playlist-read-private",
                 "playlist-read-collaborative",
