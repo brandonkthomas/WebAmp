@@ -24,11 +24,11 @@ function getSoundCloudTrackUrn(track: Track): string {
 function invalidateLibraryCaches(track: Track): void {
     switch (getTrackSource(track)) {
         case 'soundcloud':
-            clearCachedJsonByPrefix('soundclouduser:/api/soundclouduser/likedtracks');
+            clearCachedJsonByPrefix('soundclouduser:/api/webamp/soundclouduser/likedtracks');
             break;
         case 'spotify':
         default:
-            clearCachedJsonByPrefix('spotify:/api/spotify/savedtracks');
+            clearCachedJsonByPrefix('spotify:/api/webamp/spotify/savedtracks');
             break;
     }
 }
