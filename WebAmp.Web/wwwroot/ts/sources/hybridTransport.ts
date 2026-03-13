@@ -32,6 +32,16 @@ export class HybridTransport implements PlayerTransport {
         this.soundcloud.prime();
     }
 
+    primeSpotify(): void {
+        if (!this.opts.spotifySource.getState().isConnected) return;
+        this.ensureSpotify().prime();
+    }
+
+    primeSpotifyActivation(): void {
+        if (!this.opts.spotifySource.getState().isConnected) return;
+        this.ensureSpotify().primeActivation();
+    }
+
     private getSource(track: Track | null): TrackSource | null {
         if (!track) return null;
         return (track.source ?? 'spotify') as TrackSource;

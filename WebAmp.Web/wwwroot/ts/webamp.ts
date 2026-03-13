@@ -149,8 +149,10 @@ function boot() {
         const spotifyConnected = spotifySource.getState().isConnected;
         const scConnected = soundCloudSource.getState().isConnected;
         if (spotifyConnected && (spotifySource as any).disconnect) {
+            document.body.setAttribute('data-initial-state', 'loading'); // show loading overlay
             void spotifySource.disconnect();
         } else if (scConnected && (soundCloudSource as any).disconnect) {
+            document.body.setAttribute('data-initial-state', 'loading'); // show loading overlay
             void soundCloudSource.disconnect();
         }
     });
@@ -523,6 +525,8 @@ function boot() {
     // The transport will route playback to Spotify or SoundCloud based on track.source,
     // and will surface a friendly error if a Spotify track is played without being connected.
     let transportInstalled = false;
+    let hybridTransport: HybridTransport | null = null;
+    
     const ensureHybridTransport = () => {
         if (transportInstalled) return;
         transportInstalled = true;
@@ -536,6 +540,7 @@ function boot() {
                 });
             }
         });
+        hybridTransport = transport;
         playerStore.setTransport(transport);
 
         // Prewarm SoundCloud transport (audio element + stream resolver cache path)
@@ -546,10 +551,26 @@ function boot() {
             // ignore
         }
 
+        try {
+            transport.primeSpotify();
+        } catch {
+            // ignore
+        }
+
         // Prime again on earliest user interaction to maximize first-play reliability.
         const primeOnce = () => {
             try {
                 transport.primeSoundCloud();
+            } catch {
+                // ignore
+            }
+            try {
+                transport.primeSpotify();
+            } catch {
+                // ignore
+            }
+            try {
+                transport.primeSpotifyActivation();
             } catch {
                 // ignore
             }
@@ -581,6 +602,14 @@ function boot() {
 
         // Always have a transport so that SoundCloud-only mode works without Spotify.
         ensureHybridTransport();
+
+        if (spotifyConnected) {
+            try {
+                hybridTransport?.primeSpotify();
+            } catch {
+                // ignore
+            }
+        }
 
         // If any music source is connected and we are still on the landing page,
         // jump to the desired route.

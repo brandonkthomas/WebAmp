@@ -12,6 +12,7 @@ export class SpotifyTransport implements PlayerTransport {
     private player: any | null = null;
     private ready: Promise<void> | null = null;
     private activated = false;
+    private transferredDeviceId: string | null = null;
 
     constructor(private readonly onRemoteState?: (s: { track: Track | null; isPlaying: boolean; positionSec: number }) => void) {}
 
@@ -20,6 +21,45 @@ export class SpotifyTransport implements PlayerTransport {
      */
     async init(): Promise<void> {
         await this.ensureReady();
+    }
+
+    prime(): void {
+        if (this.ready) return;
+        logEvent('WebAmp', 'spotify:transport:prime:start');
+        void this.ensureReady().catch((error) => {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            logEvent('WebAmp', 'spotify:transport:prime:error', null, message, 'error');
+        });
+    }
+
+    primeActivation(): void {
+        if (this.activated) {
+            logEvent('WebAmp', 'spotify:activate:prime:cached', { deviceId: this.deviceId });
+            return;
+        }
+        if (!this.player || typeof this.player.activateElement !== 'function') {
+            logEvent('WebAmp', 'spotify:activate:prime:skip', {
+                deviceId: this.deviceId,
+                hasPlayer: !!this.player
+            });
+            return;
+        }
+
+        logEvent('WebAmp', 'spotify:activate:prime:start', {
+            deviceId: this.deviceId,
+            visibility: document.visibilityState,
+            userAgent: navigator.userAgent
+        });
+
+        Promise.resolve(this.player.activateElement())
+            .then(() => {
+                this.activated = true;
+                logEvent('WebAmp', 'spotify:activate:prime:done', { deviceId: this.deviceId });
+            })
+            .catch((error) => {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                logEvent('WebAmp', 'spotify:activate:prime:error', { deviceId: this.deviceId }, message, 'error');
+            });
     }
 
     private requireDevice(): string {
@@ -63,12 +103,25 @@ export class SpotifyTransport implements PlayerTransport {
                 maxTouchPoints: navigator.maxTouchPoints ?? 0
             });
             await this.player?.activateElement?.();
+            this.activated = true;
             logEvent('WebAmp', 'spotify:activate:done', { deviceId: this.deviceId });
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
             logEvent('WebAmp', 'spotify:activate:error', { deviceId: this.deviceId }, message, 'error');
         }
-        this.activated = true;
+    }
+
+    private async ensureTransferred(play: boolean = false): Promise<void> {
+        const deviceId = this.requireDevice();
+        if (this.transferredDeviceId === deviceId) {
+            logEvent('WebAmp', 'spotify:transfer:cached', { deviceId, play });
+            return;
+        }
+
+        logEvent('WebAmp', 'spotify:transfer:start', { deviceId, play });
+        await spotifyApi.transfer(deviceId, play);
+        this.transferredDeviceId = deviceId;
+        logEvent('WebAmp', 'spotify:transfer:done', { deviceId, play });
     }
 
     /**
@@ -87,6 +140,7 @@ export class SpotifyTransport implements PlayerTransport {
             const deviceId = this.requireDevice();
             const uri = track.uri;
             if (!uri) throw new Error('Missing Spotify track URI');
+            await this.ensureTransferred(false);
             logEvent('WebAmp', 'spotify:transport:play:request', {
                 deviceId,
                 trackId: track.id,
@@ -138,6 +192,7 @@ export class SpotifyTransport implements PlayerTransport {
                 await spotifyApi.pause(deviceId);
                 logEvent('WebAmp', 'spotify:transport:pause:done', { deviceId });
             } else {
+                await this.ensureTransferred(false);
                 logEvent('WebAmp', 'spotify:transport:resume:request', { deviceId });
                 await spotifyApi.resume(deviceId);
                 logEvent('WebAmp', 'spotify:transport:resume:done', { deviceId });

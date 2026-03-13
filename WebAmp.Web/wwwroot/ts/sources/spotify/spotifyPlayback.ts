@@ -201,11 +201,6 @@ export async function ensureSpotifyPlayback(onState?: PlaybackStateListener): Pr
 
             const deviceId = await deviceIdPromise;
 
-            // Make this browser player the active device.
-            logEvent('WebAmp', 'spotify:transfer:start', { deviceId, play: true });
-            await spotifyApi.transfer(deviceId, true);
-            logEvent('WebAmp', 'spotify:transfer:done', { deviceId, play: true });
-
             playerRef = player;
             deviceIdRef = deviceId;
             logEvent('WebAmp', 'spotify:ensure:done', { deviceId });
