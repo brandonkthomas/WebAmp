@@ -3,6 +3,7 @@ import { applyCachedArt } from '../storage/clientCache';
 import { escapeHtml } from '../utils';
 import { indiumSvg } from '../internal/paths';
 import { showAlert } from '../internal/indiumApi';
+import { openTrackContextMenu } from './trackContextMenu';
 
 /**
  * Creates a clickable track row button
@@ -144,5 +145,48 @@ export function createTrackListItem(opts: {
         }
         onClick();
     });
+
+    // Desktop right-click.
+    btn.addEventListener('contextmenu', (e) => {
+        if (!isPlayable) return;
+        openTrackContextMenu({
+            anchor: btn,
+            track,
+            title: 'Track Actions'
+        });
+        e.preventDefault();
+        e.stopPropagation();
+    });
+
+    // Touch long-press.
+    let touchTimer: number | null = null;
+    const LONG_PRESS_MS = 500;
+
+    btn.addEventListener('touchstart', (e) => {
+        if (!isPlayable) return;
+        if (touchTimer !== null) {
+            window.clearTimeout(touchTimer);
+            touchTimer = null;
+        }
+        touchTimer = window.setTimeout(() => {
+            touchTimer = null;
+            openTrackContextMenu({
+                anchor: btn,
+                track,
+                title: 'Track Actions'
+            });
+        }, LONG_PRESS_MS);
+    }, { passive: true });
+
+    const cancelTouch = () => {
+        if (touchTimer !== null) {
+            window.clearTimeout(touchTimer);
+            touchTimer = null;
+        }
+    };
+
+    btn.addEventListener('touchend', cancelTouch);
+    btn.addEventListener('touchcancel', cancelTouch);
+
     return btn;
 }

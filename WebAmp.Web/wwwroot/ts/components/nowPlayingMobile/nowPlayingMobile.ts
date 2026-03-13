@@ -2,9 +2,7 @@ import type { PlayerState, PlayerStore } from '../../state/playerStore';
 import { applyCachedArt } from '../../storage/clientCache';
 import { getShufflePref, setShuffleEnabled } from '../../ui/queueActions';
 import { indiumSvg } from '../../internal/paths';
-import { openPopupMenu } from '../../internal/indiumApi';
-import { ensureTrackLibraryState, getTrackLibraryActionTitle, toggleTrackLibrary } from '../../library/trackLibrary';
-import { shareCurrentTrack } from '../../share/currentTrackShare';
+import { openTrackContextMenu } from '../../ui/trackContextMenu';
 
 function upgradeSoundCloudArtworkUrl(url: string): string {
     if (!url) return url;
@@ -136,83 +134,20 @@ export class NowPlayingMobile {
         this.btnMenu?.addEventListener('click', () => {
             const track = this.store.getState().track as any;
             if (!track || this.shareBusy || this.libraryBusy || !this.btnMenu) return;
-            this.libraryBusy = true;
             this.render(this.store.getState());
-            void (async () => {
-                try {
-                    await ensureTrackLibraryState(track);
-                    const canShowAlbum: boolean = !!track?.albumId;
-                    const canShowArtist: boolean = !!track?.primaryArtistId;
-                    const items = [
-                        ...(canShowAlbum
-                            ? [{
-                                id: 'show-album',
-                                title: 'Show Album',
-                                iconSrc: indiumSvg('album.svg'),
-                                onSelect: () => {
-                                    const albumId: string | undefined = track?.albumId;
-                                    if (!albumId) return;
-                                    window.dispatchEvent(
-                                        new CustomEvent('wa:navigate:album', { detail: { albumId } })
-                                    );
-                                }
-                            }] as const
-                            : []),
-                        ...(canShowArtist
-                            ? [{
-                                id: 'show-artist',
-                                title: 'Show Artist',
-                                iconSrc: indiumSvg('artist.svg'),
-                                onSelect: () => {
-                                    const artistId: string | undefined = track?.primaryArtistId;
-                                    if (!artistId) return;
-                                    window.dispatchEvent(
-                                        new CustomEvent('wa:navigate:artist', { detail: { artistId } })
-                                    );
-                                }
-                            }] as const
-                            : []),
-                        {
-                            id: 'toggle-library',
-                            title: getTrackLibraryActionTitle(track),
-                            iconSrc: indiumSvg('heart-filled.svg'),
-                            onSelect: async () => {
-                                this.libraryBusy = true;
-                                this.render(this.store.getState());
-                                try {
-                                    await toggleTrackLibrary(track);
-                                } finally {
-                                    this.libraryBusy = false;
-                                    this.render(this.store.getState());
-                                }
-                            }
-                        },
-                        {
-                            id: 'share',
-                            title: 'Share',
-                            iconSrc: indiumSvg('share.svg'),
-                            onSelect: async () => {
-                                this.shareBusy = true;
-                                this.render(this.store.getState());
-                                try {
-                                    await shareCurrentTrack(track);
-                                } finally {
-                                    this.shareBusy = false;
-                                    this.render(this.store.getState());
-                                }
-                            }
-                        }
-                    ] as const;
-                    openPopupMenu({
-                        anchor: this.btnMenu!,
-                        title: 'Track Actions',
-                        items
-                    });
-                } finally {
-                    this.libraryBusy = false;
+            openTrackContextMenu({
+                anchor: this.btnMenu!,
+                track,
+                title: 'Track Actions',
+                onLibraryBusyChange: (busy) => {
+                    this.libraryBusy = busy;
+                    this.render(this.store.getState());
+                },
+                onShareBusyChange: (busy) => {
+                    this.shareBusy = busy;
                     this.render(this.store.getState());
                 }
-            })();
+            });
         });
 
         this.scrubber?.addEventListener('input', () => {
