@@ -57,8 +57,9 @@ export class NowPlayingMobile {
 
     private lastArtUrl: string | null = null;
     private shareBusy = false;
-    private scrollLockY: number | null = null;
+    private scrollLocked = false;
     private scrollLockBodyStyle: Partial<CSSStyleDeclaration> | null = null;
+    private scrollLockHtmlStyle: Partial<CSSStyleDeclaration> | null = null;
 
     // gesture state
     private barTouchStartY: number | null = null;
@@ -361,6 +362,7 @@ export class NowPlayingMobile {
 
     private openSheet() {
         this.open = true;
+        document.documentElement.dataset.waNowPlayingOpen = 'true';
         document.body.dataset.waNowPlayingOpen = 'true';
         this.root.setAttribute('aria-hidden', 'false');
         this.lockScroll();
@@ -369,6 +371,7 @@ export class NowPlayingMobile {
 
     private close() {
         this.open = false;
+        delete document.documentElement.dataset.waNowPlayingOpen;
         delete document.body.dataset.waNowPlayingOpen;
         this.root.setAttribute('aria-hidden', 'true');
         this.unlockScroll();
@@ -376,48 +379,45 @@ export class NowPlayingMobile {
     }
 
     private lockScroll() {
-        if (this.scrollLockY !== null) return;
-        const y = window.scrollY || 0;
-        this.scrollLockY = y;
+        if (this.scrollLocked) return;
+        this.scrollLocked = true;
 
-        // Save a minimal set of styles we will mutate.
+        const html = document.documentElement.style;
         const b = document.body.style;
+        this.scrollLockHtmlStyle = {
+            overflow: html.overflow,
+            overscrollBehavior: html.overscrollBehavior
+        };
         this.scrollLockBodyStyle = {
-            position: b.position,
-            top: b.top,
-            left: b.left,
-            right: b.right,
-            width: b.width,
-            overflow: b.overflow
+            overflow: b.overflow,
+            overscrollBehavior: b.overscrollBehavior
         };
 
-        // iOS-friendly scroll lock.
-        b.position = 'fixed';
-        b.top = `-${y}px`;
-        b.left = '0';
-        b.right = '0';
-        b.width = '100%';
+        html.overflow = 'hidden';
+        html.overscrollBehavior = 'none';
         b.overflow = 'hidden';
+        b.overscrollBehavior = 'none';
     }
 
     private unlockScroll() {
-        if (this.scrollLockY === null) return;
-        const y = this.scrollLockY;
-        this.scrollLockY = null;
+        if (!this.scrollLocked) return;
+        this.scrollLocked = false;
 
+        const prevHtml = this.scrollLockHtmlStyle;
         const prev = this.scrollLockBodyStyle;
+        this.scrollLockHtmlStyle = null;
         this.scrollLockBodyStyle = null;
 
+        if (prevHtml) {
+            const html = document.documentElement.style;
+            html.overflow = prevHtml.overflow ?? '';
+            html.overscrollBehavior = prevHtml.overscrollBehavior ?? '';
+        }
         if (prev) {
             const b = document.body.style;
-            b.position = prev.position ?? '';
-            b.top = prev.top ?? '';
-            b.left = prev.left ?? '';
-            b.right = prev.right ?? '';
-            b.width = prev.width ?? '';
             b.overflow = prev.overflow ?? '';
+            b.overscrollBehavior = prev.overscrollBehavior ?? '';
         }
-        window.scrollTo(0, y);
     }
 
     private setDragging(isDragging: boolean) {
