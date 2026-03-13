@@ -3,6 +3,7 @@ import { applyCachedArt } from '../../storage/clientCache';
 import type { PlayerStore } from '../../state/playerStore';
 import { indiumSvg } from '../../internal/paths';
 import { openPopupMenu } from '../../internal/indiumApi';
+import { ensureTrackLibraryState, getTrackLibraryActionTitle, toggleTrackLibrary } from '../../library/trackLibrary';
 import { shareCurrentTrack } from '../../share/currentTrackShare';
 
 /**
@@ -36,6 +37,7 @@ export class PlayerBar {
     private scrubber: HTMLInputElement | null;
     private lastArtUrl: string | null = null;
     private shareBusy = false;
+    private libraryBusy = false;
 
     constructor(opts: { root: HTMLElement; store: PlayerStore }) {
         this.root = opts.root;
@@ -67,26 +69,53 @@ export class PlayerBar {
         this.btnToggle?.addEventListener('click', () => this.store.togglePlay());
         this.btnMenu?.addEventListener('click', () => {
             const track = this.store.getState().track;
-            if (!track || this.shareBusy || !this.btnMenu) return;
-            openPopupMenu({
-                anchor: this.btnMenu,
-                title: 'Track Actions',
-                items: [{
-                    id: 'share',
-                    title: 'Share',
-                    iconSrc: indiumSvg('share.svg'),
-                    onSelect: async () => {
-                        this.shareBusy = true;
-                        this.render(this.store.getState());
-                        try {
-                            await shareCurrentTrack(track);
-                        } finally {
-                            this.shareBusy = false;
-                            this.render(this.store.getState());
-                        }
-                    }
-                }]
-            });
+            if (!track || this.shareBusy || this.libraryBusy || !this.btnMenu) return;
+            this.libraryBusy = true;
+            this.render(this.store.getState());
+            void (async () => {
+                try {
+                    await ensureTrackLibraryState(track);
+                    openPopupMenu({
+                        anchor: this.btnMenu!,
+                        title: 'Track Actions',
+                        items: [
+                            {
+                                id: 'toggle-library',
+                                title: getTrackLibraryActionTitle(track),
+                                iconSrc: indiumSvg('heart-filled.svg'),
+                                onSelect: async () => {
+                                    this.libraryBusy = true;
+                                    this.render(this.store.getState());
+                                    try {
+                                        await toggleTrackLibrary(track);
+                                    } finally {
+                                        this.libraryBusy = false;
+                                        this.render(this.store.getState());
+                                    }
+                                }
+                            },
+                            {
+                                id: 'share',
+                                title: 'Share',
+                                iconSrc: indiumSvg('share.svg'),
+                                onSelect: async () => {
+                                    this.shareBusy = true;
+                                    this.render(this.store.getState());
+                                    try {
+                                        await shareCurrentTrack(track);
+                                    } finally {
+                                        this.shareBusy = false;
+                                        this.render(this.store.getState());
+                                    }
+                                }
+                            }
+                        ]
+                    });
+                } finally {
+                    this.libraryBusy = false;
+                    this.render(this.store.getState());
+                }
+            })();
         });
 
         this.scrubber?.addEventListener('input', () => {
@@ -174,7 +203,7 @@ export class PlayerBar {
         }
 
         if (this.btnMenu) {
-            this.btnMenu.disabled = !track || this.shareBusy;
+            this.btnMenu.disabled = !track || this.shareBusy || this.libraryBusy;
         }
 
         if (this.timeCurrentEl) this.timeCurrentEl.textContent = formatTime(position);

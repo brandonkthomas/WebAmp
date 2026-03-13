@@ -796,7 +796,7 @@ html[data-wa-theme-resolved='light'] body {
 
     .wa-nowplaying__btn--menu {
         justify-self: end;
-        margin-right: 1.1rem;
+        margin-left: 1.1rem;
     }
 
     .wa-nowplaying__btn:focus-visible {

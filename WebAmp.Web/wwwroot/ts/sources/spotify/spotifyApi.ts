@@ -95,6 +95,22 @@ export const spotifyApi = {
         return await cachedGet<any>(`spotify:${url}`, url);
     },
 
+    async savedTracksContains(id: string): Promise<boolean> {
+        const url = `${spotifyApiPath('savedtrackscontains')}?id=${encodeURIComponent(id)}`;
+        const data = await jsonFetch<any>(url);
+        return Array.isArray(data) ? !!data[0] : false;
+    },
+
+    async saveTrack(id: string): Promise<void> {
+        const url = `${spotifyApiPath('savetrack')}?id=${encodeURIComponent(id)}`;
+        await jsonFetch(url, { method: 'POST' });
+    },
+
+    async removeTrack(id: string): Promise<void> {
+        const url = `${spotifyApiPath('removetrack')}?id=${encodeURIComponent(id)}`;
+        await jsonFetch(url, { method: 'POST' });
+    },
+
     /** Lists current user saved albums (paged) */
     async savedAlbums(limit: number = 20, offset: number = 0): Promise<any> {
         const url = `${spotifyApiPath('savedalbums')}?limit=${limit}&offset=${offset}`;

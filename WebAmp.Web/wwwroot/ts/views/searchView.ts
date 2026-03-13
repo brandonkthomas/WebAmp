@@ -5,6 +5,7 @@ import type {
 import { routePath } from "../internal/paths";
 import { spotifyApi } from "../sources/spotify/spotifyApi";
 import { soundcloudApi } from "../sources/soundcloud/soundcloudApi";
+import { createSoundCloudTrack, createSpotifyTrack } from "../library/trackLibrary";
 import type { Track } from "../state/playerStore";
 import { renderListSkeleton } from "../ui/skeleton";
 import { createTrackListItem } from "../ui/trackListItem";
@@ -12,34 +13,9 @@ import { createAlbumListItem } from "../ui/albumListItem";
 import { createArtistListItem } from "../ui/artistListItem";
 import { createPlaylistListItem } from "../ui/playlistListItem";
 import { bindQueueActions } from "../ui/queueActions";
-import { isSoundCloudTrackPlayable } from "../utils";
 
 function mapSpotifyTrack(it: any): Track {
-    const images = it?.album?.images ?? [];
-    const artUrlSmall = images?.[images.length - 1]?.url;
-    const artUrl = images?.[1]?.url ?? images?.[0]?.url;
-    const artUrlLarge = images?.[0]?.url ?? images?.[1]?.url ?? artUrl;
-    const artist = Array.isArray(it?.artists)
-        ? it.artists.map((a: any) => a.name).join(", ")
-        : "";
-    const album = it?.album?.name ?? "";
-    return {
-        id: it.id,
-        source: "spotify",
-        title: it.name,
-        artist,
-        albumId: it?.album?.id,
-        album,
-        primaryArtistId:
-            Array.isArray(it?.artists) && it.artists.length
-                ? it.artists[0]?.id
-                : undefined,
-        durationSec: Math.round((it.duration_ms ?? 0) / 1000),
-        artUrl,
-        artUrlSmall,
-        artUrlLarge,
-        uri: it.uri,
-    };
+    return createSpotifyTrack(it);
 }
 
 export const searchView: WebAmpViewController = {
@@ -496,43 +472,7 @@ export const searchView: WebAmpViewController = {
                             (it: any) => !!it && typeof it.id !== "undefined",
                         )
                         .map((it: any) => {
-                            const id = String(it.id);
-                            const title =
-                                typeof it.title === "string"
-                                    ? it.title
-                                    : "(untitled)";
-                            const artist =
-                                typeof it.user?.username === "string"
-                                    ? it.user.username
-                                    : typeof it.user?.name === "string"
-                                      ? it.user.name
-                                      : "";
-                            const durationMs: number =
-                                typeof it.duration === "number"
-                                    ? it.duration
-                                    : 0;
-                            const artUrl: string | undefined =
-                                typeof it.artwork_url === "string"
-                                    ? it.artwork_url
-                                    : typeof it.user?.avatar_url === "string"
-                                      ? it.user.avatar_url
-                                      : undefined;
-                            const permalinkUrl: string | undefined =
-                                typeof it?.permalink_url === "string"
-                                    ? it.permalink_url
-                                    : undefined;
-                            const track: Track = {
-                                id,
-                                source: "soundcloud",
-                                title,
-                                artist,
-                                isPlayable: isSoundCloudTrackPlayable(it),
-                                durationSec: Math.round(durationMs / 1000),
-                                artUrl,
-                                artUrlSmall: artUrl,
-                                permalinkUrl,
-                            };
-                            return track;
+                            return createSoundCloudTrack(it);
                         });
 
                     baseTracks.push(...scTracks);

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 
@@ -31,6 +32,68 @@ public sealed class SoundCloudUserApiClient
         var uri = BuildUri(pathAndQuery);
 
         using var req = new HttpRequestMessage(HttpMethod.Get, uri);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        req.Headers.Accept.ParseAdd("application/json; charset=utf-8");
+
+        using var resp = await client.SendAsync(req);
+        var body = await resp.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(body)) return (resp.StatusCode, null);
+
+        try
+        {
+            return (resp.StatusCode, JsonDocument.Parse(body));
+        }
+        catch (JsonException)
+        {
+            return (resp.StatusCode, null);
+        }
+    }
+
+    public async Task<(HttpStatusCode status, JsonDocument? json)> PostJsonAsync(
+        HttpContext ctx,
+        string pathAndQuery,
+        object? payload = null)
+    {
+        var token = await _auth.GetValidAccessTokenAsync(ctx);
+        if (string.IsNullOrWhiteSpace(token)) return (HttpStatusCode.Unauthorized, null);
+
+        var client = _httpClientFactory.CreateClient();
+        var uri = BuildUri(pathAndQuery);
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, uri);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        req.Headers.Accept.ParseAdd("application/json; charset=utf-8");
+        if (payload is not null)
+        {
+            var json = JsonSerializer.Serialize(payload, JsonOpts);
+            req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+        }
+
+        using var resp = await client.SendAsync(req);
+        var body = await resp.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(body)) return (resp.StatusCode, null);
+
+        try
+        {
+            return (resp.StatusCode, JsonDocument.Parse(body));
+        }
+        catch (JsonException)
+        {
+            return (resp.StatusCode, null);
+        }
+    }
+
+    public async Task<(HttpStatusCode status, JsonDocument? json)> DeleteAsync(
+        HttpContext ctx,
+        string pathAndQuery)
+    {
+        var token = await _auth.GetValidAccessTokenAsync(ctx);
+        if (string.IsNullOrWhiteSpace(token)) return (HttpStatusCode.Unauthorized, null);
+
+        var client = _httpClientFactory.CreateClient();
+        var uri = BuildUri(pathAndQuery);
+
+        using var req = new HttpRequestMessage(HttpMethod.Delete, uri);
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         req.Headers.Accept.ParseAdd("application/json; charset=utf-8");
 

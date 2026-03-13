@@ -50,6 +50,11 @@ export interface Track {
      */
     artUrlLarge?: string;
     uri?: string;
+    /**
+     * Whether the current user's library already contains this track.
+     * When omitted, membership has not been resolved yet.
+     */
+    inLibrary?: boolean;
 }
 
 /**

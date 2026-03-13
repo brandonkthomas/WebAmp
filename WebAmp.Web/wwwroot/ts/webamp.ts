@@ -21,6 +21,7 @@ import { SoundCloudSource } from './sources/soundCloudSource';
 import { bootIndium, createSidebarController } from './internal/indiumApi';
 import { assetPath, routePath, webAmpBrandAsset } from './internal/paths';
 import { HybridTransport } from './sources/hybridTransport';
+import { primeTrackLibraryState } from './library/trackLibrary';
 import { getDominantColor } from './ui/dominantColor';
 import { clearClientCacheAndReload } from './storage/clientCache';
 import { getShufflePref, isShuffleDirty, setShuffleEnabled } from './ui/queueActions';
@@ -186,6 +187,7 @@ function boot() {
 
     // Background color wash based on the currently playing track's album art.
     let lastArtKey: string | null = null;
+    let lastLibraryTrackKey: string | null = null;
     let lastNowPlayingId: string | null = null;
     let lastMediaMetaKey: string | null = null;
     let lastMediaPosSec: number | null = null;
@@ -236,6 +238,13 @@ function boot() {
     }
 
     playerStore.subscribe((state) => {
+        const libraryTrack = state.track;
+        const libraryTrackKey = libraryTrack ? `${libraryTrack.source ?? 'spotify'}:${libraryTrack.id}` : null;
+        if (libraryTrackKey !== lastLibraryTrackKey) {
+            lastLibraryTrackKey = libraryTrackKey;
+            primeTrackLibraryState(libraryTrack);
+        }
+
         // Now-playing indicator on track list items
         const nowId = state.track?.id ?? null;
         if (nowId !== lastNowPlayingId) {

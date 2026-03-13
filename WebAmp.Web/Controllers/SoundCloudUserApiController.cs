@@ -89,6 +89,26 @@ public sealed class SoundCloudUserApiController(SoundCloudUserAuthService auth, 
         return ProxyJson(status, json);
     }
 
+    [HttpPost]
+    public async Task<IActionResult> LikeTrack([FromQuery] string trackUrn)
+    {
+        if (string.IsNullOrWhiteSpace(trackUrn)) return BadRequest(new { error = "missing_track_urn" });
+
+        var encodedTrackUrn = Uri.EscapeDataString(trackUrn);
+        var (status, json) = await api.PostJsonAsync(HttpContext, $"likes/tracks/{encodedTrackUrn}");
+        return ProxyJson(status, json, allowEmptyOk: true);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> UnlikeTrack([FromQuery] string trackUrn)
+    {
+        if (string.IsNullOrWhiteSpace(trackUrn)) return BadRequest(new { error = "missing_track_urn" });
+
+        var encodedTrackUrn = Uri.EscapeDataString(trackUrn);
+        var (status, json) = await api.DeleteAsync(HttpContext, $"likes/tracks/{encodedTrackUrn}");
+        return ProxyJson(status, json, allowEmptyOk: true);
+    }
+
     // ============================================================================================
     /// <summary>
     /// Returns the authenticated user's recent activities (own tracks/playlists).
@@ -124,6 +144,16 @@ public sealed class SoundCloudUserApiController(SoundCloudUserAuthService auth, 
         // ignore it and page via /playlists/{id}/tracks when needed.
         var encoded = Uri.EscapeDataString(id);
         var (status, json) = await api.GetAsync(HttpContext, $"playlists/{encoded}");
+        return ProxyJson(status, json);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Track([FromQuery] string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "missing_id" });
+
+        var encoded = Uri.EscapeDataString(id);
+        var (status, json) = await api.GetAsync(HttpContext, $"tracks/{encoded}");
         return ProxyJson(status, json);
     }
 
@@ -168,11 +198,16 @@ public sealed class SoundCloudUserApiController(SoundCloudUserAuthService auth, 
     /// <summary>
     /// Basic proxy helper to unify error handling.
     /// </summary>
-    private IActionResult ProxyJson(HttpStatusCode status, JsonDocument? json)
+    private IActionResult ProxyJson(HttpStatusCode status, JsonDocument? json, bool allowEmptyOk = false)
     {
         if (status == HttpStatusCode.Unauthorized)
         {
             return Unauthorized(new { error = "soundcloud_not_authenticated" });
+        }
+
+        if (allowEmptyOk && (status == HttpStatusCode.NoContent || json is null) && (int)status >= 200 && (int)status < 300)
+        {
+            return Ok(new { ok = true });
         }
 
         if (json is null)

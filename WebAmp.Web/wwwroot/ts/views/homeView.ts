@@ -1,5 +1,6 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
 import { routePath } from '../internal/paths';
+import { createSoundCloudTrack, createSpotifyTrack } from '../library/trackLibrary';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
 import { soundcloudUserApi } from '../sources/soundcloudUserApi';
 import type { Track } from '../state/playerStore';
@@ -7,8 +8,6 @@ import { renderListSkeleton } from '../ui/skeleton';
 import { createTrackListItem } from '../ui/trackListItem';
 import { createPlaylistListItem } from '../ui/playlistListItem';
 import { bindQueueActions } from '../ui/queueActions';
-import { isSoundCloudTrackPlayable } from '../utils';
-
 export const homeView: WebAmpViewController = {
     id: 'home',
     mount(ctx: WebAmpViewContext) {
@@ -126,33 +125,7 @@ export const homeView: WebAmpViewController = {
                     const tracks: Track[] = items
                         .map((it: any) => it?.track)
                         .filter(Boolean)
-                        .map((t: any) => {
-                            const images = t?.album?.images ?? [];
-                            const artUrlSmall = images?.[images.length - 1]?.url;
-                            const artUrl = images?.[1]?.url ?? images?.[0]?.url;
-                            const artUrlLarge = images?.[0]?.url ?? images?.[1]?.url ?? artUrl;
-                            const artist = Array.isArray(t?.artists) ? t.artists.map((a: any) => a.name).join(', ') : '';
-                            const album = t?.album?.name ?? '';
-                            const albumId = t?.album?.id;
-                            const primaryArtistId: string | undefined =
-                                Array.isArray(t?.artists) && t.artists.length
-                                    ? t.artists[0]?.id
-                                    : undefined;
-                            return {
-                                id: t.id,
-                                source: 'spotify',
-                                title: t.name,
-                                artist,
-                                albumId,
-                                album,
-                                primaryArtistId,
-                                durationSec: Math.round((t.duration_ms ?? 0) / 1000),
-                                artUrl,
-                                artUrlSmall,
-                                artUrlLarge,
-                                uri: t.uri
-                            } as Track;
-                        });
+                        .map((t: any) => createSpotifyTrack(t, { inLibrary: true }));
 
                     likedEl.replaceChildren();
                     for (const t of tracks) {
@@ -181,30 +154,7 @@ export const homeView: WebAmpViewController = {
                     const tracks: Track[] = collection
                         .map((it: any) => it?.track ?? it)
                         .filter(Boolean)
-                        .map((t: any) => {
-                            const id = t?.id;
-                            if (!id) return null;
-                            const title = typeof t?.title === 'string' ? t.title : '(untitled)';
-                            const artist =
-                                typeof t?.user?.username === 'string'
-                                    ? t.user.username
-                                    : (typeof t?.user?.name === 'string' ? t.user.name : '');
-                            const durationMs: number = typeof t?.duration === 'number' ? t.duration : 0;
-                            const artUrl: string | undefined =
-                                typeof t?.artwork_url === 'string'
-                                    ? t.artwork_url
-                                    : (typeof t?.user?.avatar_url === 'string' ? t.user.avatar_url : undefined);
-                            return {
-                                id: String(id),
-                                source: 'soundcloud',
-                                title,
-                                artist,
-                                isPlayable: isSoundCloudTrackPlayable(t),
-                                durationSec: Math.round(durationMs / 1000),
-                                artUrl,
-                                artUrlSmall: artUrl
-                            } as Track;
-                        })
+                        .map((t: any) => createSoundCloudTrack(t, { inLibrary: true }))
                         .filter(Boolean) as Track[];
 
                     likedEl.replaceChildren();
@@ -254,21 +204,7 @@ export const homeView: WebAmpViewController = {
                                     ? origin.user.username
                                     : (typeof origin?.user?.name === 'string' ? origin.user.name : '');
 
-                            const track: Track = {
-                                id: String(id),
-                                source: 'soundcloud',
-                                title,
-                                artist,
-                                isPlayable: isSoundCloudTrackPlayable(origin),
-                                durationSec: typeof origin.duration === 'number' ? Math.round(origin.duration / 1000) : 0,
-                                permalinkUrl: typeof origin?.permalink_url === 'string' ? origin.permalink_url : undefined,
-                                artUrl: typeof origin.artwork_url === 'string'
-                                    ? origin.artwork_url
-                                    : (typeof origin?.user?.avatar_url === 'string' ? origin.user.avatar_url : undefined),
-                                artUrlSmall: typeof origin.artwork_url === 'string'
-                                    ? origin.artwork_url
-                                    : (typeof origin?.user?.avatar_url === 'string' ? origin.user.avatar_url : undefined)
-                            };
+                            const track: Track = createSoundCloudTrack(origin);
 
                             const row = createTrackListItem({
                                 track,

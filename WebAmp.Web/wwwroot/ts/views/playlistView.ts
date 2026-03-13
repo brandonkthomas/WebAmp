@@ -1,6 +1,7 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
 import { routePath } from '../internal/paths';
 import { WEBAMP_ROOT } from '../router/routes';
+import { createSoundCloudTrack, createSpotifyTrack } from '../library/trackLibrary';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
 import { soundcloudUserApi } from '../sources/soundcloudUserApi';
 import type { Track } from '../state/playerStore';
@@ -10,7 +11,7 @@ import { createTrackListItem } from '../ui/trackListItem';
 import { createPlaylistListItem } from '../ui/playlistListItem';
 import { attachInfiniteScroll } from '../internal/indiumApi';
 import { bindQueueActions } from '../ui/queueActions';
-import { appendFragment, isSoundCloudTrackPlayable } from '../utils';
+import { appendFragment } from '../utils';
 
 export const playlistView: WebAmpViewController = {
     id: 'playlist',
@@ -303,28 +304,7 @@ export const playlistView: WebAmpViewController = {
                             const next: Track[] = items
                                 .map((it: any) => it?.track)
                                 .filter(Boolean)
-                                .map((t: any) => {
-                                    const images = t?.album?.images ?? [];
-                                    const artUrlSmall = images?.[images.length - 1]?.url;
-                                    const artUrl = images?.[1]?.url ?? images?.[0]?.url;
-                                    const artUrlLarge = images?.[0]?.url ?? images?.[1]?.url ?? artUrl;
-                                    const artist = Array.isArray(t?.artists) ? t.artists.map((a: any) => a.name).join(', ') : '';
-                                    const album = t?.album?.name ?? '';
-                                    return {
-                                        id: t.id,
-                                        source: 'spotify',
-                                        title: t.name,
-                                        artist,
-                                        albumId: t?.album?.id,
-                                        album,
-                                        primaryArtistId: Array.isArray(t?.artists) && t.artists.length ? t.artists[0]?.id : undefined,
-                                        durationSec: Math.round((t.duration_ms ?? 0) / 1000),
-                                        artUrl,
-                                        artUrlSmall,
-                                        artUrlLarge,
-                                        uri: t.uri
-                                    } as Track;
-                                });
+                                .map((t: any) => createSpotifyTrack(t));
 
                             if (offset === 0) tracksList.replaceChildren();
                             allTracks.push(...next);
@@ -362,32 +342,7 @@ export const playlistView: WebAmpViewController = {
                             const items = (data?.collection ?? []) as any[];
                             const next: Track[] = items
                                 .filter((t: any) => !!t && typeof t.id !== 'undefined')
-                                .map((t: any) => {
-                                    const id = t?.id;
-                                    const title = typeof t?.title === 'string' ? t.title : '(untitled)';
-                                    const artist =
-                                        typeof t?.user?.username === 'string'
-                                            ? t.user.username
-                                            : (typeof t?.user?.name === 'string' ? t.user.name : '');
-                                    const durationMs: number = typeof t?.duration === 'number' ? t.duration : 0;
-                                    const artUrl: string | undefined =
-                                        typeof t?.artwork_url === 'string'
-                                            ? t.artwork_url
-                                            : (typeof t?.user?.avatar_url === 'string' ? t.user.avatar_url : undefined);
-                                    const permalinkUrl: string | undefined =
-                                        typeof t?.permalink_url === 'string' ? t.permalink_url : undefined;
-                                    return {
-                                        id: String(id),
-                                        source: 'soundcloud',
-                                        title,
-                                        artist,
-                                        isPlayable: isSoundCloudTrackPlayable(t),
-                                        durationSec: Math.round(durationMs / 1000),
-                                        artUrl,
-                                        artUrlSmall: artUrl,
-                                        permalinkUrl
-                                    } as Track;
-                                });
+                                .map((t: any) => createSoundCloudTrack(t));
 
                             if (allTracks.length === 0) tracksList.replaceChildren();
                             allTracks.push(...next);

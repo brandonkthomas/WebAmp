@@ -82,6 +82,21 @@ export const soundcloudUserApi = {
         return await cachedGet<any>(`soundclouduser:${url}`, url);
     },
 
+    async track(id: string): Promise<any> {
+        const url = `${soundCloudUserApiPath('track')}?id=${encodeURIComponent(id)}`;
+        return await jsonFetch<any>(url);
+    },
+
+    async likeTrack(trackUrn: string): Promise<void> {
+        const url = `${soundCloudUserApiPath('liketrack')}?trackUrn=${encodeURIComponent(trackUrn)}`;
+        await jsonFetch(url, { method: 'POST' });
+    },
+
+    async unlikeTrack(trackUrn: string): Promise<void> {
+        const url = `${soundCloudUserApiPath('unliketrack')}?trackUrn=${encodeURIComponent(trackUrn)}`;
+        await jsonFetch(url, { method: 'POST' });
+    },
+
     async recentActivities(limit: number = 10, cursor?: string): Promise<any> {
         const params = new URLSearchParams();
         params.set('limit', String(limit));

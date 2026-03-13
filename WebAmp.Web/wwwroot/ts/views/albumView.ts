@@ -1,6 +1,7 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
 import { WEBAMP_ROOT } from '../router/routes';
 import { routePath } from '../internal/paths';
+import { createSpotifyTrack } from '../library/trackLibrary';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
 import type { Track } from '../state/playerStore';
 import { applyCachedArt } from '../storage/clientCache';
@@ -263,23 +264,14 @@ export const albumView: WebAmpViewController = {
                         try {
                             const data = await spotifyApi.albumTracks(ctx.entityId!, 50, offset);
                             const items = data?.items ?? [];
-                            const next: Track[] = items.map((t: any) => {
-                                const artist = Array.isArray(t?.artists) ? t.artists.map((a: any) => a.name).join(', ') : '';
-                                return {
-                                    id: t.id,
-                                    source: 'spotify',
-                                    title: t.name,
-                                    artist,
-                                    albumId: ctx.entityId!,
-                                    album: albumName,
-                                    primaryArtistId: Array.isArray(t?.artists) && t.artists.length ? t.artists[0]?.id : undefined,
-                                    trackNumber: t?.track_number,
-                                    durationSec: Math.round((t.duration_ms ?? 0) / 1000),
-                                    artUrl,
-                                    artUrlSmall,
-                                    uri: t.uri
-                                } as Track;
-                            });
+                            const next: Track[] = items.map((t: any) => createSpotifyTrack(t, {
+                                albumId: ctx.entityId!,
+                                album: albumName,
+                                trackNumber: t?.track_number,
+                                artUrl,
+                                artUrlSmall,
+                                artUrlLarge
+                            }));
 
                             const pageDurationSec = next.reduce((sum, tr) => sum + (tr.durationSec ?? 0), 0);
                             totalDurationSec = (totalDurationSec ?? 0) + pageDurationSec;

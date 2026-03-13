@@ -113,6 +113,29 @@ public sealed class SpotifyWebApiClient
         return (resp.StatusCode, TryParseJson(body));
     }
 
+    public async Task<(HttpStatusCode status, JsonDocument? json)> PostAsync(
+        HttpContext ctx,
+        string pathAndQuery)
+    {
+        return await PostJsonAsync(ctx, pathAndQuery, payload: null);
+    }
+
+    public async Task<(HttpStatusCode status, JsonDocument? json)> DeleteAsync(
+        HttpContext ctx,
+        string pathAndQuery)
+    {
+        var token = await _auth.GetValidAccessTokenAsync(ctx);
+        if (string.IsNullOrWhiteSpace(token)) return (HttpStatusCode.Unauthorized, null);
+
+        var client = _httpClientFactory.CreateClient();
+        using var req = new HttpRequestMessage(HttpMethod.Delete, $"https://api.spotify.com/v1/{pathAndQuery.TrimStart('/')}");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var resp = await client.SendAsync(req);
+        var body = await resp.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(body)) return (resp.StatusCode, null);
+        return (resp.StatusCode, TryParseJson(body));
+    }
+
     // ============================================================================================
     /// <summary>
     /// Tries to parse the JSON body of the response.

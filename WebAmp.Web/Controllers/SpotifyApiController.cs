@@ -145,6 +145,30 @@ public sealed class SpotifyApiController(SpotifyAuthService auth, SpotifyWebApiC
         return ProxyJson(status, json);
     }
 
+    [HttpPost]
+    public async Task<IActionResult> SaveTrack([FromQuery] string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "missing_id" });
+        var (status, json) = await api.PutJsonAsync(HttpContext, $"me/tracks?ids={Uri.EscapeDataString(id)}", payload: null);
+        return ProxyJson(status, json, allowEmptyOk: true);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> SavedTracksContains([FromQuery] string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "missing_id" });
+        var (status, json) = await api.GetAsync(HttpContext, $"me/tracks/contains?ids={Uri.EscapeDataString(id)}");
+        return ProxyJson(status, json);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> RemoveTrack([FromQuery] string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "missing_id" });
+        var (status, json) = await api.DeleteAsync(HttpContext, $"me/tracks?ids={Uri.EscapeDataString(id)}");
+        return ProxyJson(status, json, allowEmptyOk: true);
+    }
+
     // ============================================================================================
     /// <summary>
     /// Returns the user's saved albums.

@@ -150,6 +150,16 @@ export async function cachedJsonFetch<T>(key: string, fetcher: () => Promise<T>)
     return data;
 }
 
+export function clearCachedJsonByPrefix(prefix: string): void {
+    if (!prefix) return;
+
+    for (const key of metaCache.keys()) {
+        if (key.startsWith(prefix)) {
+            metaCache.delete(key);
+        }
+    }
+}
+
 async function responseToObjectUrl(res: Response): Promise<string | null> {
     try {
         const blob = await res.blob();

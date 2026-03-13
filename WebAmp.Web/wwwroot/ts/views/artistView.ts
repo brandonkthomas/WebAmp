@@ -1,6 +1,7 @@
 import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
 import { routePath } from '../internal/paths';
 import { WEBAMP_ROOT } from '../router/routes';
+import { createSpotifyTrack } from '../library/trackLibrary';
 import { spotifyApi } from '../sources/spotify/spotifyApi';
 import type { Track } from '../state/playerStore';
 import { applyCachedArt } from '../storage/clientCache';
@@ -172,28 +173,9 @@ export const artistView: WebAmpViewController = {
                     }
                     const data = await spotifyApi.artistTopTracks(ctx.entityId!, 'US');
                     const items = data?.tracks ?? [];
-                    const tracks: Track[] = items.map((t: any) => {
-                        const images = t?.album?.images ?? [];
-                        const artUrlSmall = images?.[images.length - 1]?.url;
-                        const artUrl = images?.[1]?.url ?? images?.[0]?.url;
-                        const artUrlLarge = images?.[0]?.url ?? images?.[1]?.url ?? artUrl;
-                        const artist = Array.isArray(t?.artists) ? t.artists.map((a: any) => a.name).join(', ') : '';
-                        const album = t?.album?.name ?? '';
-                        return {
-                            id: t.id,
-                            source: 'spotify',
-                            title: t.name,
-                            artist,
-                            albumId: t?.album?.id,
-                            album,
-                            primaryArtistId: ctx.entityId!,
-                            durationSec: Math.round((t.duration_ms ?? 0) / 1000),
-                            artUrl,
-                            artUrlSmall,
-                            artUrlLarge,
-                            uri: t.uri
-                        } as Track;
-                    });
+                    const tracks: Track[] = items.map((t: any) => createSpotifyTrack(t, {
+                        primaryArtistId: ctx.entityId!
+                    }));
 
                     topList.replaceChildren();
                     cleanupActions();
