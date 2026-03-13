@@ -19,9 +19,17 @@ export class HybridTransport implements PlayerTransport {
         private readonly opts: {
             spotifySource: MusicSource;
             onRemoteState: RemoteStateListener;
+            getAdjacentTrack?: (currentTrack: Track | null, direction: 'next' | 'prev') => Track | null;
+            fallbackQueueAdvance?: (direction: 'next' | 'prev', autoplay: boolean) => void;
         }
     ) {
-        this.soundcloud = new SoundCloudTransport((s) => this.opts.onRemoteState(s));
+        this.soundcloud = new SoundCloudTransport(
+            (s) => this.opts.onRemoteState(s),
+            {
+                getAdjacentTrack: this.opts.getAdjacentTrack,
+                fallbackQueueAdvance: this.opts.fallbackQueueAdvance
+            }
+        );
     }
 
     /**
@@ -99,6 +107,16 @@ export class HybridTransport implements PlayerTransport {
         }
 
         await this.soundcloud.seek(positionSec);
+    }
+
+    async skipNext(): Promise<boolean> {
+        if (this.lastSource !== 'soundcloud') return false;
+        return await this.soundcloud.skipNext();
+    }
+
+    async skipPrev(): Promise<boolean> {
+        if (this.lastSource !== 'soundcloud') return false;
+        return await this.soundcloud.skipPrev();
     }
 }
 

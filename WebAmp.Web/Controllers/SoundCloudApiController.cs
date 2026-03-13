@@ -223,9 +223,7 @@ public sealed class SoundCloudApiController(
         }
 
         var (streamsStatus, streamsJson) = await GetWithUserOrAppAsync(streamsPath, cancellationToken);
-
-        string? chosenUrl = null;
-        string? chosenKind = null;
+        var candidates = new List<SoundCloudStreamCandidateDto>();
 
         if (streamsStatus == HttpStatusCode.Unauthorized)
         {
@@ -238,112 +236,145 @@ public sealed class SoundCloudApiController(
         {
             var streamsRoot = streamsJson.RootElement;
 
-            // For HTMLAudioElement playback across browsers, prefer progressive MP3 first.
-            // Then fall back to HLS variants and preview streams.
             string? TryString(string name)
                 => streamsRoot.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String
                     ? p.GetString()
                     : null;
 
-            var httpMp3 = TryString("http_mp3_128_url");
-            var hlsAac160 = TryString("hls_aac_160_url");
-            var hlsAac96 = TryString("hls_aac_96_url");
-            var hlsMp3 = TryString("hls_mp3_128_url");
-            var hlsOpus = TryString("hls_opus_64_url");
-            var previewMp3 = TryString("preview_mp3_128_url");
-
-            chosenUrl = httpMp3
-                        ?? hlsAac160
-                        ?? hlsAac96
-                        ?? hlsMp3
-                        ?? hlsOpus
-                        ?? previewMp3;
-
-            if (!string.IsNullOrWhiteSpace(chosenUrl))
+            var rawCandidates = new[]
             {
-                if (!string.IsNullOrWhiteSpace(httpMp3)) chosenKind = "http_mp3_128";
-                else if (!string.IsNullOrWhiteSpace(hlsAac160)) chosenKind = "hls_aac_160";
-                else if (!string.IsNullOrWhiteSpace(hlsAac96)) chosenKind = "hls_aac_96";
-                else if (!string.IsNullOrWhiteSpace(hlsMp3)) chosenKind = "hls_mp3_128";
-                else if (!string.IsNullOrWhiteSpace(hlsOpus)) chosenKind = "hls_opus_64";
-                else chosenKind = "preview_mp3_128";
+                new SoundCloudStreamCandidateSpec("http_mp3_128", TryString("http_mp3_128_url"), "progressive", "audio/mpeg"),
+                new SoundCloudStreamCandidateSpec("hls_aac_160", TryString("hls_aac_160_url"), "hls", "application/vnd.apple.mpegurl"),
+                new SoundCloudStreamCandidateSpec("hls_aac_96", TryString("hls_aac_96_url"), "hls", "application/vnd.apple.mpegurl"),
+                new SoundCloudStreamCandidateSpec("hls_mp3_128", TryString("hls_mp3_128_url"), "hls", "application/vnd.apple.mpegurl"),
+                new SoundCloudStreamCandidateSpec("hls_opus_64", TryString("hls_opus_64_url"), "hls", "application/vnd.apple.mpegurl"),
+                new SoundCloudStreamCandidateSpec("preview_mp3_128", TryString("preview_mp3_128_url"), "progressive", "audio/mpeg", true)
+            };
+
+            foreach (var rawCandidate in rawCandidates)
+            {
+                var resolvedCandidate = await TryResolveStreamCandidateAsync(rawCandidate, cancellationToken);
+                if (resolvedCandidate is null)
+                {
+                    continue;
+                }
+
+                if (candidates.Any(existing => string.Equals(existing.Url, resolvedCandidate.Url, StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+
+                candidates.Add(resolvedCandidate);
             }
         }
 
-        if (string.IsNullOrWhiteSpace(chosenUrl))
+        if (candidates.Count == 0)
         {
             // As a last resort, treat the track as not streamable.
             return StatusCode(StatusCodes.Status403Forbidden, new { error = "track_not_streamable" });
-        }
-
-        // For some responses, the *_url fields from /streams are not the final
-        // CDN URLs but intermediate API endpoints under api.soundcloud.com
-        // which require an Authorization header and return a small JSON body
-        // containing the actual streaming URL. Hitting those directly from the
-        // browser (e.g. as an <audio> src) will 401 because the OAuth token is
-        // not attached. Resolve those server-side first.
-        string resolvedUrl = chosenUrl;
-        if (Uri.TryCreate(chosenUrl, UriKind.Absolute, out var parsed) &&
-            string.Equals(parsed.Host, "api.soundcloud.com", StringComparison.OrdinalIgnoreCase))
-        {
-            var (resolveStatus, resolveJson, resolveFinalUri, _resolveMediaType) =
-                await GetMetaWithUserOrAppAsync(chosenUrl, cancellationToken);
-            if (resolveStatus == HttpStatusCode.Unauthorized)
-            {
-                // Same reasoning as above – if we cannot resolve the HLS URL
-                // with any available token, treat this particular track as not
-                // streamable rather than claiming the whole integration is
-                // unauthenticated.
-                return StatusCode(StatusCodes.Status403Forbidden, new { error = "track_not_streamable" });
-            }
-
-            if (resolveStatus != HttpStatusCode.OK || resolveJson is null)
-            {
-                if (resolveStatus == HttpStatusCode.OK && resolveJson is null)
-                {
-                    // Some /streams URLs can resolve directly (via redirect) to a final media URL
-                    // without returning JSON. In that case use the final URL when available.
-                    if (resolveFinalUri is not null &&
-                        !string.Equals(resolveFinalUri.Host, "api.soundcloud.com", StringComparison.OrdinalIgnoreCase))
-                    {
-                        resolvedUrl = resolveFinalUri.ToString();
-                    }
-                    else
-                    {
-                        // Best effort fallback: return the original resolved endpoint URL.
-                        resolvedUrl = chosenUrl;
-                    }
-                }
-                else
-                {
-                    return ProxyJson(resolveStatus, resolveJson);
-                }
-            }
-            else
-            {
-                var resolveRoot = resolveJson.RootElement;
-                if (!resolveRoot.TryGetProperty("url", out var urlProp) ||
-                    urlProp.ValueKind != JsonValueKind.String ||
-                    string.IsNullOrWhiteSpace(urlProp.GetString()))
-                {
-                    return StatusCode(StatusCodes.Status502BadGateway, new { error = "stream_resolution_failed" });
-                }
-
-                resolvedUrl = urlProp.GetString()!;
-            }
         }
 
         var permalinkUrl = root.TryGetProperty("permalink_url", out var permalinkProp) && permalinkProp.ValueKind == JsonValueKind.String
             ? permalinkProp.GetString()
             : null;
 
+        var primary = candidates[0];
+
         return Ok(new
         {
-            url = resolvedUrl,
-            kind = chosenKind,
+            url = primary.Url,
+            kind = primary.Kind,
+            transport = primary.Transport,
+            mimeType = primary.MimeType,
+            isPreview = primary.IsPreview,
+            candidates,
             // Helpful for attribution in the UI.
             permalinkUrl
         });
+    }
+
+    /// <summary>
+    /// Attempt to resolve a stream candidate URL to a final streaming URL.
+    /// </summary>
+    /// <param name="candidate">The candidate stream URL to resolve.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The resolved stream candidate or null if the resolution failed.</returns>
+    private async Task<SoundCloudStreamCandidateDto?> TryResolveStreamCandidateAsync(
+        SoundCloudStreamCandidateSpec candidate,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(candidate.Url))
+        {
+            return null;
+        }
+
+        var resolvedUrl = await TryResolveStreamUrlAsync(candidate.Url, cancellationToken);
+        if (string.IsNullOrWhiteSpace(resolvedUrl))
+        {
+            return null;
+        }
+
+        return new SoundCloudStreamCandidateDto(
+            candidate.Kind,
+            resolvedUrl,
+            candidate.Transport,
+            candidate.MimeType,
+            candidate.IsPreview);
+    }
+
+    /// <summary>
+    /// Attempt to resolve a stream URL to a final streaming URL.
+    /// </summary>
+    /// <param name="candidateUrl">The stream URL to resolve.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The resolved stream URL or null if the resolution failed.</returns>
+    private async Task<string?> TryResolveStreamUrlAsync(string candidateUrl, CancellationToken cancellationToken)
+    {
+        // For some responses, the *_url fields from /streams are not the final
+        // CDN URLs but intermediate API endpoints under api.soundcloud.com
+        // which require an Authorization header and return a small JSON body
+        // containing the actual streaming URL. Hitting those directly from the
+        // browser (e.g. as an <audio> src) will 401 because the OAuth token is
+        // not attached. Resolve those server-side first.
+        if (!Uri.TryCreate(candidateUrl, UriKind.Absolute, out var parsed) ||
+            !string.Equals(parsed.Host, "api.soundcloud.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return candidateUrl;
+        }
+
+        var (resolveStatus, resolveJson, resolveFinalUri, _resolveMediaType) =
+            await GetMetaWithUserOrAppAsync(candidateUrl, cancellationToken);
+
+        if (resolveStatus == HttpStatusCode.Unauthorized)
+        {
+            return null;
+        }
+
+        if (resolveStatus != HttpStatusCode.OK || resolveJson is null)
+        {
+            if (resolveStatus == HttpStatusCode.OK && resolveJson is null)
+            {
+                if (resolveFinalUri is not null &&
+                    !string.Equals(resolveFinalUri.Host, "api.soundcloud.com", StringComparison.OrdinalIgnoreCase))
+                {
+                    return resolveFinalUri.ToString();
+                }
+
+                return candidateUrl;
+            }
+
+            return null;
+        }
+
+        var resolveRoot = resolveJson.RootElement;
+        if (!resolveRoot.TryGetProperty("url", out var urlProp) ||
+            urlProp.ValueKind != JsonValueKind.String ||
+            string.IsNullOrWhiteSpace(urlProp.GetString()))
+        {
+            return null;
+        }
+
+        return urlProp.GetString()!;
     }
 
     // ============================================================================================
@@ -399,4 +430,18 @@ public sealed class SoundCloudApiController(
             (int)status,
             JsonSerializer.Deserialize<object>(json.RootElement.GetRawText(), new JsonSerializerOptions(JsonSerializerDefaults.Web))!);
     }
+
+    private sealed record SoundCloudStreamCandidateSpec(
+        string Kind,
+        string? Url,
+        string Transport,
+        string MimeType,
+        bool IsPreview = false);
+
+    private sealed record SoundCloudStreamCandidateDto(
+        string Kind,
+        string Url,
+        string Transport,
+        string MimeType,
+        bool IsPreview);
 }

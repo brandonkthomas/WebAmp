@@ -238,6 +238,25 @@ export class PlayerStore {
         });
     }
 
+    getAdjacentTrack(direction: 'next' | 'prev', fromTrackId?: string | null): Track | null {
+        if (!this.queue.length) return null;
+
+        const currentId = fromTrackId ?? this.state.track?.id ?? null;
+        const idx = currentId ? this.queue.findIndex((t) => t.id === currentId) : -1;
+
+        if (direction === 'next') {
+            const atEnd = idx >= 0 && idx === this.queue.length - 1;
+            if (atEnd && !this.queueWrap) {
+                return null;
+            }
+            const nextIdx = idx >= 0 ? (idx + 1) % this.queue.length : 0;
+            return this.queue[nextIdx] ?? null;
+        }
+
+        const prevIdx = idx >= 0 ? (idx - 1 + this.queue.length) % this.queue.length : 0;
+        return this.queue[prevIdx] ?? null;
+    }
+
     /**
      * Installs or removes a real playback transport
      */
@@ -478,14 +497,6 @@ export class PlayerStore {
             const deltaSec = (nowMs - baseMs) / 1000;
             const duration = this.state.track.durationSec ?? 0;
             const nextPos = duration ? clamp(basePos + deltaSec, 0, duration) : Math.max(0, basePos + deltaSec);
-
-            // Auto-advance at end-of-track when we own the queue.
-            if (duration > 0 && nextPos >= duration - 0.35) {
-                this.remoteRafId = null;
-                this.remoteUiEmitMs = null;
-                this.next({ autoplay: true });
-                return;
-            }
 
             // Throttle UI emissions to avoid hammering render.
             const lastEmit = this.remoteUiEmitMs ?? 0;

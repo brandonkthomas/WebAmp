@@ -10,10 +10,20 @@ export interface SoundCloudStatus {
 
 export interface SoundCloudStreamInfo {
     url: string;
-    protocol?: string | null;
-    preset?: string | null;
-    permalinkUrl?: string | null;
     kind?: string | null;
+    transport?: 'progressive' | 'hls' | null;
+    mimeType?: string | null;
+    isPreview?: boolean | null;
+    permalinkUrl?: string | null;
+    candidates?: SoundCloudStreamCandidate[] | null;
+}
+
+export interface SoundCloudStreamCandidate {
+    kind: string;
+    url: string;
+    transport: 'progressive' | 'hls';
+    mimeType?: string | null;
+    isPreview?: boolean | null;
 }
 
 function soundCloudApiPath(path: string): string {

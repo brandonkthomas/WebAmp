@@ -213,6 +213,31 @@ function boot() {
         }
     };
 
+    /**
+     * Request track skip in the transport layer
+     * @param direction 
+     * @returns 
+     */
+    const requestTransportSkip = (direction: 'next' | 'prev') => {
+        const transportSkip = direction === 'next'
+            ? hybridTransport?.skipNext?.()
+            : hybridTransport?.skipPrev?.();
+
+        if (!transportSkip || typeof (transportSkip as Promise<boolean>).then !== 'function') {
+            if (!transportSkip) {
+                if (direction === 'next') playerStore.next({ autoplay: true });
+                else playerStore.prev({ autoplay: true });
+            }
+            return;
+        }
+
+        void (transportSkip as Promise<boolean>).then((handled) => {
+            if (handled) return;
+            if (direction === 'next') playerStore.next({ autoplay: true });
+            else playerStore.prev({ autoplay: true });
+        });
+    };
+
     if (mediaSession) {
         setMediaActionHandler('play', () => {
             const st = playerStore.getState();
@@ -224,10 +249,10 @@ function boot() {
             if (st.isPlaying) playerStore.togglePlay();
         });
         setMediaActionHandler('previoustrack', () => {
-            playerStore.prev({ autoplay: true });
+            requestTransportSkip('prev');
         });
         setMediaActionHandler('nexttrack', () => {
-            playerStore.next({ autoplay: true });
+            requestTransportSkip('next');
         });
         setMediaActionHandler('seekto', (details) => {
             const t = typeof details?.seekTime === 'number' ? details.seekTime : null;
@@ -453,8 +478,13 @@ function boot() {
     // or Spotify Web Playback SDK signaling a natural end-of-track).
     window.addEventListener('wa:transport:finish', (e: Event) => {
         const ev = e as CustomEvent<{ source?: string; trackId?: string }>;
+
         const finishedId = ev.detail?.trackId;
         if (!finishedId) return;
+
+        // SoundCloud transport handles its own track finished detection
+        if (ev.detail?.source === 'soundcloud') return;
+
         const st = playerStore.getState();
         // Only advance if the finished track is still the selected track.
         if (st.track?.id !== finishedId) return;
@@ -538,6 +568,14 @@ function boot() {
                     isPlaying: s.isPlaying,
                     positionSec: s.positionSec
                 });
+            },
+            getAdjacentTrack: (currentTrack, direction) => playerStore.getAdjacentTrack(direction, currentTrack?.id ?? null),
+            fallbackQueueAdvance: (direction, autoplay) => {
+                if (direction === 'next') {
+                    playerStore.next({ autoplay });
+                } else {
+                    playerStore.prev({ autoplay });
+                }
             }
         });
         hybridTransport = transport;
