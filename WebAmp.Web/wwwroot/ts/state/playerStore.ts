@@ -257,6 +257,39 @@ export class PlayerStore {
         return this.queue[prevIdx] ?? null;
     }
 
+    getUpcomingTracks(fromTrackId?: string | null, limit: number = Number.POSITIVE_INFINITY): Track[] {
+        if (!this.queue.length) return [];
+
+        const max = Number.isFinite(limit)
+            ? Math.max(0, Math.floor(limit))
+            : this.queue.length;
+        if (max <= 0) return [];
+
+        const currentId = fromTrackId ?? this.state.track?.id ?? null;
+        const idx = currentId ? this.queue.findIndex((t) => t.id === currentId) : -1;
+        const upcoming: Track[] = [];
+
+        const pushRange = (start: number, endExclusive: number) => {
+            for (let i = start; i < endExclusive; i++) {
+                if (upcoming.length >= max) return;
+                const track = this.queue[i];
+                if (track) upcoming.push(track);
+            }
+        };
+
+        if (idx < 0) {
+            pushRange(0, this.queue.length);
+            return upcoming;
+        }
+
+        pushRange(idx + 1, this.queue.length);
+        if (this.queueWrap && upcoming.length < max) {
+            pushRange(0, idx);
+        }
+
+        return upcoming;
+    }
+
     /**
      * Installs or removes a real playback transport
      */

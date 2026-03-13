@@ -7,11 +7,14 @@ import { dispatchTransportBusy } from '../transportEvents';
 type PlaybackStateListener = (s: { track: Track | null; isPlaying: boolean; positionSec: number }) => void;
 type QueueDirection = 'next' | 'prev';
 type PlaybackPhase = 'idle' | 'preparing' | 'switching' | 'playing' | 'paused' | 'recovering';
+const STREAM_CACHE_TTL_MS = 30 * 60 * 1000;
+const PREFETCH_LOOKAHEAD_LIMIT = 25;
 
 interface ResolvedSoundCloudStream {
     info: SoundCloudStreamInfo;
     selected: SoundCloudStreamCandidate;
     candidates: SoundCloudStreamCandidate[];
+    resolvedAtMs: number;
 }
 
 /**
@@ -32,12 +35,14 @@ export class SoundCloudTransport implements PlayerTransport {
     private playbackPhase: PlaybackPhase = 'idle';
 
     private readonly streamInfoCache = new Map<string, ResolvedSoundCloudStream>();
-    private preparedNext: { trackId: string; stream: ResolvedSoundCloudStream } | null = null;
+    private readonly streamResolveInFlight = new Map<string, Promise<ResolvedSoundCloudStream>>();
+    private prefetchGeneration = 0;
 
     constructor(
         private readonly onRemoteState?: PlaybackStateListener,
         private readonly queue?: {
             getAdjacentTrack?: (currentTrack: Track | null, direction: QueueDirection) => Track | null;
+            getUpcomingTracks?: (currentTrack: Track | null, limit: number) => Track[];
             fallbackQueueAdvance?: (direction: QueueDirection, autoplay: boolean) => void;
         }
     ) {}
@@ -51,9 +56,7 @@ export class SoundCloudTransport implements PlayerTransport {
         try {
             this.ensureAudio();
             this.bindLifecycleEvents();
-            if (this.currentTrack) {
-                this.scheduleAdjacentPrefetch(this.currentTrack);
-            }
+            this.scheduleQueuePrefetch(this.currentTrack);
         } catch {
             // ignore
         }
@@ -101,6 +104,7 @@ export class SoundCloudTransport implements PlayerTransport {
                 });
                 if (document.visibilityState === 'visible') {
                     this.recoverDesiredPlayback('visibility');
+                    this.scheduleQueuePrefetch(this.currentTrack);
                 }
             });
         }
@@ -117,6 +121,7 @@ export class SoundCloudTransport implements PlayerTransport {
                     desiredPlaying: this.desiredPlaying
                 });
                 this.recoverDesiredPlayback('pageshow');
+                this.scheduleQueuePrefetch(this.currentTrack);
             });
         }
     }
@@ -369,6 +374,42 @@ export class SoundCloudTransport implements PlayerTransport {
         return this.isIphoneSafari() && this.canPlayNativeHls();
     }
 
+    private isStreamStale(stream: ResolvedSoundCloudStream): boolean {
+        return (performance.now() - stream.resolvedAtMs) > STREAM_CACHE_TTL_MS;
+    }
+
+    private isDocumentVisible(): boolean {
+        return typeof document === 'undefined' || document.visibilityState === 'visible';
+    }
+
+    private maybeRefreshStaleStream(trackId: string, staleStream: ResolvedSoundCloudStream): void {
+        if (!this.isDocumentVisible()) {
+            logEvent('WebAmp', 'soundcloud:cache:stale_hidden', {
+                trackId,
+                ageSec: Math.round((performance.now() - staleStream.resolvedAtMs) / 1000)
+            });
+            return;
+        }
+
+        if (this.streamResolveInFlight.has(trackId)) {
+            return;
+        }
+
+        logEvent('WebAmp', 'soundcloud:cache:refresh:start', {
+            trackId,
+            ageSec: Math.round((performance.now() - staleStream.resolvedAtMs) / 1000)
+        });
+
+        void this.resolveStream(trackId, { forceRefresh: true, allowStale: false })
+            .then(() => {
+                logEvent('WebAmp', 'soundcloud:cache:refresh:done', { trackId });
+            })
+            .catch((error) => {
+                const message = error instanceof Error ? error.message : 'Unknown cache refresh error';
+                logEvent('WebAmp', 'soundcloud:cache:refresh:error', { trackId }, message, 'warn');
+            });
+    }
+
     private chooseCandidate(candidates: SoundCloudStreamCandidate[]): SoundCloudStreamCandidate {
         const progressive = candidates.filter((candidate) => candidate.transport === 'progressive');
         const hls = candidates.filter((candidate) => candidate.transport === 'hls');
@@ -378,26 +419,52 @@ export class SoundCloudTransport implements PlayerTransport {
         return progressive[0] ?? hls[0] ?? candidates[0];
     }
 
-    private async resolveStream(trackId: string, opts?: { forceRefresh?: boolean }): Promise<ResolvedSoundCloudStream> {
+    private async resolveStream(
+        trackId: string,
+        opts?: { forceRefresh?: boolean; allowStale?: boolean }
+    ): Promise<ResolvedSoundCloudStream> {
+        const allowStale = opts?.allowStale !== false;
         if (opts?.forceRefresh) {
             this.streamInfoCache.delete(trackId);
         }
         const cached = this.streamInfoCache.get(trackId);
-        if (cached) return cached;
-
-        const info = await soundcloudApi.stream(trackId);
-        const candidates = this.normalizeStreamCandidates(info);
-        if (!candidates.length) {
-            throw new Error('Missing SoundCloud stream URL.');
+        if (cached) {
+            if (!this.isStreamStale(cached)) {
+                return cached;
+            }
+            if (allowStale) {
+                this.maybeRefreshStaleStream(trackId, cached);
+                return cached;
+            }
+            this.streamInfoCache.delete(trackId);
         }
 
-        const resolved = {
-            info,
-            candidates,
-            selected: this.chooseCandidate(candidates)
-        };
-        this.streamInfoCache.set(trackId, resolved);
-        return resolved;
+        const pending = this.streamResolveInFlight.get(trackId);
+        if (pending) return await pending;
+
+        const resolvePromise = (async () => {
+            const info = await soundcloudApi.stream(trackId);
+            const candidates = this.normalizeStreamCandidates(info);
+            if (!candidates.length) {
+                throw new Error('Missing SoundCloud stream URL.');
+            }
+
+            const resolved = {
+                info,
+                candidates,
+                selected: this.chooseCandidate(candidates),
+                resolvedAtMs: performance.now()
+            };
+            this.streamInfoCache.set(trackId, resolved);
+            return resolved;
+        })();
+
+        this.streamResolveInFlight.set(trackId, resolvePromise);
+        try {
+            return await resolvePromise;
+        } finally {
+            this.streamResolveInFlight.delete(trackId);
+        }
     }
 
     private requestPlay(audio: HTMLAudioElement, reqId: number, reason: string, attempt: number = 1): void {
@@ -536,12 +603,10 @@ export class SoundCloudTransport implements PlayerTransport {
 
                 const nextPrepared = {
                     ...prepared,
-                    selected: alternate
+                    selected: alternate,
+                    resolvedAtMs: performance.now()
                 };
                 this.streamInfoCache.set(track.id, nextPrepared);
-                if (this.preparedNext?.trackId === track.id) {
-                    this.preparedNext = { trackId: track.id, stream: nextPrepared };
-                }
                 return true;
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Unknown recovery error';
@@ -561,29 +626,14 @@ export class SoundCloudTransport implements PlayerTransport {
         return this.queue?.getAdjacentTrack?.(track, direction) ?? null;
     }
 
-    private scheduleAdjacentPrefetch(track: Track | null): void {
-        const nextTrack = this.getAdjacentTrack('next', track);
-        if (!nextTrack || nextTrack.source !== 'soundcloud') {
-            this.preparedNext = null;
-            return;
-        }
-
-        const currentPreparedId = this.preparedNext?.trackId ?? null;
-        if (currentPreparedId === nextTrack.id) {
-            return;
-        }
-
-        void this.prepareTrack(nextTrack);
+    private getUpcomingQueueTracks(track: Track | null): Track[] {
+        const tracks = this.queue?.getUpcomingTracks?.(track, PREFETCH_LOOKAHEAD_LIMIT) ?? [];
+        return tracks.filter((candidate) => this.getSource(candidate) === 'soundcloud');
     }
 
     private async prepareTrack(track: Track): Promise<void> {
         try {
             const prepared = await this.resolveStream(track.id);
-            const stillAdjacent = this.getAdjacentTrack('next', this.currentTrack);
-            if (!stillAdjacent || stillAdjacent.id !== track.id) {
-                return;
-            }
-            this.preparedNext = { trackId: track.id, stream: prepared };
             logEvent('WebAmp', 'soundcloud:prefetch:ready', {
                 trackId: track.id,
                 kind: prepared.selected.kind,
@@ -597,10 +647,31 @@ export class SoundCloudTransport implements PlayerTransport {
         }
     }
 
-    private async getPreparedStream(track: Track): Promise<ResolvedSoundCloudStream> {
-        if (this.preparedNext?.trackId === track.id) {
-            return this.preparedNext.stream;
+    private scheduleQueuePrefetch(track: Track | null): void {
+        const tracks = this.getUpcomingQueueTracks(track);
+        const generation = ++this.prefetchGeneration;
+
+        if (!tracks.length) {
+            return;
         }
+
+        void (async () => {
+            for (const candidate of tracks) {
+                if (generation !== this.prefetchGeneration) return;
+                try {
+                    const cached = this.streamInfoCache.get(candidate.id);
+                    if (cached && !this.isStreamStale(cached)) {
+                        continue;
+                    }
+                    await this.prepareTrack(candidate);
+                } catch {
+                    // prepareTrack already logs failures; keep warming the remainder.
+                }
+            }
+        })();
+    }
+
+    private async getPreparedStream(track: Track): Promise<ResolvedSoundCloudStream> {
         return await this.resolveStream(track.id);
     }
 
@@ -647,9 +718,6 @@ export class SoundCloudTransport implements PlayerTransport {
 
             this.currentTrack = track;
             this.pendingTrack = null;
-            if (this.preparedNext?.trackId === track.id) {
-                this.preparedNext = null;
-            }
 
             this.emitRemote({
                 track: this.currentTrack,
@@ -657,7 +725,7 @@ export class SoundCloudTransport implements PlayerTransport {
                 positionSec: Math.max(0, audio.currentTime || targetPos)
             });
 
-            this.scheduleAdjacentPrefetch(track);
+            this.scheduleQueuePrefetch(track);
         } finally {
             this.switchingTrack = false;
         }

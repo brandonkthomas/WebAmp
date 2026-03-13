@@ -570,6 +570,7 @@ function boot() {
                 });
             },
             getAdjacentTrack: (currentTrack, direction) => playerStore.getAdjacentTrack(direction, currentTrack?.id ?? null),
+            getUpcomingTracks: (currentTrack, limit) => playerStore.getUpcomingTracks(currentTrack?.id ?? null, limit),
             fallbackQueueAdvance: (direction, autoplay) => {
                 if (direction === 'next') {
                     playerStore.next({ autoplay });

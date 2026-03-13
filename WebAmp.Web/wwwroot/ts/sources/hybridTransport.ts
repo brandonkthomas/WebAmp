@@ -20,6 +20,7 @@ export class HybridTransport implements PlayerTransport {
             spotifySource: MusicSource;
             onRemoteState: RemoteStateListener;
             getAdjacentTrack?: (currentTrack: Track | null, direction: 'next' | 'prev') => Track | null;
+            getUpcomingTracks?: (currentTrack: Track | null, limit: number) => Track[];
             fallbackQueueAdvance?: (direction: 'next' | 'prev', autoplay: boolean) => void;
         }
     ) {
@@ -27,6 +28,7 @@ export class HybridTransport implements PlayerTransport {
             (s) => this.opts.onRemoteState(s),
             {
                 getAdjacentTrack: this.opts.getAdjacentTrack,
+                getUpcomingTracks: this.opts.getUpcomingTracks,
                 fallbackQueueAdvance: this.opts.fallbackQueueAdvance
             }
         );
