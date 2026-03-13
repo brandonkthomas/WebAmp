@@ -2,6 +2,7 @@ import type { PlayerState } from '../../state/playerStore';
 import { applyCachedArt } from '../../storage/clientCache';
 import type { PlayerStore } from '../../state/playerStore';
 import { indiumSvg } from '../../internal/paths';
+import { openPopupMenu } from '../../internal/indiumApi';
 import { shareCurrentTrack } from '../../share/currentTrackShare';
 
 /**
@@ -29,7 +30,7 @@ export class PlayerBar {
     private btnPrev: HTMLButtonElement | null;
     private btnNext: HTMLButtonElement | null;
     private btnToggle: HTMLButtonElement | null;
-    private btnShare: HTMLButtonElement | null;
+    private btnMenu: HTMLButtonElement | null;
     private timeCurrentEl: HTMLElement | null;
     private timeDurationEl: HTMLElement | null;
     private scrubber: HTMLInputElement | null;
@@ -48,7 +49,7 @@ export class PlayerBar {
         this.btnPrev = this.root.querySelector<HTMLButtonElement>('[data-wa-player-prev]');
         this.btnNext = this.root.querySelector<HTMLButtonElement>('[data-wa-player-next]');
         this.btnToggle = this.root.querySelector<HTMLButtonElement>('[data-wa-player-toggle]');
-        this.btnShare = this.root.querySelector<HTMLButtonElement>('[data-wa-player-share]');
+        this.btnMenu = this.root.querySelector<HTMLButtonElement>('[data-wa-player-menu]');
         this.timeCurrentEl = this.root.querySelector<HTMLElement>('[data-wa-player-time-current]');
         this.timeDurationEl = this.root.querySelector<HTMLElement>('[data-wa-player-time-duration]');
         this.scrubber = this.root.querySelector<HTMLInputElement>('[data-wa-player-scrubber]');
@@ -64,17 +65,28 @@ export class PlayerBar {
         this.btnPrev?.addEventListener('click', () => this.store.prev({ autoplay: true }));
         this.btnNext?.addEventListener('click', () => this.store.next({ autoplay: true }));
         this.btnToggle?.addEventListener('click', () => this.store.togglePlay());
-        this.btnShare?.addEventListener('click', async () => {
+        this.btnMenu?.addEventListener('click', () => {
             const track = this.store.getState().track;
-            if (!track || this.shareBusy) return;
-            this.shareBusy = true;
-            this.render(this.store.getState());
-            try {
-                await shareCurrentTrack(track);
-            } finally {
-                this.shareBusy = false;
-                this.render(this.store.getState());
-            }
+            if (!track || this.shareBusy || !this.btnMenu) return;
+            openPopupMenu({
+                anchor: this.btnMenu,
+                title: 'Track Actions',
+                items: [{
+                    id: 'share',
+                    title: 'Share',
+                    iconSrc: indiumSvg('share.svg'),
+                    onSelect: async () => {
+                        this.shareBusy = true;
+                        this.render(this.store.getState());
+                        try {
+                            await shareCurrentTrack(track);
+                        } finally {
+                            this.shareBusy = false;
+                            this.render(this.store.getState());
+                        }
+                    }
+                }]
+            });
         });
 
         this.scrubber?.addEventListener('input', () => {
@@ -161,8 +173,8 @@ export class PlayerBar {
             this.btnNext.disabled = !track;
         }
 
-        if (this.btnShare) {
-            this.btnShare.disabled = !track || this.shareBusy;
+        if (this.btnMenu) {
+            this.btnMenu.disabled = !track || this.shareBusy;
         }
 
         if (this.timeCurrentEl) this.timeCurrentEl.textContent = formatTime(position);

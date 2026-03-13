@@ -174,7 +174,7 @@
 }
 
 /* Mobile defaults: hide prev + scrubber */
-.wa-playerbar__btn--share,
+.wa-playerbar__btn--menu,
 .wa-playerbar__btn--prev {
     display: none;
 }
@@ -193,7 +193,7 @@
         grid-template-columns: 260px auto minmax(0, 1fr);
     }
 
-    .wa-playerbar__btn--share {
+    .wa-playerbar__btn--menu {
         display: inline-flex;
     }
 

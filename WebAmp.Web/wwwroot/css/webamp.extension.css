@@ -794,7 +794,7 @@ html[data-wa-theme-resolved='light'] body {
         background: var(--wa-color-text-inverse);
     }
 
-    .wa-nowplaying__btn--share {
+    .wa-nowplaying__btn--menu {
         justify-self: end;
         margin-right: 1.1rem;
     }

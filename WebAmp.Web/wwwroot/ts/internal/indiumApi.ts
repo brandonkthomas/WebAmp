@@ -4,6 +4,7 @@ export {
     attachInfiniteScroll,
     bootIndium,
     createGradNoiseCanvas,
+    openPopupMenu,
     createSidebarController,
     routePath,
     setIndiumConfig,
