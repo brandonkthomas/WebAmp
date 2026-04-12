@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+
+    <!-- Serve module static assets under /apps/webamp/* when referenced by a host app -->
+    <StaticWebAssetBasePath>apps/webamp</StaticWebAssetBasePath>
+
+    <!-- Version injected by host build/push script (defaults to dev for local builds). -->
+    <WebAmpAppVersion Condition="'$(WebAmpAppVersion)' == ''">dev</WebAmpAppVersion>
+
+    <!-- Preferred local canonical Indium repo path; fallback supports submodule layout. -->
+    <IndiumProjectPath Condition="'$(IndiumProjectPath)' == '' and Exists('$(MSBuildProjectDirectory)/../../../../Libraries/Indium/Indium.csproj')">$(MSBuildProjectDirectory)/../../../../Libraries/Indium/Indium.csproj</IndiumProjectPath>
+    <IndiumProjectPath Condition="'$(IndiumProjectPath)' == ''">$(MSBuildProjectDirectory)/../Submodules/Indium/Indium.csproj</IndiumProjectPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="$(IndiumProjectPath)" Condition="Exists('$(IndiumProjectPath)')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="package.json;package-lock.json;tsconfig.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
+    <Content Update="package.json;package-lock.json;tsconfig.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- Build WebAmp extension JS from TS (do not commit generated JS). -->
+  <Target Name="BuildWebAmpExtension" BeforeTargets="Build">
+    <PropertyGroup>
+      <_WebAmpEntryTs>$(MSBuildProjectDirectory)/wwwroot/ts/webamp.ts</_WebAmpEntryTs>
+      <_WebAmpOutDir>$(MSBuildProjectDirectory)/wwwroot/dist/js</_WebAmpOutDir>
+      <_WebAmpOutFile>$(_WebAmpOutDir)/webamp.js</_WebAmpOutFile>
+      <_EsbuildCliLocal>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/node_modules/esbuild/bin/esbuild'))</_EsbuildCliLocal>
+      <_EsbuildCliPortfolio>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../Portfolio/node_modules/esbuild/bin/esbuild'))</_EsbuildCliPortfolio>
+      <EsbuildCli Condition="'$(EsbuildCli)' == '' and Exists('$(_EsbuildCliLocal)')">$(_EsbuildCliLocal)</EsbuildCli>
+      <EsbuildCli Condition="'$(EsbuildCli)' == '' and Exists('$(_EsbuildCliPortfolio)')">$(_EsbuildCliPortfolio)</EsbuildCli>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <_WebAmpLegacyOutputs Include="$(_WebAmpOutDir)/webamp-*.js" />
+    </ItemGroup>
+
+    <Error Condition="'$(EsbuildCli)' == ''" Text="Missing esbuild CLI. Pass EsbuildCli from host build or run npm install in WebAmp.Web." />
+
+    <MakeDir Directories="$(_WebAmpOutDir)" />
+    <Delete Files="@(_WebAmpLegacyOutputs)" Condition="'@(_WebAmpLegacyOutputs)' != ''" />
+
+    <Exec
+      Condition="Exists('$(_WebAmpEntryTs)')"
+      Command="&quot;$(EsbuildCli)&quot; &quot;$(_WebAmpEntryTs)&quot; --bundle --format=esm --outfile=&quot;$(_WebAmpOutFile)&quot; --log-level=warning --resolve-extensions=.ts,.js --external:/apps/indium/dist/indium.js --define:__WEBAMP_APP_VERSION__=&quot;'$(WebAmpAppVersion)'&quot;" />
+  </Target>
+
+</Project>

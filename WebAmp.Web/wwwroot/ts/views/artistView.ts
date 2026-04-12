@@ -1,0 +1,296 @@
+import type { WebAmpViewController, WebAmpViewContext } from '../router/webAmpRouter';
+import { routePath } from '../internal/paths';
+import { WEBAMP_ROOT } from '../router/routes';
+import { createSpotifyTrack } from '../library/trackLibrary';
+import { spotifyApi } from '../sources/spotify/spotifyApi';
+import type { Track } from '../state/playerStore';
+import { applyCachedArt } from '../storage/clientCache';
+import { renderListSkeleton } from '../ui/skeleton';
+import { createTrackListItem } from '../ui/trackListItem';
+import { attachInfiniteScroll } from '../internal/indiumApi';
+import { createArtistListItem } from '../ui/artistListItem';
+import { createAlbumListItem } from '../ui/albumListItem';
+import { bindQueueActions } from '../ui/queueActions';
+import { appendFragment } from '../utils';
+
+export const artistView: WebAmpViewController = {
+    id: 'artist',
+    mount(ctx: WebAmpViewContext) {
+        const headerTitle = document.querySelector<HTMLElement>('[data-wa-topbar-title]');
+        const artistsCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artists-card]');
+        const artistsList = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artists-list]');
+        const artistsStatus = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artists-status]');
+        const detailCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-detail]');
+        const detailImg = ctx.rootEl.querySelector<HTMLImageElement>('[data-wa-artist-img]');
+        const detailArt = detailImg?.parentElement as HTMLElement | null;
+        const detailName = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-name]');
+        const detailMeta = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-meta]');
+        const topCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-toptracks-card]');
+        const topList = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-toptracks]');
+        const topStatus = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-toptracks-status]');
+        const albumsCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-albums-card]');
+        const albumsList = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-albums]');
+        const albumsStatus = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-albums-status]');
+        const singlesCard = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-singles-card]');
+        const singlesList = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-singles]');
+        const singlesStatus = ctx.rootEl.querySelector<HTMLElement>('[data-wa-artist-singles-status]');
+
+        const setArtistsStatus = (t: string) => { if (artistsStatus) artistsStatus.textContent = t; };
+        const setTopStatus = (t: string) => { if (topStatus) topStatus.textContent = t; };
+        const setAlbumsStatus = (t: string) => { if (albumsStatus) albumsStatus.textContent = t; };
+        const setSinglesStatus = (t: string) => { if (singlesStatus) singlesStatus.textContent = t; };
+
+        let cleanup: (() => void) | null = null;
+        let cleanupActions = bindQueueActions({ root: ctx.rootEl, getTracks: () => [] });
+
+        const spotifySource = ctx.services.musicSource;
+        const isSpotifyConnected = spotifySource?.getState().isConnected ?? false;
+
+        // Followed artists list (cursor-based infinite)
+        (async () => {
+            if (ctx.entityId) {
+                if (artistsCard) artistsCard.style.display = 'none';
+                return;
+            }
+            if (artistsCard) artistsCard.style.display = 'block';
+            if (!artistsList) return;
+            let destroyed = false;
+            let after: string | undefined = undefined;
+            let loading = false;
+            let hasMore = true;
+
+            setArtistsStatus('Loading…');
+            renderListSkeleton(artistsList, 8);
+
+            const loadMoreArtists = async () => {
+                if (destroyed || loading || !hasMore) return;
+                loading = true;
+                try {
+                    if (!isSpotifyConnected) {
+                        artistsList.replaceChildren();
+                        setArtistsStatus('Connect Spotify to see your followed artists.');
+                        hasMore = false;
+                        return;
+                    }
+
+                    const data = await spotifyApi.followedArtists(50, after);
+                    const artists = data?.artists;
+                    const items = artists?.items ?? [];
+                    const nextAfter = artists?.cursors?.after;
+
+                    if (!after) artistsList.replaceChildren();
+
+                    for (const a of items) {
+                        const id = a?.id;
+                        const name = a?.name ?? '(untitled)';
+                        const images = a?.images ?? [];
+                        const artUrlSmall = images?.[images.length - 1]?.url ?? images?.[0]?.url;
+                        if (!id) continue;
+                        artistsList.appendChild(createArtistListItem({
+                            artist: { id, name, artUrlSmall },
+                            onClick: () => ctx.router.navigate(routePath(`artists/${id}`))
+                        }));
+                    }
+
+                    after = nextAfter;
+                    hasMore = Boolean(nextAfter) && items.length > 0;
+                    setArtistsStatus(items.length ? '' : 'No followed artists found.');
+                } catch (err: any) {
+                    setArtistsStatus(err?.message ?? 'Failed to load followed artists');
+                    hasMore = false;
+                } finally {
+                    loading = false;
+                }
+            };
+
+            const scroller = attachInfiniteScroll({
+                listEl: artistsList,
+                loadMore: loadMoreArtists,
+                hasMore: () => hasMore,
+                isLoading: () => loading
+            });
+
+            cleanup = () => {
+                destroyed = true;
+                scroller.destroy();
+            };
+
+            await loadMoreArtists();
+        })();
+
+        // Top tracks when viewing a specific artist
+        if (ctx.entityId && topCard && topList) {
+            if (!isSpotifyConnected) {
+                if (detailCard) detailCard.style.display = 'block';
+                if (detailName) detailName.textContent = 'Artists not available';
+                if (detailMeta) detailMeta.textContent = 'Connect Spotify to view artist details.';
+                if (topCard) topCard.style.display = 'none';
+                setTopStatus('Artist top tracks are only available for Spotify.');
+                return;
+            }
+            (async () => {
+                try {
+                    if (detailCard) detailCard.style.display = 'block';
+                    if (detailName) detailName.textContent = 'Loading…';
+                    if (detailMeta) detailMeta.textContent = '';
+                    if (detailImg) detailImg.removeAttribute('src');
+                    if (detailArt) detailArt.classList.add('wa-entityheader__art--loading');
+
+                    topCard.style.display = 'block';
+                    setTopStatus('Loading top tracks…');
+                    renderListSkeleton(topList, 10);
+
+                    try {
+                        const a = await spotifyApi.artist(ctx.entityId!);
+                        const artistName = a?.name ?? ctx.getViewLabel('artist');
+                        if (detailName) detailName.textContent = artistName;
+                        const followers = a?.followers?.total;
+                        const genres = Array.isArray(a?.genres) ? a.genres.slice(0, 3).join(' • ') : '';
+                        const followersText = typeof followers === 'number' ? `${followers.toLocaleString()} followers` : '';
+                        const meta = [followersText, genres].filter(Boolean).join(' • ');
+                        if (detailMeta) detailMeta.textContent = meta;
+                        const images = a?.images ?? [];
+                        const artUrl = images?.[0]?.url ?? images?.[1]?.url ?? images?.[images.length - 1]?.url;
+                        if (detailImg && artUrl) {
+                            applyCachedArt(detailImg, artUrl);
+                            if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
+                        } else if (detailArt) {
+                            detailArt.classList.remove('wa-entityheader__art--loading');
+                        }
+
+                        // Update main view title + breadcrumbs to use the artist name.
+                        if (headerTitle) headerTitle.textContent = artistName;
+                        const rootLabel = ctx.getViewLabel('artist');
+                        const rootPath = `${WEBAMP_ROOT}/artists`;
+                        const detailPath = `${WEBAMP_ROOT}/artists/${ctx.entityId}`;
+                        ctx.router.setBreadcrumbs([
+                            { label: rootLabel, path: rootPath },
+                            { label: artistName, path: detailPath }
+                        ]);
+                    } catch {
+                        // ignore artist detail errors; lists can still load
+                        if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
+                    }
+                    const data = await spotifyApi.artistTopTracks(ctx.entityId!, 'US');
+                    const items = data?.tracks ?? [];
+                    const tracks: Track[] = items.map((t: any) => createSpotifyTrack(t, {
+                        primaryArtistId: ctx.entityId!
+                    }));
+
+                    topList.replaceChildren();
+                    cleanupActions();
+                    cleanupActions = bindQueueActions({
+                        root: ctx.rootEl,
+                        getTracks: () => tracks
+                    });
+                    cleanupActions.refresh?.();
+                    appendFragment(topList, (frag) => {
+                        for (let i = 0; i < tracks.length; i++) {
+                            const t = tracks[i];
+                            frag.appendChild(createTrackListItem({
+                                track: t,
+                                index: i + 1,
+                                variant: 'artistTop',
+                                onClick: () => window.dispatchEvent(new CustomEvent('wa:track:select', { detail: { trackId: t.id, tracks: tracks.slice(), wrap: false, from: 'artist' } }))
+                            }));
+                        }
+                    });
+                    setTopStatus(tracks.length ? '' : 'No top tracks found.');
+                } catch (err: any) {
+                    if (detailArt) detailArt.classList.remove('wa-entityheader__art--loading');
+                    setTopStatus(err?.message ?? 'Failed to load top tracks');
+                    topList.replaceChildren();
+                }
+            })();
+        } else {
+            if (topCard) topCard.style.display = 'none';
+            if (detailCard) detailCard.style.display = 'none';
+        }
+
+        // Albums + singles when viewing a specific artist
+        if (ctx.entityId && (albumsCard || singlesCard) && albumsList && singlesList) {
+            if (!isSpotifyConnected) {
+                if (albumsCard) albumsCard.style.display = 'none';
+                if (singlesCard) singlesCard.style.display = 'none';
+                setAlbumsStatus('Artist albums are only available for Spotify.');
+                setSinglesStatus('Artist singles are only available for Spotify.');
+                return;
+            }
+            (async () => {
+                try {
+                    if (albumsCard) albumsCard.style.display = 'block';
+                    if (singlesCard) singlesCard.style.display = 'block';
+                    setAlbumsStatus('Loading…');
+                    setSinglesStatus('Loading…');
+                    renderListSkeleton(albumsList, 6);
+                    renderListSkeleton(singlesList, 6);
+
+                    const data = await spotifyApi.artistAlbums(ctx.entityId!, 'album,single', 50, 0);
+                    const items = data?.items ?? [];
+
+                    // De-dupe (Spotify can return duplicates across markets)
+                    const seen = new Set<string>();
+                    const deduped = items.filter((it: any) => {
+                        const id = it?.id;
+                        if (!id || seen.has(id)) return false;
+                        seen.add(id);
+                        return true;
+                    });
+
+                    const albums = deduped.filter((it: any) => (it?.album_group ?? it?.album_type) === 'album');
+                    const singles = deduped.filter((it: any) => (it?.album_group ?? it?.album_type) === 'single');
+
+                    albumsList.replaceChildren();
+                    singlesList.replaceChildren();
+
+                    for (const a of albums) {
+                        const id = a?.id;
+                        if (!id) continue;
+                        const title = a?.name ?? '(untitled)';
+                        const artist = Array.isArray(a?.artists) ? a.artists.map((x: any) => x.name).join(', ') : '';
+                        const images = a?.images ?? [];
+                        const artUrlSmall = images?.[images.length - 1]?.url ?? images?.[0]?.url;
+                        albumsList.appendChild(createAlbumListItem({
+                            album: { id, title, artist, artUrlSmall },
+                            onClick: () => ctx.router.navigate(routePath(`albums/${id}`))
+                        }));
+                    }
+
+                    for (const s of singles) {
+                        const id = s?.id;
+                        if (!id) continue;
+                        const title = s?.name ?? '(untitled)';
+                        const artist = Array.isArray(s?.artists) ? s.artists.map((x: any) => x.name).join(', ') : '';
+                        const images = s?.images ?? [];
+                        const artUrlSmall = images?.[images.length - 1]?.url ?? images?.[0]?.url;
+                        singlesList.appendChild(createAlbumListItem({
+                            album: { id, title, artist, artUrlSmall },
+                            onClick: () => ctx.router.navigate(routePath(`albums/${id}`))
+                        }));
+                    }
+
+                    setAlbumsStatus(albums.length ? '' : 'No albums found.');
+                    setSinglesStatus(singles.length ? '' : 'No singles found.');
+                } catch (err: any) {
+                    setAlbumsStatus(err?.message ?? 'Failed to load albums');
+                    setSinglesStatus(err?.message ?? 'Failed to load singles');
+                    albumsList.replaceChildren();
+                    singlesList.replaceChildren();
+                }
+            })();
+        } else {
+            if (albumsCard) albumsCard.style.display = 'none';
+            if (singlesCard) singlesCard.style.display = 'none';
+        }
+
+        (artistView as any)._cleanup = () => {
+            cleanup?.();
+            cleanupActions();
+        };
+    }
+    ,
+    unmount() {
+        (artistView as any)._cleanup?.();
+        (artistView as any)._cleanup = null;
+    }
+};

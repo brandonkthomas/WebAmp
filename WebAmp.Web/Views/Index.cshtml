@@ -1,0 +1,144 @@
+@{
+    ViewData["Title"] = "WebAmp";
+}
+
+<section class="wa-app" data-wa-app>
+    <header class="wa-topbar" aria-label="WebAmp navigation">
+        <div class="wa-topbar__inner">
+            <div class="wa-topbar__left">
+                <button type="button" class="wa-iconbtn wa-topbar__burger" data-wa-sidebar-toggle aria-label="Open menu">
+                    <span aria-hidden="true">
+                        <img src="~/apps/indium/assets/svg/burger-menu.svg" asp-append-version="true" alt="" />
+                    </span>
+                </button>
+
+                <div class="wa-topbar__history" aria-label="History navigation">
+                    <button type="button" class="wa-btn wa-btn--icon" data-wa-nav-back aria-label="Back">
+                        <span aria-hidden="true">
+                            <img src="~/apps/indium/assets/svg/arrow-left.svg" asp-append-version="true" alt="" />
+                        </span>
+                    </button>
+                    <button type="button" class="wa-btn wa-btn--icon" data-wa-nav-forward aria-label="Forward">
+                        <span aria-hidden="true">
+                            <img src="~/apps/indium/assets/svg/arrow-right.svg" asp-append-version="true" alt="" />
+                        </span>
+                    </button>
+                </div>
+
+                <button type="button" class="wa-iconbtn wa-topbar__back" data-wa-nav-back aria-label="Back">
+                    <span aria-hidden="true">
+                        <img src="~/apps/indium/assets/svg/arrow-left.svg" asp-append-version="true" alt="" />
+                    </span>
+                </button>
+
+                <div class="wa-topbar__titleblock">
+                    <div class="wa-topbar__title" aria-label="Current section">
+                        <span data-wa-topbar-title>WebAmp</span>
+                    </div>
+                    <p class="wa-lede wa-breadcrumbs" data-wa-breadcrumbs></p>
+                </div>
+            </div>
+
+            <div class="wa-topbar__actions" data-wa-queue-actions>
+                <label class="comp-toggle comp-toggle--topbar" aria-label="Shuffle">
+                    <input type="checkbox" class="comp-toggle-input" data-wa-action="shuffle-toggle" />
+                    <span class="comp-toggle-track comp-toggle-large" aria-hidden="true">
+                        <span class="comp-toggle-thumb">
+                            <img src="~/apps/indium/assets/svg/shuffle-filled.svg" asp-append-version="true" alt="" aria-hidden="true" />
+                        </span>
+                    </span>
+                </label>
+                <button type="button" class="wa-btn wa-btn--icon wa-topbar__play" data-wa-action="queue-play" aria-label="Play">
+                    <span class="wa-topbar__play-icon" aria-hidden="true">
+                        <img src="~/apps/indium/assets/svg/play-filled.svg" asp-append-version="true" alt="" />
+                    </span>
+                    <span class="wa-topbar__play-label">Play</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="glass-surface wa-shell" role="application" aria-label="WebAmp">
+        <div class="glass-surface__content wa-shell__content">
+            <div class="wa-layout" data-wa-layout>
+                @await Html.PartialAsync("~/Views/Partials/_Sidebar.cshtml")
+
+                <div class="wa-content">
+                    <main class="wa-main" aria-label="WebAmp content">
+                        <div class="wa-view-host" data-wa-view-host></div>
+
+                        <!-- Server-rendered templates (cloned/mounted by TS) -- need to keep markup in CSHTML partials -->
+                        <template id="wa-tpl-landing">
+                            @await Html.PartialAsync("~/Views/Partials/_ViewLanding.cshtml")
+                        </template>
+                        <template id="wa-tpl-home">
+                            @await Html.PartialAsync("~/Views/Partials/_ViewHome.cshtml")
+                        </template>
+                        <template id="wa-tpl-search">
+                            @await Html.PartialAsync("~/Views/Partials/_ViewSearch.cshtml")
+                        </template>
+                        <template id="wa-tpl-liked">
+                            @await Html.PartialAsync("~/Views/Partials/_ViewLiked.cshtml")
+                        </template>
+                        <template id="wa-tpl-playlist">
+                            @await Html.PartialAsync("~/Views/Partials/_ViewPlaylist.cshtml")
+                        </template>
+                        <template id="wa-tpl-album">
+                            @await Html.PartialAsync("~/Views/Partials/_ViewAlbum.cshtml")
+                        </template>
+                        <template id="wa-tpl-artist">
+                            @await Html.PartialAsync("~/Views/Partials/_ViewArtist.cshtml")
+                        </template>
+                    </main>
+                </div>
+            </div>
+
+            <div class="wa-sidebar-overlay" data-wa-sidebar-overlay aria-hidden="true"></div>
+
+            @await Html.PartialAsync("~/Views/Partials/_PlayerBar.cshtml")
+        </div>
+    </div>
+
+    @* Mobile-only fullscreen overlay. Must be outside .wa-shell (which has overflow:hidden) so it can cover the viewport on iOS/Safari. *@
+    @await Html.PartialAsync("~/Views/Partials/_NowPlayingMobile.cshtml")
+</section>
+
+@section Styles {
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300..800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/apps/indium/dist/indium.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/apps/webamp/css/webamp.extension.css" asp-append-version="true" />
+}
+
+@section Head {
+    <link rel="manifest" href="~/webamp.webmanifest" asp-append-version="true" />
+    <link rel="icon" href="~/apps/webamp/assets/branding/favicon.ico" asp-append-version="true" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="~/apps/webamp/assets/branding/apple-touch-icon.png" asp-append-version="true" />
+    <link rel="apple-touch-icon" sizes="180x180" href="~/apps/webamp/assets/branding/apple-touch-icon-180x180.png" asp-append-version="true" />
+    <link rel="apple-touch-icon" sizes="152x152" href="~/apps/webamp/assets/branding/apple-touch-icon-152x152.png" asp-append-version="true" />
+    <link rel="apple-touch-icon" sizes="144x144" href="~/apps/webamp/assets/branding/apple-touch-icon-144x144.png" asp-append-version="true" />
+    <link rel="apple-touch-icon" sizes="120x120" href="~/apps/webamp/assets/branding/apple-touch-icon-120x120.png" asp-append-version="true" />
+    <link rel="apple-touch-icon" sizes="114x114" href="~/apps/webamp/assets/branding/apple-touch-icon-114x114.png" asp-append-version="true" />
+    <link rel="apple-touch-icon" sizes="76x76" href="~/apps/webamp/assets/branding/apple-touch-icon-76x76.png" asp-append-version="true" />
+    <link rel="apple-touch-icon" sizes="72x72" href="~/apps/webamp/assets/branding/apple-touch-icon-72x72.png" asp-append-version="true" />
+    <link rel="apple-touch-icon" sizes="57x57" href="~/apps/webamp/assets/branding/apple-touch-icon-57x57.png" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="~/apps/webamp/dist/js/webamp.js" type="module" asp-append-version="true"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker
+                    .register('/webamp-sw.js', { scope: '/webamp/' })
+                    .catch((error) => {
+                        console.warn('[WebAmp PWA] service worker registration failed.', error);
+                    });
+            });
+        }
+    </script>
+}

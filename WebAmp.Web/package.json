@@ -1,0 +1,8 @@
+{
+  "name": "webamp-web-client",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "esbuild": "^0.27.3"
+  }
+}

@@ -1,0 +1,71 @@
+is_global = true
+build_property.TargetFramework = net8.0
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = 
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = 
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property.RootNamespace = WebAmp.Web
+build_property.RootNamespace = WebAmp.Web
+build_property.ProjectDir = /Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web/
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.RazorLangVersion = 8.0
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = /Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web
+build_property._RazorSourceGeneratorDebug = 
+
+[/Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web/Views/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web/Views/Partials/_NowPlayingMobile.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUGFydGlhbHMvX05vd1BsYXlpbmdNb2JpbGUuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web/Views/Partials/_PlayerBar.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUGFydGlhbHMvX1BsYXllckJhci5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web/Views/Partials/_Sidebar.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUGFydGlhbHMvX1NpZGViYXIuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web/Views/Partials/_ViewAlbum.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUGFydGlhbHMvX1ZpZXdBbGJ1bS5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web/Views/Partials/_ViewArtist.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUGFydGlhbHMvX1ZpZXdBcnRpc3QuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web/Views/Partials/_ViewHome.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUGFydGlhbHMvX1ZpZXdIb21lLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web/Views/Partials/_ViewLanding.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUGFydGlhbHMvX1ZpZXdMYW5kaW5nLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web/Views/Partials/_ViewLiked.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUGFydGlhbHMvX1ZpZXdMaWtlZC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web/Views/Partials/_ViewPlaylist.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUGFydGlhbHMvX1ZpZXdQbGF5bGlzdC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web/Views/Partials/_ViewSearch.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUGFydGlhbHMvX1ZpZXdTZWFyY2guY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web/Views/_ViewImports.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvX1ZpZXdJbXBvcnRzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/brandonthomas/SynologyDrive/Development/Projects/Web/WebAmp/WebAmp.Web/Views/_ViewStart.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvX1ZpZXdTdGFydC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 

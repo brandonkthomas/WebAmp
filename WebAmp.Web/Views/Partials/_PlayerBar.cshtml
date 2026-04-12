@@ -1,0 +1,43 @@
+<section class="wa-playerbar" data-wa-playerbar role="region" aria-label="Player controls">
+    <div class="wa-playerbar__bg" aria-hidden="true"></div>
+    <div class="wa-playerbar__inner">
+        <div class="wa-playerbar__media">
+            <div class="wa-playerbar__art" aria-hidden="true">
+                <img class="wa-playerbar__art-img" data-wa-player-art alt="" />
+            </div>
+            <div class="wa-playerbar__meta">
+                <div class="wa-playerbar__title" data-wa-player-title>Not Playing</div>
+                <div class="wa-playerbar__artist" data-wa-player-artist>—</div>
+            </div>
+        </div>
+
+        <div class="wa-playerbar__controls" aria-label="Playback controls">
+            <button type="button" class="wa-playerbar__btn wa-playerbar__btn--menu wa-playerbar__btn--icononly" data-wa-player-menu aria-label="More actions">
+                <img class="wa-playerbar__icon" src="~/apps/indium/assets/svg/ellipsis.svg" asp-append-version="true" alt="" aria-hidden="true" />
+            </button>
+            <button type="button" class="wa-playerbar__btn wa-playerbar__btn--prev wa-playerbar__btn--icononly" data-wa-player-prev aria-label="Previous track">
+                <img class="wa-playerbar__icon" src="~/apps/indium/assets/svg/previous-filled.svg" asp-append-version="true" alt="" aria-hidden="true" />
+            </button>
+            <button type="button" class="wa-playerbar__btn wa-playerbar__btn--play wa-playerbar__btn--icononly" data-wa-player-toggle aria-label="Play/Pause">
+                <img class="wa-playerbar__icon" data-wa-player-toggle-icon src="~/apps/indium/assets/svg/play-filled.svg" asp-append-version="true" alt="" aria-hidden="true" />
+            </button>
+            <button type="button" class="wa-playerbar__btn wa-playerbar__btn--next wa-playerbar__btn--icononly" data-wa-player-next aria-label="Next track">
+                <img class="wa-playerbar__icon" src="~/apps/indium/assets/svg/next-filled.svg" asp-append-version="true" alt="" aria-hidden="true" />
+            </button>
+        </div>
+
+        <div class="wa-playerbar__scrub" aria-label="Seek">
+            <span class="wa-playerbar__time" data-wa-player-time-current>0:00</span>
+            <input
+                class="wa-playerbar__range"
+                data-wa-player-scrubber
+                type="range"
+                min="0"
+                max="100"
+                step="0.1"
+                value="0"
+                aria-label="Scrubber" />
+            <span class="wa-playerbar__time" data-wa-player-time-duration>0:00</span>
+        </div>
+    </div>
+</section>

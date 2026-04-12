@@ -1,0 +1,626 @@
+import { matchWebAmpRoute, WEBAMP_ROOT } from './routes';
+import type { RouteMatch, ViewId } from './routes';
+import type { MusicSource } from '../sources/musicSource';
+
+/**
+ * Optional services injected into views
+ */
+export interface WebAmpServices {
+    musicSource?: MusicSource;
+    soundCloudSource?: MusicSource;
+}
+
+/**
+ * Per-view mount context created by the router
+ */
+export interface WebAmpViewContext {
+    viewId: ViewId;
+    entityId?: string;
+    rootEl: HTMLElement;
+    router: WebAmpRouter;
+    services: WebAmpServices;
+    /**
+     * Returns a human-friendly label for a given view id, usually sourced from nav text.
+     */
+    getViewLabel: (viewId: ViewId) => string;
+}
+
+/**
+ * View controller contract used by `WebAmpRouter`
+ */
+export interface WebAmpViewController {
+    id: ViewId;
+    mount(ctx: WebAmpViewContext): void;
+    unmount?(): void;
+}
+
+/**
+ * Router-owned DOM handles + template map
+ */
+export interface WebAmpRouterDom {
+    appRoot: HTMLElement;
+    viewHost: HTMLElement;
+    templates: Record<ViewId, HTMLTemplateElement>;
+}
+
+/**
+ * Router configuration
+ */
+export interface WebAmpRouterOptions {
+    root?: string;
+    dom: WebAmpRouterDom;
+    views: Record<ViewId, WebAmpViewController>;
+    services?: WebAmpServices;
+}
+
+/**
+ * Finds closest HTMLElement that has the given attribute
+ */
+function closestAttrEl(start: Element | null, attr: string): HTMLElement | null {
+    if (!start) return null;
+    const el = start.closest(`[${attr}]`);
+    return el instanceof HTMLElement ? el : null;
+}
+
+/** Path for landing (root) and home – the only pair the guard redirects between. */
+const LANDING_PATH = WEBAMP_ROOT;
+const HOME_PATH = `${WEBAMP_ROOT}/home`;
+
+function isGuardPairPath(path: string): boolean {
+    const p = path.replace(/\/$/, '') || WEBAMP_ROOT;
+    return p === LANDING_PATH || p === HOME_PATH;
+}
+
+/** True when both paths are in the landing/home pair (guard redirect pair). */
+function isGuardRedirectPair(pathA: string, pathB: string): boolean {
+    return isGuardPairPath(pathA) && isGuardPairPath(pathB);
+}
+
+interface WebAmpBreadcrumb {
+    label: string;
+    path?: string;
+}
+
+/**
+ * SPA-style router for WebAmp templates + controllers
+ */
+export class WebAmpRouter {
+    private readonly root: string;
+    private readonly dom: WebAmpRouterDom;
+    private readonly views: Record<ViewId, WebAmpViewController>;
+    private readonly services: WebAmpServices;
+
+    private activeViewId: ViewId | null = null;
+    private activeController: WebAmpViewController | null = null;
+    private lastMatch: RouteMatch | null = null;
+
+    // In-app history tracking so we can enable/disable back/forward buttons.
+    private historyStack: string[] = [];
+    private historyIndex = 0;
+
+    // Optional per-view breadcrumb override set by controllers.
+    private customBreadcrumbs: WebAmpBreadcrumb[] | null = null;
+
+    constructor(opts: WebAmpRouterOptions) {
+        this.root = opts.root ?? WEBAMP_ROOT;
+        this.dom = opts.dom;
+        this.views = opts.views;
+        this.services = opts.services ?? {};
+    }
+
+    /**
+     * Starts initial render, click interception, and popstate handling
+     */
+    start() {
+        // Initial render (no push)
+        this.syncToLocation(/* pushHistory */ false);
+
+        // Intercept in-app navigation (anchors, buttons, and header nav controls)
+        document.addEventListener('click', (e) => {
+            const target = e.target as Element | null;
+
+            const backBtn = closestAttrEl(target, 'data-wa-nav-back');
+            if (backBtn) {
+                e.preventDefault();
+                e.stopPropagation(); // disallow bubbling up to parent elements
+                this.goBack();
+                return;
+            }
+
+            const fwdBtn = closestAttrEl(target, 'data-wa-nav-forward');
+            if (fwdBtn) {
+                e.preventDefault();
+                e.stopPropagation(); // disallow bubbling up to parent elements
+                this.goForward();
+                return;
+            }
+
+            const navEl = closestAttrEl(target, 'data-wa-nav');
+            if (navEl) {
+                const href = navEl.getAttribute('href');
+                if (href && href.startsWith(this.root)) {
+                    e.preventDefault();
+                    this.navigate(href);
+                }
+                return;
+            }
+
+            const navHrefEl = closestAttrEl(target, 'data-wa-nav-href');
+            if (navHrefEl) {
+                const href = navHrefEl.getAttribute('data-wa-nav-href');
+                if (href && href.startsWith(this.root)) {
+                    e.preventDefault();
+                    this.navigate(href);
+                }
+            }
+        });
+
+        // Back/forward: only react to our own history entries. If browser history
+        // points outside the app, re-push to stay in-app.
+        window.addEventListener('popstate', (e) => {
+            const state = (e.state ?? {}) as any;
+            const pathname = window.location.pathname;
+            const isOurState = state?.wa === true && typeof state.waIndex === 'number';
+            const isOurPath = pathname === this.root || pathname.startsWith(this.root + '/');
+
+            if (isOurState && isOurPath) {
+                this.historyIndex = state.waIndex;
+                const path = state.path ?? pathname;
+                if (!this.historyStack.length) {
+                    this.historyStack = [path];
+                } else {
+                    this.historyStack[this.historyIndex] = path;
+                }
+                this.syncToLocation(/* pushHistory */ false);
+                return;
+            }
+
+            // External or unknown state (e.g. iframe navigated, OAuth redirect in history)
+            // Cancel the back by replacing current entry with our in-app state so we stay on the same view
+            if (this.historyStack.length && this.historyIndex >= 0) {
+                const currentPath = this.historyStack[this.historyIndex];
+                const match = this.resolveGuard(matchWebAmpRoute(currentPath));
+                const search = window.location.search || '';
+                const url = `${match.canonicalPath}${search}`;
+                history.replaceState(
+                    { wa: true, path: match.canonicalPath, waIndex: this.historyIndex },
+                    '',
+                    url
+                );
+                this.render(match);
+                this.updateHistoryButtons();
+            }
+        });
+    }
+
+    /**
+     * Goes back one step in internal view history (avoids browser history which may include external URLs like OAuth redirects).
+     */
+    goBack() {
+        if (this.historyIndex <= 0) return;
+        this.historyIndex--;
+        const path = this.historyStack[this.historyIndex];
+        const match = this.resolveGuard(matchWebAmpRoute(path));
+        const search = window.location.search || '';
+        const url = `${match.canonicalPath}${search}`;
+        history.replaceState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', url);
+        this.render(match);
+        this.updateHistoryButtons();
+    }
+
+    /**
+     * Goes forward one step in internal view history.
+     */
+    goForward() {
+        if (this.historyIndex >= this.historyStack.length - 1) return;
+        this.historyIndex++;
+        const path = this.historyStack[this.historyIndex];
+        const match = this.resolveGuard(matchWebAmpRoute(path));
+        const search = window.location.search || '';
+        const url = `${match.canonicalPath}${search}`;
+        history.replaceState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', url);
+        this.render(match);
+        this.updateHistoryButtons();
+    }
+
+    /**
+     * Navigates within the WebAmp app and renders the matched view.
+     * Avoids pushing a new history entry when the only transition is the guard
+     * redirect (landing ↔ home), e.g. after reload when auth state settles.
+     */
+    navigate(path: string) {
+        const match = this.resolveGuard(matchWebAmpRoute(path));
+        const search = window.location.search || '';
+        const url = `${match.canonicalPath}${search}`;
+
+        if (!this.historyStack.length) {
+            this.historyStack = [match.canonicalPath];
+            this.historyIndex = 0;
+            history.replaceState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', url);
+        } else if (
+            this.historyStack.length === 1 &&
+            this.historyIndex === 0 &&
+            isGuardRedirectPair(this.historyStack[0], match.canonicalPath)
+        ) {
+            // Single entry and we're "navigating" within the guard pair (landing ↔ home).
+            // Replace so we don't add a useless entry after reload + auth redirect.
+            this.historyStack[0] = match.canonicalPath;
+            history.replaceState({ wa: true, path: match.canonicalPath, waIndex: 0 }, '', url);
+        } else {
+            // Navigating forward from the middle of the stack should drop any "future" entries.
+            this.historyStack = this.historyStack.slice(0, this.historyIndex + 1);
+            this.historyStack.push(match.canonicalPath);
+            this.historyIndex = this.historyStack.length - 1;
+            history.pushState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', url);
+        }
+        this.render(match);
+        this.updateHistoryButtons();
+    }
+
+    /**
+     * Renders current location, optionally pushing history
+     */
+    private syncToLocation(pushHistory: boolean) {
+        const match = this.resolveGuard(matchWebAmpRoute(window.location.pathname));
+        const search = window.location.search || '';
+        const url = `${match.canonicalPath}${search}`;
+        // Seed or update internal stack from the normalized canonical path.
+        if (!this.historyStack.length) {
+            this.historyStack = [match.canonicalPath];
+            this.historyIndex = 0;
+        } else if (pushHistory) {
+            this.historyStack = this.historyStack.slice(0, this.historyIndex + 1);
+            this.historyStack.push(match.canonicalPath);
+            this.historyIndex = this.historyStack.length - 1;
+        } else {
+            this.historyStack[this.historyIndex] = match.canonicalPath;
+        }
+
+        if (pushHistory) {
+            history.pushState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', url);
+        } else {
+            history.replaceState({ wa: true, path: match.canonicalPath, waIndex: this.historyIndex }, '', url);
+        }
+
+        this.render(match);
+        this.updateHistoryButtons();
+    }
+
+    /**
+     * Mounts a view from its template and calls controller lifecycle hooks
+     */
+    private render(match: RouteMatch) {
+        const controller = this.views[match.view];
+        const template = this.dom.templates[match.view];
+
+        if (!controller || !template) {
+            return;
+        }
+
+        // Reset any per-view overrides and cache current route match.
+        this.customBreadcrumbs = null;
+        this.lastMatch = match;
+
+        // Unmount previous
+        try {
+            this.activeController?.unmount?.();
+        } catch {
+            // no-op
+        }
+
+        // Clear host
+        this.dom.viewHost.replaceChildren();
+
+        // Mount new view from template
+        const mountWrap = document.createElement('div');
+        mountWrap.className = 'wa-view-mount';
+        mountWrap.appendChild(template.content.cloneNode(true));
+        this.dom.viewHost.appendChild(mountWrap);
+        this.animateViewMount(mountWrap);
+
+        const viewRoot =
+            mountWrap.querySelector<HTMLElement>(`[data-wa-view="${match.view}"]`) ?? mountWrap;
+
+        this.activeViewId = match.view;
+        this.activeController = controller;
+
+        this.updateAppChrome(match);
+        this.updateActiveNav(match.view);
+        this.updateTitle(match);
+        this.updateBreadcrumbs(match);
+
+        controller.mount({
+            viewId: match.view,
+            entityId: match.entityId,
+            rootEl: viewRoot,
+            router: this,
+            services: this.services,
+            getViewLabel: (viewId: ViewId) => this.getViewLabel(viewId)
+        });
+
+        // Keep navigation snappy: jump to top of content on route change.
+        this.dom.appRoot.scrollIntoView({ block: 'start' });
+    }
+
+    /**
+     * Applies a scale/blur/opacity "enter" animation to the active view mount
+     * View mount transition tuning
+     */
+    private animateViewMount(el: HTMLElement) {
+        el.classList.add('wa-view-mount--initial');
+
+        requestAnimationFrame(() => {
+            el.classList.remove('wa-view-mount--initial');
+            el.classList.add('wa-view-mount--enter');
+
+            window.setTimeout(() => {
+                el.classList.remove('wa-view-mount--enter');
+            }, 220);
+        });
+    }
+
+    /**
+     * Navigation guard.
+     *
+     * Originally this enforced "landing-only until Spotify is connected".
+     * Now that WebAmp also supports SoundCloud (which does not require per-user
+     * auth), we only auto-redirect *away* from landing when Spotify is
+     * connected, but we do not block access to the rest of the app when
+     * Spotify is disconnected.
+     */
+    private resolveGuard(match: RouteMatch): RouteMatch {
+        const spotifySource = this.services.musicSource;
+        const soundCloudSource = this.services.soundCloudSource;
+        const authed =
+            (spotifySource?.getState().isConnected ?? false) ||
+            (soundCloudSource?.getState().isConnected ?? false);
+
+        // When not authenticated with any music source, only landing is allowed.
+        if (!authed && match.view !== 'landing') {
+            return matchWebAmpRoute(WEBAMP_ROOT);
+        }
+
+        // If authenticated, landing should not be reachable; send users to Home.
+        if (authed && match.view === 'landing') {
+            return matchWebAmpRoute(`${WEBAMP_ROOT}/home`);
+        }
+
+        return match;
+    }
+
+    /**
+     * Updates app-level dataset and global header bits
+     */
+    private updateAppChrome(match: RouteMatch) {
+        const spotifySource = this.services.musicSource;
+        const soundCloudSource = this.services.soundCloudSource;
+        const spotifyConnected = spotifySource?.getState().isConnected ?? false;
+        const scConnected = soundCloudSource?.getState().isConnected ?? false;
+        const authed = spotifyConnected || scConnected;
+
+        this.dom.appRoot.dataset.waView = match.view;
+        this.dom.appRoot.dataset.waAuth = authed ? 'true' : 'false';
+
+        // Track which provider is active at the app level so CSS and labels
+        // (e.g., Albums/Artists visibility, "Liked Songs" vs "Likes") can react.
+        let src = 'none';
+        if (spotifyConnected && !scConnected) src = 'spotify';
+        else if (scConnected && !spotifyConnected) src = 'soundcloud';
+        this.dom.appRoot.dataset.waSource = src;
+
+        // Rename "Liked Songs" to "Likes" when SoundCloud is the sole source.
+        const likedHeadings = Array.from(document.querySelectorAll<HTMLElement>('[data-wa-liked-heading]'));
+        const likedList = document.querySelector<HTMLElement>('[data-wa-liked]');
+        const likedRootHeadings = Array.from(document.querySelectorAll<HTMLElement>('[data-wa-liked-heading-root]'));
+        const setLikedHeadingText = (el: HTMLElement, text: string) => {
+            const labelEl = el.querySelector<HTMLElement>('[data-wa-liked-heading-text]');
+            if (labelEl) {
+                labelEl.textContent = text;
+                return;
+            }
+            el.textContent = text;
+        };
+
+        if (likedHeadings.length || likedRootHeadings.length || likedList) {
+            if (src === 'soundcloud') {
+                likedHeadings.forEach((el) => {
+                    setLikedHeadingText(el, 'Likes');
+                });
+                likedRootHeadings.forEach((el) => {
+                    el.textContent = 'Likes';
+                });
+                if (likedList) likedList.setAttribute('aria-label', 'Likes');
+            } else {
+                likedHeadings.forEach((el) => {
+                    setLikedHeadingText(el, 'Liked Songs');
+                });
+                likedRootHeadings.forEach((el) => {
+                    el.textContent = 'Liked Songs';
+                });
+                if (likedList) likedList.setAttribute('aria-label', 'Liked songs');
+            }
+        }
+
+        const topbarTitle = document.querySelector<HTMLElement>('[data-wa-topbar-title]');
+        if (topbarTitle) {
+            topbarTitle.textContent =
+                match.view === 'landing' ? 'WebAmp' : this.getViewLabel(match.view);
+        }
+
+        // const statusEl = document.querySelector<HTMLElement>('[data-wa-auth-status]');
+        // if (statusEl) {
+        //     statusEl.textContent = authed ? `${musicSource?.displayName ?? 'Music Source'} Connected` : 'Not connected';
+        // }
+    }
+
+    /**
+     * Sets `data-wa-active` on nav items matching the current view id
+     */
+    private updateActiveNav(viewId: ViewId) {
+        const links = Array.from(document.querySelectorAll<HTMLElement>('[data-wa-nav]'));
+        for (const el of links) {
+            const isActive = el.getAttribute('data-wa-nav') === viewId;
+            if (isActive) {
+                el.setAttribute('data-wa-active', 'true');
+            } else {
+                el.removeAttribute('data-wa-active');
+            }
+        }
+    }
+
+    /**
+     * Updates `document.title` based on the current logical location.
+     *
+     * For non-landing views this now prefers the label of the "current"
+     * breadcrumb (i.e., the last crumb in the trail) so that detail pages
+     * use the human-friendly title instead of raw ids.
+     */
+    private updateTitle(match: RouteMatch) {
+        const base = 'WebAmp';
+        const crumbs = this.customBreadcrumbs ?? this.buildBreadcrumbs(match);
+
+        let suffix: string | null = null;
+
+        if (crumbs.length) {
+            // Use the label of the "current" breadcrumb (last in the list)
+            const current = crumbs[crumbs.length - 1];
+            const label = current.label?.trim();
+            suffix = label && label.length > 0 ? label : null;
+        } else if (match.view !== 'landing') {
+            // Fallback for views that don't expose breadcrumbs
+            const label = this.getViewLabel(match.view)?.trim();
+            suffix = label && label.length > 0 ? label : null;
+        } else {
+            // Landing page: keep the title minimal
+            suffix = null;
+        }
+
+        document.title = suffix ? `${base} — ${suffix}` : base;
+    }
+
+    /**
+     * Public hook for views to override the default breadcrumb trail for the active route.
+     */
+    setBreadcrumbs(crumbs: WebAmpBreadcrumb[] | null) {
+        this.customBreadcrumbs = crumbs;
+        if (this.lastMatch) {
+            this.updateBreadcrumbs(this.lastMatch);
+            // Keep the browser title in sync with the active breadcrumb.
+            this.updateTitle(this.lastMatch);
+        }
+    }
+
+    /**
+     * Renders breadcrumb trail above the view title when a breadcrumbs host is present
+     */
+    private updateBreadcrumbs(match: RouteMatch) {
+        const container = document.querySelector<HTMLElement>('[data-wa-breadcrumbs]');
+        if (!container) return;
+
+        const crumbs = this.customBreadcrumbs ?? this.buildBreadcrumbs(match);
+        container.replaceChildren();
+
+        if (!crumbs.length) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = '';
+
+        crumbs.forEach((crumb, index) => {
+            const isLast = index === crumbs.length - 1;
+
+            if (index > 0) {
+                const sep = document.createElement('span');
+                sep.className = 'wa-breadcrumbs__sep';
+                sep.textContent = '›';
+                container.appendChild(sep);
+            }
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = crumb.label;
+            btn.className = 'wa-breadcrumbs__item';
+
+            if (isLast || !crumb.path) {
+                btn.classList.add('wa-breadcrumbs__item--current');
+                btn.disabled = true;
+                btn.setAttribute('aria-current', 'page');
+            } else {
+                btn.classList.add('wa-breadcrumbs__item--link');
+                btn.addEventListener('click', () => {
+                    this.navigate(crumb.path!);
+                });
+            }
+
+            container.appendChild(btn);
+        });
+    }
+
+    /**
+     * Builds logical breadcrumbs from the current route
+     */
+    private buildBreadcrumbs(match: RouteMatch): WebAmpBreadcrumb[] {
+        const crumbs: WebAmpBreadcrumb[] = [];
+
+        // No breadcrumbs on landing page.
+        if (match.view === 'landing') {
+            return crumbs;
+        }
+
+        const label = this.getViewLabel(match.view);
+
+        // Simple default: use the view label as a single root crumb.
+        // Detail pages can override this via `setBreadcrumbs` once they know entity names.
+        crumbs.push({ label, path: match.canonicalPath });
+
+        return crumbs;
+    }
+
+    /**
+     * Enables/disables header back/forward buttons based on internal stack position
+     */
+    private updateHistoryButtons() {
+        const canBack = this.historyIndex > 0;
+        const canForward = this.historyIndex < this.historyStack.length - 1;
+
+        const backBtns = document.querySelectorAll<HTMLButtonElement>('[data-wa-nav-back]');
+        backBtns.forEach((btn) => {
+            btn.disabled = !canBack;
+        });
+
+        const fwdBtns = document.querySelectorAll<HTMLButtonElement>('[data-wa-nav-forward]');
+        fwdBtns.forEach((btn) => {
+            btn.disabled = !canForward;
+        });
+    }
+
+    /**
+     * Derives a human-friendly label for a given view id using existing nav text where possible.
+     * This keeps things flexible for other music services that reuse the router.
+     */
+    private getViewLabel(view: ViewId): string {
+        // Prefer sidebar label text (e.g., Home, Search, Liked Songs, Playlists, Albums, Artists)
+        const sideLabel =
+            document
+                .querySelector<HTMLElement>(`.wa-sidenav__link[data-wa-nav="${view}"] .wa-sidenav__label`)
+                ?.textContent?.trim();
+
+        if (sideLabel) {
+            return sideLabel;
+        }
+
+        // Fallback to top nav text if present (e.g., Landing, Home, Playlists, Albums, Artists)
+        const topLabel =
+            document
+                .querySelector<HTMLElement>(`.wa-topnav__links [data-wa-nav="${view}"]`)
+                ?.textContent?.trim();
+
+        if (topLabel) {
+            return topLabel;
+        }
+
+        // Final defensive fallback: simple title-cased id.
+        return view.charAt(0).toUpperCase() + view.slice(1);
+    }
+}
