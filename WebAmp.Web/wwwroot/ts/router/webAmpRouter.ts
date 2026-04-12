@@ -94,6 +94,9 @@ export class WebAmpRouter {
     private activeController: WebAmpViewController | null = null;
     private lastMatch: RouteMatch | null = null;
 
+    private _onDocClick: ((e: MouseEvent) => void) | null = null;
+    private _onPopState: ((e: PopStateEvent) => void) | null = null;
+
     // In-app history tracking so we can enable/disable back/forward buttons.
     private historyStack: string[] = [];
     private historyIndex = 0;
@@ -116,7 +119,7 @@ export class WebAmpRouter {
         this.syncToLocation(/* pushHistory */ false);
 
         // Intercept in-app navigation (anchors, buttons, and header nav controls)
-        document.addEventListener('click', (e) => {
+        this._onDocClick = (e: MouseEvent) => {
             const target = e.target as Element | null;
 
             const backBtn = closestAttrEl(target, 'data-wa-nav-back');
@@ -153,11 +156,12 @@ export class WebAmpRouter {
                     this.navigate(href);
                 }
             }
-        });
+        };
+        document.addEventListener('click', this._onDocClick);
 
         // Back/forward: only react to our own history entries. If browser history
         // points outside the app, re-push to stay in-app.
-        window.addEventListener('popstate', (e) => {
+        this._onPopState = (e: PopStateEvent) => {
             const state = (e.state ?? {}) as any;
             const pathname = window.location.pathname;
             const isOurState = state?.wa === true && typeof state.waIndex === 'number';
@@ -190,7 +194,22 @@ export class WebAmpRouter {
                 this.render(match);
                 this.updateHistoryButtons();
             }
-        });
+        };
+        window.addEventListener('popstate', this._onPopState);
+    }
+
+    /**
+     * Removes global event listeners. Call if the router instance is ever torn down.
+     */
+    stop() {
+        if (this._onDocClick) {
+            document.removeEventListener('click', this._onDocClick);
+            this._onDocClick = null;
+        }
+        if (this._onPopState) {
+            window.removeEventListener('popstate', this._onPopState);
+            this._onPopState = null;
+        }
     }
 
     /**
