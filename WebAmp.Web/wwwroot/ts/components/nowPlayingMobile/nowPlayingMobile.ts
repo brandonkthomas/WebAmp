@@ -59,6 +59,15 @@ export class NowPlayingMobile {
     private shareBusy = false;
     private libraryBusy = false;
     private scrollLocked = false;
+
+    // Gesture handler references kept for removeEventListener in destroy()
+    private _onPointerDown: ((e: PointerEvent) => void) | null = null;
+    private _onPointerMove: ((e: PointerEvent) => void) | null = null;
+    private _onPointerUp: ((e: PointerEvent) => void) | null = null;
+    private _onGrabClick: ((e: MouseEvent) => void) | null = null;
+    private _onTouchStart: ((e: TouchEvent) => void) | null = null;
+    private _onTouchMove: ((e: TouchEvent) => void) | null = null;
+    private _onTouchEnd: ((e: TouchEvent) => void) | null = null;
     private scrollLockBodyStyle: Partial<CSSStyleDeclaration> | null = null;
     private scrollLockHtmlStyle: Partial<CSSStyleDeclaration> | null = null;
 
@@ -300,18 +309,23 @@ export class NowPlayingMobile {
             endDrag();
         };
 
-        this.grabBtn?.addEventListener('pointerdown', onPointerDown);
-        this.grabBtn?.addEventListener('pointermove', onPointerMove);
-        this.grabBtn?.addEventListener('pointerup', onPointerUp);
-        this.grabBtn?.addEventListener('pointercancel', onPointerUp);
-        // Tap grab handle closes (but a real drag should not be double-handled).
-        this.grabBtn?.addEventListener('click', (e) => {
+        this._onPointerDown = onPointerDown;
+        this._onPointerMove = onPointerMove;
+        this._onPointerUp = onPointerUp;
+        this._onGrabClick = (e: MouseEvent) => {
             if (!this.enabled) return;
             if (!this.open) return;
             e.preventDefault();
             e.stopPropagation();
             if (!this.didDrag) this.close();
-        });
+        };
+
+        this.grabBtn?.addEventListener('pointerdown', this._onPointerDown);
+        this.grabBtn?.addEventListener('pointermove', this._onPointerMove);
+        this.grabBtn?.addEventListener('pointerup', this._onPointerUp);
+        this.grabBtn?.addEventListener('pointercancel', this._onPointerUp);
+        // Tap grab handle closes (but a real drag should not be double-handled).
+        this.grabBtn?.addEventListener('click', this._onGrabClick);
 
         // TouchEvents path (iOS Safari reliability)
         const onTouchStart = (e: TouchEvent) => {
@@ -339,21 +353,25 @@ export class NowPlayingMobile {
             endDrag();
         };
 
-        this.grabBtn?.addEventListener('touchstart', onTouchStart, { passive: false });
-        this.grabBtn?.addEventListener('touchmove', onTouchMove, { passive: false });
-        this.grabBtn?.addEventListener('touchend', onTouchEnd, { passive: false });
-        this.grabBtn?.addEventListener('touchcancel', onTouchEnd, { passive: false });
+        this._onTouchStart = onTouchStart;
+        this._onTouchMove = onTouchMove;
+        this._onTouchEnd = onTouchEnd;
+
+        this.grabBtn?.addEventListener('touchstart', this._onTouchStart, { passive: false });
+        this.grabBtn?.addEventListener('touchmove', this._onTouchMove, { passive: false });
+        this.grabBtn?.addEventListener('touchend', this._onTouchEnd, { passive: false });
+        this.grabBtn?.addEventListener('touchcancel', this._onTouchEnd, { passive: false });
 
         // Allow swipe-down starting anywhere on the sheet (except controls/scrubber).
-        this.sheet?.addEventListener('pointerdown', onPointerDown);
-        this.sheet?.addEventListener('pointermove', onPointerMove);
-        this.sheet?.addEventListener('pointerup', onPointerUp);
-        this.sheet?.addEventListener('pointercancel', onPointerUp);
+        this.sheet?.addEventListener('pointerdown', this._onPointerDown!);
+        this.sheet?.addEventListener('pointermove', this._onPointerMove!);
+        this.sheet?.addEventListener('pointerup', this._onPointerUp!);
+        this.sheet?.addEventListener('pointercancel', this._onPointerUp!);
 
-        this.sheet?.addEventListener('touchstart', onTouchStart, { passive: false });
-        this.sheet?.addEventListener('touchmove', onTouchMove, { passive: false });
-        this.sheet?.addEventListener('touchend', onTouchEnd, { passive: false });
-        this.sheet?.addEventListener('touchcancel', onTouchEnd, { passive: false });
+        this.sheet?.addEventListener('touchstart', this._onTouchStart, { passive: false });
+        this.sheet?.addEventListener('touchmove', this._onTouchMove, { passive: false });
+        this.sheet?.addEventListener('touchend', this._onTouchEnd, { passive: false });
+        this.sheet?.addEventListener('touchcancel', this._onTouchEnd, { passive: false });
 
         // Subscribe to state updates.
         this.unsubscribe = this.store.subscribe((state) => this.render(state));
@@ -447,6 +465,45 @@ export class NowPlayingMobile {
         }
         this.onTopbarShuffleChange = null;
         this.topbarShuffleInput = null;
+
+        if (this._onPointerDown) {
+            this.grabBtn?.removeEventListener('pointerdown', this._onPointerDown);
+            this.sheet?.removeEventListener('pointerdown', this._onPointerDown);
+        }
+        if (this._onPointerMove) {
+            this.grabBtn?.removeEventListener('pointermove', this._onPointerMove);
+            this.sheet?.removeEventListener('pointermove', this._onPointerMove);
+        }
+        if (this._onPointerUp) {
+            this.grabBtn?.removeEventListener('pointerup', this._onPointerUp);
+            this.grabBtn?.removeEventListener('pointercancel', this._onPointerUp);
+            this.sheet?.removeEventListener('pointerup', this._onPointerUp);
+            this.sheet?.removeEventListener('pointercancel', this._onPointerUp);
+        }
+        if (this._onGrabClick) {
+            this.grabBtn?.removeEventListener('click', this._onGrabClick);
+        }
+        if (this._onTouchStart) {
+            this.grabBtn?.removeEventListener('touchstart', this._onTouchStart);
+            this.sheet?.removeEventListener('touchstart', this._onTouchStart);
+        }
+        if (this._onTouchMove) {
+            this.grabBtn?.removeEventListener('touchmove', this._onTouchMove);
+            this.sheet?.removeEventListener('touchmove', this._onTouchMove);
+        }
+        if (this._onTouchEnd) {
+            this.grabBtn?.removeEventListener('touchend', this._onTouchEnd);
+            this.grabBtn?.removeEventListener('touchcancel', this._onTouchEnd);
+            this.sheet?.removeEventListener('touchend', this._onTouchEnd);
+            this.sheet?.removeEventListener('touchcancel', this._onTouchEnd);
+        }
+        this._onPointerDown = null;
+        this._onPointerMove = null;
+        this._onPointerUp = null;
+        this._onGrabClick = null;
+        this._onTouchStart = null;
+        this._onTouchMove = null;
+        this._onTouchEnd = null;
     }
 
     private render(state: PlayerState) {

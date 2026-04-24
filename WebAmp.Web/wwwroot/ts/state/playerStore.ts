@@ -345,7 +345,7 @@ export class PlayerStore {
             const next = !this.state.isPlaying;
             // Any user toggle should cancel "busy" UI immediately.
             this.state = next
-                ? { ...this.state, isPlaying: false, isBusy: true }
+                ? { ...this.state, isPlaying: true, isBusy: true }
                 : { ...this.state, isPlaying: false, isBusy: false };
             this.emit();
             void this.transport.togglePlay(!next /* previous */);

@@ -48,21 +48,33 @@ function loadSdk(): Promise<void> {
 
         const existing = document.querySelector<HTMLScriptElement>('script[data-wa-spotify-sdk]');
         if (existing) {
-            // SDK script is in-flight; wait for ready callback.
+            // SDK script is in-flight; chain onto any existing ready callback and
+            // add a timeout so we don't hang forever if the script fails silently.
             logEvent('WebAmp', 'spotify:sdk:inflight');
-        } else {
-            const script = document.createElement('script');
-            script.src = 'https://sdk.scdn.co/spotify-player.js';
-            script.async = true;
-            script.defer = true;
-            script.setAttribute('data-wa-spotify-sdk', 'true');
-            script.onerror = () => {
-                logEvent('WebAmp', 'spotify:sdk:error', null, 'Failed to load Spotify Web Playback SDK', 'error');
-                reject(new Error('Failed to load Spotify Web Playback SDK'));
+            const prev = window.onSpotifyWebPlaybackSDKReady;
+            const inflightTimeout = window.setTimeout(() => {
+                reject(new Error('Timed out waiting for Spotify Web Playback SDK'));
+            }, 15000);
+            window.onSpotifyWebPlaybackSDKReady = () => {
+                window.clearTimeout(inflightTimeout);
+                logEvent('WebAmp', 'spotify:sdk:ready');
+                if (prev) prev();
+                resolve();
             };
-            document.head.appendChild(script);
-            logEvent('WebAmp', 'spotify:sdk:append', { src: script.src });
+            return;
         }
+
+        const script = document.createElement('script');
+        script.src = 'https://sdk.scdn.co/spotify-player.js';
+        script.async = true;
+        script.defer = true;
+        script.setAttribute('data-wa-spotify-sdk', 'true');
+        script.onerror = () => {
+            logEvent('WebAmp', 'spotify:sdk:error', null, 'Failed to load Spotify Web Playback SDK', 'error');
+            reject(new Error('Failed to load Spotify Web Playback SDK'));
+        };
+        document.head.appendChild(script);
+        logEvent('WebAmp', 'spotify:sdk:append', { src: script.src });
 
         window.onSpotifyWebPlaybackSDKReady = () => {
             logEvent('WebAmp', 'spotify:sdk:ready');
