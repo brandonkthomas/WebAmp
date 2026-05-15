@@ -139,7 +139,7 @@ export const playlistView: WebAmpViewController = {
                                     ? p.tracks[0].artwork_url
                                     : undefined);
                         playlistsList.appendChild(createPlaylistListItem({
-                            playlist: { id: String(id), title, owner, artUrlSmall },
+                            playlist: { id: String(id), source: 'soundcloud', title, owner, artUrlSmall },
                             onClick: () => ctx.router.navigate(routePath(`playlists/${id}`))
                         }));
                     }
@@ -311,7 +311,7 @@ export const playlistView: WebAmpViewController = {
                             cleanupActions.refresh?.();
                             if (queueCommitted) {
                                 queueActive.push(...next);
-                                window.dispatchEvent(new CustomEvent('wa:queue:set', { detail: { tracks: queueActive, wrap: false } }));
+                                window.dispatchEvent(new CustomEvent('wa:queue:append-implicit', { detail: { tracks: next } }));
                             }
                             appendPlaylistTracks(next, allTracks, () => {
                                 queueCommitted = true;
@@ -349,7 +349,7 @@ export const playlistView: WebAmpViewController = {
                             cleanupActions.refresh?.();
                             if (queueCommitted) {
                                 queueActive.push(...next);
-                                window.dispatchEvent(new CustomEvent('wa:queue:set', { detail: { tracks: queueActive, wrap: false } }));
+                                window.dispatchEvent(new CustomEvent('wa:queue:append-implicit', { detail: { tracks: next } }));
                             }
                             appendPlaylistTracks(next, allTracks, () => {
                                 queueCommitted = true;

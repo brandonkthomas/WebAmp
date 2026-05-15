@@ -95,7 +95,7 @@ export const homeView: WebAmpViewController = {
                                     ? p.tracks[0].artwork_url
                                     : undefined);
                         playlistsEl.appendChild(createPlaylistListItem({
-                            playlist: { id: String(id), title, owner, artUrlSmall },
+                            playlist: { id: String(id), source: 'soundcloud', title, owner, artUrlSmall },
                             onClick: () => ctx.router.navigate(routePath(`playlists/${id}`))
                         }));
                     }

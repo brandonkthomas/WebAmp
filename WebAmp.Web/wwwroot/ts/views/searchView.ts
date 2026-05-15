@@ -541,7 +541,7 @@ export const searchView: WebAmpViewController = {
                                             "string"
                                       ? p.tracks[0].artwork_url
                                       : undefined;
-                            return { id, title, owner, artUrlSmall };
+                            return { id, source: "soundcloud" as const, title, owner, artUrlSmall };
                         });
 
                     for (const p of scPlaylists) {

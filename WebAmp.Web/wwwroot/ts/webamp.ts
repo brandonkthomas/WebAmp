@@ -532,6 +532,22 @@ function boot() {
         playerStore.setQueue(queue as any, { wrap: ev.detail?.wrap ?? false });
     });
 
+    // Explicit user queue additions should play before the remaining implicit queue.
+    window.addEventListener('wa:queue:add-next', (e: Event) => {
+        const ev = e as CustomEvent<{ tracks?: any[] }>;
+        const tracks = ev.detail?.tracks;
+        if (!Array.isArray(tracks)) return;
+        playerStore.addNext(tracks as Track[]);
+    });
+
+    // Lazy-loaded pages can extend the indirect queue without disturbing explicit additions.
+    window.addEventListener('wa:queue:append-implicit', (e: Event) => {
+        const ev = e as CustomEvent<{ tracks?: any[] }>;
+        const tracks = ev.detail?.tracks;
+        if (!Array.isArray(tracks)) return;
+        playerStore.appendImplicit(tracks as Track[]);
+    });
+
     // Deep-link helpers from the global player bar
     window.addEventListener('wa:navigate:album', (e: Event) => {
         const ev = e as CustomEvent<{ albumId?: string }>;

@@ -83,7 +83,7 @@ export const likedView: WebAmpViewController = {
 
                 if (queueCommitted) {
                     queueActive.push(...next);
-                    window.dispatchEvent(new CustomEvent('wa:queue:set', { detail: { tracks: queueActive, wrap: false } }));
+                    window.dispatchEvent(new CustomEvent('wa:queue:append-implicit', { detail: { tracks: next } }));
                 }
 
                 appendTracks(next);
@@ -134,7 +134,7 @@ export const likedView: WebAmpViewController = {
 
                 if (queueCommitted) {
                     queueActive.push(...next);
-                    window.dispatchEvent(new CustomEvent('wa:queue:set', { detail: { tracks: queueActive, wrap: false } }));
+                    window.dispatchEvent(new CustomEvent('wa:queue:append-implicit', { detail: { tracks: next } }));
                 }
 
                 appendTracks(next);
@@ -182,4 +182,3 @@ export const likedView: WebAmpViewController = {
         (likedView as any)._cleanup = null;
     }
 };
-

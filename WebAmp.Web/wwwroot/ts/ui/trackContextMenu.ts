@@ -3,6 +3,7 @@ import { indiumSvg } from '../internal/paths';
 import { openPopupMenu } from '../internal/indiumApi';
 import { ensureTrackLibraryState, getTrackLibraryActionTitle, toggleTrackLibrary } from '../library/trackLibrary';
 import { shareCurrentTrack } from '../share/currentTrackShare';
+import { addTracksToQueue } from './entityQueue';
 
 /**
  * Helper for opening a track's context menu
@@ -98,6 +99,14 @@ export function openTrackContextMenu(opts: TrackContextMenuOptions): void {
                         }
                     }] as const
                     : []),
+                {
+                    id: 'add-to-queue',
+                    title: 'Add to Queue',
+                    iconSrc: indiumSvg('playlist-filled.svg'),
+                    onSelect: () => {
+                        addTracksToQueue([track], 'Add to Queue');
+                    }
+                },
                 {
                     id: 'share',
                     title: 'Share',

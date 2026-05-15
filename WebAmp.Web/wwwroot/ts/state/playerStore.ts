@@ -82,6 +82,13 @@ export interface PlayerTransport {
     seek(positionSec: number): Promise<void>;
 }
 
+type QueueEntryKind = 'implicit' | 'explicit';
+
+interface QueueEntry {
+    track: Track;
+    kind: QueueEntryKind;
+}
+
 /**
  * Clamps a number into an inclusive range
  */
@@ -103,6 +110,9 @@ export class PlayerStore {
     private listeners: PlayerListener[] = [];
     private baseQueue: Track[] = [];
     private queue: Track[] = [];
+    private queueEntries: QueueEntry[] = [];
+    private implicitQueue: QueueEntry[] = [];
+    private explicitQueue: QueueEntry[] = [];
     private queueWrap: boolean = false;
     private shuffleEnabled: boolean = false;
     private rafId: number | null = null;
@@ -127,8 +137,10 @@ export class PlayerStore {
     private transportBusy: boolean = false;
 
     constructor(seedQueue: Track[] = []) {
-        this.baseQueue = seedQueue.slice();
-        this.queue = seedQueue.slice();
+        const filteredSeed = seedQueue.filter((t) => t?.isPlayable !== false);
+        this.baseQueue = filteredSeed.slice();
+        this.implicitQueue = filteredSeed.map((track) => ({ track, kind: 'implicit' }));
+        this.refreshEffectiveQueue();
 
         // Keep the global topbar "Play" button in sync with the store's
         // playing state so that clicking any track or using transport controls
@@ -169,19 +181,53 @@ export class PlayerStore {
         logEvent('WebAmp', 'queue:shuffle', { enabled: this.shuffleEnabled, size: this.queue.length });
     }
 
+    private refreshEffectiveQueue() {
+        const currentId = this.state.track?.id ?? null;
+        const currentExplicitIndex = currentId
+            ? this.explicitQueue.findIndex((entry) => entry.track.id === currentId)
+            : -1;
+        const currentImplicitIndex = currentId
+            ? this.implicitQueue.findIndex((entry) => entry.track.id === currentId)
+            : -1;
+        const currentExplicit = currentExplicitIndex >= 0
+            ? this.explicitQueue[currentExplicitIndex]
+            : null;
+        const currentImplicit = currentImplicitIndex >= 0
+            ? this.implicitQueue[currentImplicitIndex]
+            : null;
+        const upcomingExplicit = currentExplicitIndex >= 0
+            ? this.explicitQueue.slice(currentExplicitIndex + 1)
+            : this.explicitQueue.slice();
+        const implicitRest = currentId
+            ? this.implicitQueue.filter((entry) => entry.track.id !== currentId)
+            : this.implicitQueue.slice();
+
+        const entries = currentExplicit
+            ? [currentExplicit, ...upcomingExplicit, ...implicitRest]
+            : currentImplicit
+                ? [currentImplicit, ...upcomingExplicit, ...implicitRest]
+                : [...upcomingExplicit, ...this.implicitQueue];
+
+        this.queueEntries = entries;
+        this.queue = entries.map((entry) => entry.track);
+    }
+
     private applyQueueTransform() {
         const currentId = this.state.track?.id ?? null;
         const base = this.baseQueue.slice();
 
+        let implicitTracks: Track[];
         if (!this.shuffleEnabled) {
-            this.queue = base;
+            implicitTracks = base;
         } else if (currentId) {
             const current = base.find((t) => t.id === currentId) ?? null;
             const rest = base.filter((t) => t.id !== currentId);
-            this.queue = current ? [current, ...shuffleCopy(rest)] : shuffleCopy(base);
+            implicitTracks = current ? [current, ...shuffleCopy(rest)] : shuffleCopy(base);
         } else {
-            this.queue = shuffleCopy(base);
+            implicitTracks = shuffleCopy(base);
         }
+        this.implicitQueue = implicitTracks.map((track) => ({ track, kind: 'implicit' }));
+        this.refreshEffectiveQueue();
 
         // Keep the selected track object aligned to the transformed queue.
         if (currentId) {
@@ -223,11 +269,9 @@ export class PlayerStore {
     setQueue(queue: Track[], opts?: { wrap?: boolean }) {
         const filtered = queue.filter((t) => t?.isPlayable !== false);
         this.baseQueue = filtered.slice();
-        this.queue = filtered.slice();
+        this.explicitQueue = [];
         this.queueWrap = opts?.wrap ?? false;
-        if (this.shuffleEnabled) {
-            this.applyQueueTransform();
-        }
+        this.applyQueueTransform();
         const size = this.queue.length;
         logEvent('WebAmp', 'queue:set', {
             size,
@@ -235,6 +279,73 @@ export class PlayerStore {
             wrap: this.queueWrap,
             firstId: this.queue[0]?.id ?? null,
             source: this.queue[0]?.source ?? null
+        });
+    }
+
+    /**
+     * Adds explicitly queued tracks ahead of the remaining implicit queue.
+     * Existing explicit additions preserve FIFO order.
+     */
+    addNext(tracks: Track[]) {
+        const filtered = tracks.filter((t) => t?.isPlayable !== false);
+        if (!filtered.length) return;
+
+        const entries = filtered.map((track) => ({ track, kind: 'explicit' as const }));
+        const existingExplicitKeys = new Set(this.explicitQueue.map((entry) => entry.track.id));
+        const currentId = this.state.track?.id ?? null;
+        let insertIndex = 0;
+
+        if (currentId) {
+            const currentIndex = this.queueEntries.findIndex((entry) => entry.track.id === currentId);
+            insertIndex = currentIndex >= 0 ? currentIndex + 1 : this.queueEntries.length;
+        }
+
+        while (
+            insertIndex < this.queueEntries.length
+            && this.queueEntries[insertIndex]?.kind === 'explicit'
+            && existingExplicitKeys.has(this.queueEntries[insertIndex].track.id)
+        ) {
+            insertIndex++;
+        }
+
+        this.queueEntries.splice(insertIndex, 0, ...entries);
+        this.explicitQueue.push(...entries);
+        this.queue = this.queueEntries.map((entry) => entry.track);
+
+        if (currentId) {
+            const nextTrack = this.queue.find((t) => t.id === currentId) ?? this.state.track;
+            this.state = { ...this.state, track: nextTrack ?? null };
+            this.emit();
+        }
+
+        logEvent('WebAmp', 'queue:add-next', {
+            added: filtered.length,
+            size: this.queue.length,
+            filteredOut: Math.max(0, tracks.length - filtered.length),
+            firstId: filtered[0]?.id ?? null,
+            source: filtered[0]?.source ?? null
+        });
+    }
+
+    /**
+     * Extends the implicit queue without disturbing explicit user additions.
+     */
+    appendImplicit(tracks: Track[]) {
+        const filtered = tracks.filter((t) => t?.isPlayable !== false);
+        if (!filtered.length) return;
+
+        const entries = filtered.map((track) => ({ track, kind: 'implicit' as const }));
+        this.baseQueue.push(...filtered);
+        this.implicitQueue.push(...entries);
+        this.queueEntries.push(...entries);
+        this.queue = this.queueEntries.map((entry) => entry.track);
+
+        logEvent('WebAmp', 'queue:append-implicit', {
+            added: filtered.length,
+            size: this.queue.length,
+            filteredOut: Math.max(0, tracks.length - filtered.length),
+            firstId: filtered[0]?.id ?? null,
+            source: filtered[0]?.source ?? null
         });
     }
 
@@ -311,6 +422,13 @@ export class PlayerStore {
     selectTrackById(trackId: string, autoplay: boolean = true) {
         const track = this.queue.find((t) => t.id === trackId) ?? null;
         if (!track) return;
+        const selectedQueueIndex = this.queueEntries.findIndex((entry) => entry.track.id === trackId);
+        if (selectedQueueIndex >= 0) {
+            const remainingEntries = this.queueEntries.slice(selectedQueueIndex);
+            this.explicitQueue = remainingEntries.filter((entry) => entry.kind === 'explicit');
+            this.implicitQueue = remainingEntries.filter((entry) => entry.kind === 'implicit');
+            this.baseQueue = this.implicitQueue.map((entry) => entry.track);
+        }
         const optimisticPlaying = this.transport ? false : !!autoplay;
 
         this.state = {
