@@ -266,7 +266,8 @@ function boot() {
 
     playerStore.subscribe((state) => {
         const libraryTrack = state.track;
-        const libraryTrackKey = libraryTrack ? `${libraryTrack.source ?? 'spotify'}:${libraryTrack.id}` : null;
+        const libraryTrackSource = libraryTrack.source;
+        const libraryTrackKey = libraryTrack ? `${libraryTrackSource ?? 'spotify'}:${libraryTrack.id}` : null;
         if (libraryTrackKey !== lastLibraryTrackKey) {
             lastLibraryTrackKey = libraryTrackKey;
             primeTrackLibraryState(libraryTrack);
@@ -298,6 +299,7 @@ function boot() {
             document.body.dataset.waPlaying = state.isPlaying ? 'true' : 'false';
         }
 
+        // Set Media Session metadata (album/artist/track sent to client's native OS media player)
         if (mediaSession) {
             const t = state.track;
             if (!t) {
@@ -306,9 +308,9 @@ function boot() {
                 try { mediaSession.metadata = null; } catch { /* ignore */ }
                 try { mediaSession.playbackState = 'none'; } catch { /* ignore */ }
             } else {
-                const title = t.title?.trim() || 'WebAmp';
-                const artist = t.artist?.trim() || '';
-                const album = t.album?.trim() || '';
+                const title = t.title?.trim() || 'Unknown Title';
+                const artist = t.artist?.trim() || 'Unknown Artist';
+                const album = t.album?.trim() || (libraryTrackSource == 'soundcloud' ? 'SoundCloud via WebAmp' : 'Unknown Album') || 'Unknown Album';
                 const artCandidates = [t.artUrlLarge, t.artUrl, t.artUrlSmall]
                     .filter((u): u is string => !!u && typeof u === 'string');
                 const artwork = Array.from(new Set(artCandidates)).map((src) => ({
