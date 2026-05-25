@@ -266,7 +266,7 @@ function boot() {
 
     playerStore.subscribe((state) => {
         const libraryTrack = state.track;
-        const libraryTrackSource = libraryTrack.source;
+        const libraryTrackSource = libraryTrack?.source;
         const libraryTrackKey = libraryTrack ? `${libraryTrackSource ?? 'spotify'}:${libraryTrack.id}` : null;
         if (libraryTrackKey !== lastLibraryTrackKey) {
             lastLibraryTrackKey = libraryTrackKey;
