@@ -313,9 +313,9 @@ public sealed class SpotifyApiController(SpotifyAuthService auth, SpotifyWebApiC
     /// </summary>
     /// <param name="req">The request body.</param>
     [HttpPost]
-    public async Task<IActionResult> Transfer([FromBody] TransferPlaybackRequest req)
+    public async Task<IActionResult> Transfer([FromBody] TransferPlaybackRequest? req)
     {
-        if (string.IsNullOrWhiteSpace(req.DeviceId)) return BadRequest(new { error = "missing_device_id" });
+        if (req is null || string.IsNullOrWhiteSpace(req.DeviceId)) return BadRequest(new { error = "missing_device_id" });
         var (status, json) = await api.PutJsonAsync(HttpContext, "me/player", new { device_ids = new[] { req.DeviceId }, play = req.Play });
         return ProxyJson(status, json, allowEmptyOk: true);
     }
@@ -342,9 +342,9 @@ public sealed class SpotifyApiController(SpotifyAuthService auth, SpotifyWebApiC
     /// </summary>
     /// <param name="req">The request body.</param>
     [HttpPost]
-    public async Task<IActionResult> Play([FromBody] PlayRequest req)
+    public async Task<IActionResult> Play([FromBody] PlayRequest? req)
     {
-        if (string.IsNullOrWhiteSpace(req.DeviceId)) return BadRequest(new { error = "missing_device_id" });
+        if (req is null || string.IsNullOrWhiteSpace(req.DeviceId)) return BadRequest(new { error = "missing_device_id" });
 
         object payload;
         if (!string.IsNullOrWhiteSpace(req.TrackUri))
@@ -382,9 +382,9 @@ public sealed class SpotifyApiController(SpotifyAuthService auth, SpotifyWebApiC
     /// </summary>
     /// <param name="req">The request body.</param>
     [HttpPost]
-    public async Task<IActionResult> Seek([FromBody] SeekRequest req)
+    public async Task<IActionResult> Seek([FromBody] SeekRequest? req)
     {
-        if (string.IsNullOrWhiteSpace(req.DeviceId)) return BadRequest(new { error = "missing_device_id" });
+        if (req is null || string.IsNullOrWhiteSpace(req.DeviceId)) return BadRequest(new { error = "missing_device_id" });
         var pos = Math.Max(0, req.PositionMs);
         var (status, json) = await api.PutJsonAsync(HttpContext, $"me/player/seek?device_id={Uri.EscapeDataString(req.DeviceId)}&position_ms={pos}", payload: null);
         return ProxyJson(status, json, allowEmptyOk: true);
@@ -406,9 +406,9 @@ public sealed class SpotifyApiController(SpotifyAuthService auth, SpotifyWebApiC
     /// </summary>
     /// <param name="req">The request body.</param>
     [HttpPost]
-    public async Task<IActionResult> Pause([FromBody] DeviceRequest req)
+    public async Task<IActionResult> Pause([FromBody] DeviceRequest? req)
     {
-        if (string.IsNullOrWhiteSpace(req.DeviceId)) return BadRequest(new { error = "missing_device_id" });
+        if (req is null || string.IsNullOrWhiteSpace(req.DeviceId)) return BadRequest(new { error = "missing_device_id" });
         var (status, json) = await api.PutJsonAsync(HttpContext, $"me/player/pause?device_id={Uri.EscapeDataString(req.DeviceId)}", payload: null);
         return ProxyJson(status, json, allowEmptyOk: true);
     }
@@ -419,9 +419,9 @@ public sealed class SpotifyApiController(SpotifyAuthService auth, SpotifyWebApiC
     /// </summary>
     /// <param name="req">The request body.</param>
     [HttpPost]
-    public async Task<IActionResult> Resume([FromBody] DeviceRequest req)
+    public async Task<IActionResult> Resume([FromBody] DeviceRequest? req)
     {
-        if (string.IsNullOrWhiteSpace(req.DeviceId)) return BadRequest(new { error = "missing_device_id" });
+        if (req is null || string.IsNullOrWhiteSpace(req.DeviceId)) return BadRequest(new { error = "missing_device_id" });
         var (status, json) = await api.PutJsonAsync(HttpContext, $"me/player/play?device_id={Uri.EscapeDataString(req.DeviceId)}", payload: null);
         return ProxyJson(status, json, allowEmptyOk: true);
     }
@@ -432,9 +432,9 @@ public sealed class SpotifyApiController(SpotifyAuthService auth, SpotifyWebApiC
     /// </summary>
     /// <param name="req">The request body.</param>
     [HttpPost]
-    public async Task<IActionResult> Next([FromBody] DeviceRequest req)
+    public async Task<IActionResult> Next([FromBody] DeviceRequest? req)
     {
-        if (string.IsNullOrWhiteSpace(req.DeviceId)) return BadRequest(new { error = "missing_device_id" });
+        if (req is null || string.IsNullOrWhiteSpace(req.DeviceId)) return BadRequest(new { error = "missing_device_id" });
         var (status, json) = await api.PostJsonAsync(HttpContext, $"me/player/next?device_id={Uri.EscapeDataString(req.DeviceId)}", payload: null);
         return ProxyJson(status, json, allowEmptyOk: true);
     }
@@ -445,9 +445,9 @@ public sealed class SpotifyApiController(SpotifyAuthService auth, SpotifyWebApiC
     /// </summary>
     /// <param name="req">The request body.</param>
     [HttpPost]
-    public async Task<IActionResult> Previous([FromBody] DeviceRequest req)
+    public async Task<IActionResult> Previous([FromBody] DeviceRequest? req)
     {
-        if (string.IsNullOrWhiteSpace(req.DeviceId)) return BadRequest(new { error = "missing_device_id" });
+        if (req is null || string.IsNullOrWhiteSpace(req.DeviceId)) return BadRequest(new { error = "missing_device_id" });
         var (status, json) = await api.PostJsonAsync(HttpContext, $"me/player/previous?device_id={Uri.EscapeDataString(req.DeviceId)}", payload: null);
         return ProxyJson(status, json, allowEmptyOk: true);
     }

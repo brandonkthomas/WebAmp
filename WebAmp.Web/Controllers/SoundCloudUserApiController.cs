@@ -173,6 +173,10 @@ public sealed class SoundCloudUserApiController(SoundCloudUserAuthService auth, 
         string pathOrUrl;
         if (!string.IsNullOrWhiteSpace(next_href))
         {
+            if (!SoundCloudUserApiClient.IsAllowedApiUrl(next_href))
+            {
+                return BadRequest(new { error = "invalid_next_href" });
+            }
             pathOrUrl = next_href;
         }
         else if (!string.IsNullOrWhiteSpace(id))

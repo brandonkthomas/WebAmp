@@ -147,10 +147,28 @@ public sealed class SoundCloudUserApiClient
     {
         if (Uri.TryCreate(pathOrUrl, UriKind.Absolute, out var absolute))
         {
+            if (!IsAllowedApiUri(absolute))
+            {
+                throw new InvalidOperationException("SoundCloud API URLs must use https://api.soundcloud.com.");
+            }
             return absolute;
         }
 
         var trimmed = pathOrUrl.TrimStart('/');
-        return new Uri(BaseUri, trimmed);
+        var resolved = new Uri(BaseUri, trimmed);
+        if (!IsAllowedApiUri(resolved))
+        {
+            throw new InvalidOperationException("SoundCloud API URLs must use https://api.soundcloud.com.");
+        }
+
+        return resolved;
     }
+
+    public static bool IsAllowedApiUrl(string value)
+        => Uri.TryCreate(value, UriKind.Absolute, out var uri) && IsAllowedApiUri(uri);
+
+    private static bool IsAllowedApiUri(Uri uri)
+        => string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(uri.Host, BaseUri.Host, StringComparison.OrdinalIgnoreCase)
+            && (uri.IsDefaultPort || uri.Port == 443);
 }
